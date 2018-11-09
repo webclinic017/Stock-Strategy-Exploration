@@ -1,0 +1,180 @@
+---
+title: "Analytics Project Template"
+author: "Abram Yorde"
+date: "October 1, 2018"
+output: 
+  html_document:
+    theme: cerulean
+    toc: true
+    toc_depth: 1
+    toc_float: true
+---
+
+```{r setup, include=FALSE}
+## Loading and Installing Packages if necessacary
+source(paste('//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/',
+             '8) Engineering Tools/R Functions/load_or_install.R',sep=''))
+Required_Packages = c('tidyverse','installr')
+load_or_install(Required_Packages)
+
+# ## REFPROP
+# install.packages('//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Packages/Emerson REFPROP/EMRrefprop_0.6.0.tar.gz',
+# repos = NULL,
+# INSTALL_opts = '--no-multiarch')
+
+## Checking for R updates
+updateR(fast = F,
+        browse_news = F,
+        install_R = T,
+        copy_packages = F,
+        copy_Rprofile.site = T,
+        keep_old_packages = F,
+        update_packages = F,
+        start_new_R = F,
+        quit_R = T,
+        print_R_versions = T,
+        GUI = F,
+        to_checkMD5sums = T,
+        keep_install_file = F)
+
+Root_Folder = '//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/'
+
+## Loading Required Functions
+```
+
+# Business Understanding {.tabset}
+
+## Background
+*Information pertinent to the business issue at the point of project initiation.*
+
+## Business Objectives
+*Outline the primary business objectives, along with subsequent questions/objectives which would make sense to explore while pursuing the primary objectives.*
+
+## Business Success Criteria
+*Criteria under which the project would be deemed successful. This should be as specific as possible, but some projects may require a subjective goal initially until sufficient progress and exploration is done.*
+
+## Inventory of Resources
+*List of resources available to aiding the project. Includes personnel, data, computing resources and software.*
+
+## Requirements
+*Depending on the scope of the project this will include the completion schedule, security and legal concerns, quality of results, and interoperability.*
+
+## Assumptions
+*Assumptions made whether it relates to the data or the business factors surrounding the project.* 
+
+## Constraints
+*Any project constraints ranging from resource availability to practicality of data size.*
+
+## Risks and Contingencies
+*List of risks and events that could delay the project along with the plan and actions that take place should these events occur.*
+
+## Business Terminology
+*Unique terms relevant to the business problem. Could include special acronyms or concepts given by domain expertise.*
+
+## Technical Terminology
+*All terms should be accompanied by an illustration of application relevant to the business problem.*
+
+## Costs and Benefits
+*Cost vs. potential benefits to the business. Comparison should be specific and include monetary measures when possible.*
+
+## Data Mining Goals
+*Describe the intended outputs of the project that enable the achievement of the business objectives.*
+
+## Data Mining Success Criteria
+*Technical criteria for the successful completion of the project. Should be in terms of accuracy or some more complex metric, if subjective terms this should be revisited and updated after more progress is made.*
+
+## Initial Assessment of Tools, and Techniques
+*Decision on tools and methods should be made early as changes could greatly affect the project.*
+
+
+# Data Understanding {.tabset}
+
+## Initial Data Collection Report
+*List of datasets acquired, locations, methods used, problems encountered, and resolutions to problems.*
+
+## Data Description Report
+*Gross/surface properties of the datasets (format, quantity, etc.). Also give an initial judgment with justification if datasets satisfy any relevant requirements.*
+
+## Data Exploration Report
+*More in-depth statistical exploration than the data description piece. Could include plots and visualizations exploring interesting subsets of data and different distributions, interactions, and correlations to name a few things.*
+
+## Data Quality Report
+*Should answer questions such as is the data complete, does it contain errors, are there missing values, etc. If quality issues exist list possible solutions*
+
+# Data Preparation {.tabset}
+
+## Rationale for Inclusion / Exclusion
+*List the data to be included/excluded and the reasons for these decisions.*
+
+## Data Cleaning Report
+*Decisions and actions taken to raise data quality should all be documented here.*
+
+## Derived Attributes
+*List of any attributes generated from some combination of existing variables*
+
+## Generated Records
+*Description of any generated data rows with the reasoning behind the creation.*
+
+## Merged Data
+*Execution and justification for various joins and aggregations used to create a central data set.*
+
+## Reformatted Data
+*Execution and justification for different modifications to the data (syntactic or order based changes)*
+
+# Modeling {.tabset}
+
+## Modeling Technique
+*Document the actual modeling technique that is to be used.*
+
+## Modeling Assumptions
+*Record any assumptions that the specific model technique takes, uniform distribution, no missing values, etc.*
+
+## Test Design
+*Describe the plan for defining training, testing, and evaluation of the modeling technique. This is normally centered around defining how to best segment the data.*
+
+## Parameter Settings 
+*List the parameters and their chosen values, along with the rationale for the choice of parameter settings.*
+
+## Models
+*These are the actual models produced by the modeling tool, not a report.*
+
+## Model Description
+*Report on the interpretation of the models and document any difficulties encountered with their meanings.*
+
+## Model Assessment
+*Rank models in terms of the evaluation criteria. Note that this only evaluates models, not the entire scope of the project. Should be in terms similar to accuracy and/or generality.*
+
+## Revised Parameter Settings
+*Discuss methodology for the tuning of the hyper parameters and how the "best" final model was chosen.*
+
+
+# Evaluation {.tabset}
+
+## Assessment of Data Mining Results
+*Summary of results in relation to business objective along with a statement of if the original objectives have been met.*
+
+## Approved Models
+*Formal listing of "final" models to be used to address the business problem at hand.*
+
+## Review of Process
+*Summarize the process review and highlight activities that have been missed and those that should be repeated.*
+
+## List of Possible Actions
+*List the potential further actions, along with the reasons for and against each option.*
+
+## Decision
+*Describe the decision as to how to proceed, along with the rationale.*
+
+
+# Deployment {.tabset}
+
+
+## Deployment Plan
+*Summarize the deployment strategy, including the necessary steps and how to perform them.*
+
+## Monitoring and Maintenance Plan
+*Summarize the monitoring and maintenance strategy, including the necessary steps and how to perform them*
+
+## Experience Documentation
+*Summarize important experience, pitfalls, hints for future projects that may be similar in some way.*
+
