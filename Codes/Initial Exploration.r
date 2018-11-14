@@ -101,42 +101,30 @@ Plot_DF = stockData %>%
   select(-c(Diff, Gain, Loss)) %>%
   na.omit()
 
-## Market Indicators
-MI = ggplot(Plot_DF, aes(Date, OBV)) +
-  geom_line(aes(color = "On Balance Volume")) +
-  geom_point(aes(y = RSI, color = "Relative Stregnth Index")) +
-  geom_hline(
-    yintercept = 0,
-    size = 2,
-    linetype = 3,
-    color = "black"
-  ) +
-  scale_x_date(breaks = pretty_breaks(n = 12)) +
-  labs(color = "Centered / Scaled\nIndicators",
-       title = paste(ticker, "Momentum Indicators")) +
-  theme(legend.position = c(0.05, 0.15),
-        axis.title = element_blank())
 
 
-# Bands and Averages
-BA = ggplot(Plot_DF, aes(Date, Stock.Close)) +
-  geom_line(aes(color = "Adjusted Closing Price")) +
-  geom_line(aes(y = MA50, colour = "50 Day Moving Average"), size = 1) +
-  geom_line(aes(y = MA100, colour = "100 Day Moving Average"), size = 1) +
-  geom_line(aes(y = MA200, colour = "200 Day Moving Average"), size = 1) +
-  geom_line(aes(y = UB, colour = "Bolinger Bands"),
-            linetype = 2,
-            size = 1) +
-  geom_line(aes(y = LB, colour = "Bolinger Bands"),
-            linetype = 2,
-            size = 1) +
-  scale_x_date(breaks = pretty_breaks(n = 12)) +
-  labs(title = paste(ticker, "Stock Trending Performance")) +
-  theme(
-    legend.position = c(0.05, 0.85),
-    legend.title = element_blank(),
-    axis.title = element_blank()
-  )
+DY_MI = Plot_DF %>%
+  select(OBV, RSI)
 
-## Combined Plot
-grid.arrange(MI,BA,nrow = 2)
+Rownames = Plot_DF$Date
+rownames(DY_MI) = Rownames
+DY_MI = as.xts(DY_MI)
+
+dygraph(DY_MI, main = paste(ticker, "Momentum Indicators"), group = "Stock") %>%
+  dyLimit(0, color = "black") %>%
+  dySeries("RSI", drawPoints = T,  strokeWidth = 0, color = "blue", label = "Relative Strength Index") %>%
+  dySeries("OBV", color = "red", label = "On Balance Volume")
+
+
+DY_BA = Plot_DF %>%
+  select(Stock.Close, MA50, MA100, MA200, UB, LB)
+rownames(DY_BA) = Rownames
+DY_BA = as.xts(DY_BA)
+
+dygraph(DY_BA, main = paste(ticker, "Stock Trending Performance"), group = "Stock") %>%
+  dySeries("UB", color = "red", label = "Bolinger Upper", strokeWidth = 2, strokePattern = "dashed") %>%
+  dySeries("LB", color = "red", label = "Bolinger Upper", strokeWidth = 2, strokePattern = "dashed") %>%
+  dySeries("Stock.Close", color = "blue", label = "Adjusted Closing Price") %>%
+  dySeries("MA50", color = "green", label = "50 Day Moving Average") %>%
+  dySeries("MA100", color = "purple", label = "100 Day Moving Average") %>%
+  dySeries("MA200", color = "brown", label = "200 Day Moving Average")
