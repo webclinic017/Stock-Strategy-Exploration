@@ -20,7 +20,7 @@ load_or_install <- function(package_names)
   }
 }
 ##########################################################################
-Required_Packages = c("tidyverse", "zoo", "scales", "quantmod", "lubridate","gridExtra")
+Required_Packages = c("tidyverse", "zoo", "scales", "quantmod", "lubridate","gridExtra", "dygraphs")
 load_or_install(Required_Packages)
 
 
