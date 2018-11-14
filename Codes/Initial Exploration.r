@@ -128,3 +128,4 @@ dygraph(DY_BA, main = paste(ticker, "Stock Trending Performance"), group = "Stoc
   dySeries("MA50", color = "green", label = "50 Day Moving Average") %>%
   dySeries("MA100", color = "purple", label = "100 Day Moving Average") %>%
   dySeries("MA200", color = "brown", label = "200 Day Moving Average")
+#test 
