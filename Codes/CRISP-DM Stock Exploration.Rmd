@@ -32,7 +32,7 @@ load_or_install <- function(package_names)
   }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr')
+Required_Packages = c('tidyverse','installr','psych','quantmod')
 load_or_install(Required_Packages)
 
 # ## REFPROP
@@ -154,6 +154,16 @@ save(Combined_Results,
 
 ## Data Description Report
 *Gross/surface properties of the datasets (format, quantity, etc.). Also give an initial judgment with justification if datasets satisfy any relevant requirements.*
+
+```{r}
+load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+
+glimpse(Combined_Results)
+
+describe(Combined_Results[,1:6])
+
+```
+
 
 ## Data Exploration Report
 *More in-depth statistical exploration than the data description piece. Could include plots and visualizations exploring interesting subsets of data and different distributions, interactions, and correlations to name a few things.*
