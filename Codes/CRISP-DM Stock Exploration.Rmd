@@ -12,10 +12,27 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-## Loading and Installing Packages if necessacary
-source(paste('//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/',
-             '8) Engineering Tools/R Functions/load_or_install.R',sep=''))
-Required_Packages = c('tidyverse','installr')
+######################## Functions ########################
+is_installed = function(mypkg)
+  is.element(mypkg, installed.packages()[, 1])
+load_or_install <- function(package_names)
+{
+  for (package_name in package_names)
+  {
+    if (!is_installed(package_name))
+    {
+      install.packages(package_name, dependencies = TRUE)
+    }
+    library(
+      package_name,
+      character.only = TRUE,
+      quietly = TRUE,
+      verbose = FALSE
+    )
+  }
+}
+##########################################################################
+Required_Packages = c('tidyverse','installr','psych','quantmod')
 load_or_install(Required_Packages)
 
 # ## REFPROP
@@ -38,7 +55,7 @@ updateR(fast = F,
         to_checkMD5sums = T,
         keep_install_file = F)
 
-Root_Folder = '//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/'
+Root_Folder = getwd()
 
 ## Loading Required Functions
 ```
@@ -93,8 +110,60 @@ Root_Folder = '//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) An
 ## Initial Data Collection Report
 *List of datasets acquired, locations, methods used, problems encountered, and resolutions to problems.*
 
+```{r}
+NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
+# AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
+# NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
+
+Total_Stocks = bind_rows(NASDAQ_Stocks)
+Dump = list()
+
+p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
+for(i in 1:nrow(Total_Stocks)){
+  p$pause(0.1)$tick()$print()
+  ticker = as.character(Total_Stocks$Symbol[i])
+  
+
+  stockData = try(getSymbols(
+    ticker,
+    src = "yahoo",
+    auto.assign = FALSE) %>% 
+      as.data.frame() %>%
+      mutate(Date = ymd(rownames(.)))) 
+  if("try-error" %in% class(stockData)){
+    Dump[[i]] = stockData
+  }else{
+    colnames(stockData) = c("Open","High","Low","Close","Volume","Adjusted","Date")
+    stockData$Stock = ticker
+    Dump[[i]] = stockData
+  }
+}
+list.condition <- sapply(Dump, function(x) class(x) == "data.frame")
+output.list  <- Dump[list.condition]
+Combined_Results = plyr::ldply(output.list,data.frame)
+
+# NA_Sum = function(x){Count = sum(is.na(x))}
+# Check = Combined_Results %>%
+#   group_by(Stock) %>%
+#   summarise_all(NA_Sum)
+
+save(Combined_Results,
+     file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+
+```
+
 ## Data Description Report
 *Gross/surface properties of the datasets (format, quantity, etc.). Also give an initial judgment with justification if datasets satisfy any relevant requirements.*
+
+```{r}
+load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+
+glimpse(Combined_Results)
+
+describe(Combined_Results[,1:6])
+
+```
+
 
 ## Data Exploration Report
 *More in-depth statistical exploration than the data description piece. Could include plots and visualizations exploring interesting subsets of data and different distributions, interactions, and correlations to name a few things.*
