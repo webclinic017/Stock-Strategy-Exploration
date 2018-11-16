@@ -3,44 +3,45 @@ BS_Indicator_Function = function(DF,Column = NULL){
     # DF = Combined_Results %>%
     #   group_by(Stock) %>%
     #   filter(Stock == "AMZN")
-    # load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+    # # load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
     # Column = "Adjusted"
   ##############################################################
   require(tidyverse)
   require(quantmod)
 
-  
-  Target_Functions = function(DF){
+    ## Defining Buy Sell Indicators (Local Mins/Maxs)
     DF = DF %>%
       mutate(Buy = NA,
              Sell = NA)
-    Peaks = findPeaks(DF$Adjusted)
-    Valleys = findValleys(DF$Adjusted)
+    Peaks = findPeaks(DF[,Column])-1
+    Valleys = findValleys(DF[,Column])-1
     DF[Peaks,"Sell"] = 1
     DF[Peaks,"Buy"] = 0
     DF[Valleys,"Buy"] = 1
     DF[Valleys,"Sell"] = 0
     DF = na.locf(DF)
     
-    DF$PR = NA
-    for(i in 1:(nrow(DF) - 1)){
-      TMP = DF[i+1:nrow(DF),]
-      Signal = DF$Buy[i]
-      Start_Price = as.numeric(DF[i,Column])
-      Stop = ifelse(Signal == 0,which.max(TMP$Buy == 1),which.max(TMP$Buy == 0))
-      End_Price = as.numeric(TMP[Stop,Column])
-      DF[i,"PR"] = (End_Price - Start_Price)/(Stop*Start_Price) 
-    }
-    DF = na.omit(DF)
-    return(DF)
-  }
-  
-  
-  DF = DF %>%
-    group_by(Stock) %>%
-    nest() %>%
-    mutate(Target = map(data,Target_Functions))
-  
-  return(DF)
+    ## Calculating Price Ratio (Percentage Return / Number of Days Invested)
+    DF2 = DF %>%
+      mutate(Indicator = sequence(rle(Buy)$lengths),
+             Max = ifelse(lead(Indicator) == 1,Indicator + 1,NA)) %>%
+      na.locf(fromLast = T) %>%
+      mutate(Days = Max - Indicator,
+             End_Price_Buy = ifelse(Sell == 1 & Indicator == 1,
+                                    Adjusted,NA),
+             End_Price_Sell = ifelse(Buy == 1 & Indicator == 1,
+                                     Adjusted,NA)) %>%
+      na.locf(fromLast = T) %>%
+      mutate(PR = ifelse(Buy == 1,
+                         (End_Price_Buy-Adjusted)/(Days*Adjusted),
+                         (End_Price_Sell-Adjusted)/(Days*Adjusted))) %>%
+      select(-c(Indicator,Max,End_Price_Buy,End_Price_Sell,Sell))
+      
+      # ggplot(DF2[1:100,],aes(Date,Adjusted,color = factor(Buy))) +
+      #   geom_point()
+  return(DF2)
 }
 
+
+
+  
