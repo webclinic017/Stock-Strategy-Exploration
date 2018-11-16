@@ -35,7 +35,7 @@ BS_Indicator_Function = function(DF,Column = NULL){
       mutate(PR = ifelse(Buy == 1,
                          (End_Price_Buy-Adjusted)/(Days*Adjusted),
                          (End_Price_Sell-Adjusted)/(Days*Adjusted))) %>%
-      select(-c(Indicator,Max,End_Price_Buy,End_Price_Sell,Sell))
+      select(-c(Indicator,End_Price_Buy,End_Price_Sell,Sell))
       
       # ggplot(DF2[1:100,],aes(Date,Adjusted,color = factor(Buy))) +
       #   geom_point()
