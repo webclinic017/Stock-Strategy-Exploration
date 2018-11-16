@@ -7,7 +7,7 @@ PR_Cost_Function = function(Parameter = NULL,DF){
   # 
   # PR should be maximized, the way it is summarised currently (sum) may not be the best method
   #
-  # 
+  # My understanding is that R optimizers work on the first input to a function, DF will need assigned
   
   ###############
   
@@ -17,10 +17,10 @@ PR_Cost_Function = function(Parameter = NULL,DF){
   #   group_by(Stock) %>%
   #   filter(Stock == "AMZN")
   # Column = "Adjusted"
-  Parameter = 0.5
+  # Parameter = 0.5
   ##############################################################
   
-  # 
+  # Appending the smoothed spline fit
   Smooth = smooth.spline(DF$Date, DF$Adjusted,spar=Parameter)
   DF$Adj_Smooth = as.numeric(Smooth[["y"]])
   DF = as.data.frame(DF)

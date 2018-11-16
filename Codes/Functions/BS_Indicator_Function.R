@@ -20,6 +20,14 @@ BS_Indicator_Function = function(DF,Column = NULL){
     DF[Valleys,"Buy"] = 1
     DF[Valleys,"Sell"] = 0
     DF = na.locf(DF)
+    ## Solving Issue When No Valleys or Peaks
+    if(is_empty(Peaks) | is_empty(Valleys)){
+      DF2 = DF %>%
+        mutate(Buy = 1,
+               Max = 6,
+               PR = 0)
+      return(DF2)
+    }
     
     ## Calculating Price Ratio (Percentage Return / Number of Days Invested)
     DF2 = DF %>%
