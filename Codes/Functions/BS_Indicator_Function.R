@@ -20,6 +20,7 @@ BS_Indicator_Function = function(DF,Column = NULL){
     DF[Valleys,"Buy"] = 1
     DF[Valleys,"Sell"] = 0
     DF = na.locf(DF)
+    
     ## Solving Issue When No Valleys or Peaks
     if(is_empty(Peaks) | is_empty(Valleys)){
       DF2 = DF %>%
