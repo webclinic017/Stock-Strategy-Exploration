@@ -1,4 +1,4 @@
-PR_Cost_Function = function(Parameter = NULL,DF){
+PR_Cost_Function = function(Parameter){
   require(tidyverse)
   require(quantmod)
   
@@ -12,12 +12,12 @@ PR_Cost_Function = function(Parameter = NULL,DF){
   ###############
   
   ########################## Sample Data #######################
-  # load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+  # load(file = "C:/Users/plfullen/Desktop/NASDAQ Historical.RDATA")
   # DF = Combined_Results %>%
   #   group_by(Stock) %>%
   #   filter(Stock == "AMZN")
   # Column = "Adjusted"
-  # Parameter = 0.5
+  # Parameter = 0.1
   ##############################################################
   
   # Appending the smoothed spline fit
@@ -35,3 +35,5 @@ PR_Cost_Function = function(Parameter = NULL,DF){
 
   return(PR)
 }
+  
+  
