@@ -27,10 +27,16 @@ PR_Cost_Function = function(Parameter){
   
   DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
   
+  ggplot(DF2,aes(Date,Adj_Smooth,color = factor(Buy))) + 
+    geom_point()
+  
   DF2 = DF2 %>%
     filter(Buy == 1,
-           Max >= 5)
+           Max >= 5,
+           Days == Max-1)
 
+  median(DF2$PR) + 5*mad(DF2$PR)
+  
   PR = sum(DF2$PR)
 
   return(PR)

@@ -8,7 +8,7 @@ Spline_Par_Optim = function(DF){
 # 
 # DF <<- Combined_Results %>%
 #   group_by(Stock) %>%
-#   filter(Stock == "NFLX")
+#   filter(Stock == "ALT")
 ##############################################################
   
 ## Running the optimization
