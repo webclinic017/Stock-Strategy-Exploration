@@ -31,6 +31,13 @@ load_or_install <- function(package_names)
     )
   }
 }
+sourceDir <- function(path, trace = TRUE, ...) {
+    for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
+       if(trace) cat(nm,":")           
+       source(file.path(path, nm), ...)
+       if(trace) cat("\n")
+    }
+}
 ##########################################################################
 Required_Packages = c('tidyverse','installr','psych','quantmod')
 load_or_install(Required_Packages)
@@ -58,6 +65,7 @@ updateR(fast = F,
 Root_Folder = getwd()
 
 ## Loading Required Functions
+sourceDir(paste0(getwd(),'/Codes/Functions/'))
 ```
 
 # Business Understanding {.tabset}
