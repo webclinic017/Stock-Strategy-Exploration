@@ -49,4 +49,7 @@ for(i in 1:length(Tickers)){
 }
 Output = plyr::ldply(Total_Results,data.frame)
 write.csv(Output,
-          file = "C://Users//aayorde//desktop//Opt_PR_Results.csv")
+          file = paste0(getwd(),
+                       "//Data//Opt_PR_Results.csv"))
+
+          
