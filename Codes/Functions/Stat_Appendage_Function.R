@@ -5,6 +5,15 @@ Stat_Appendage_Function = function(DF){
   #   group_by(Stock) %>%
   #   filter(Stock == "AMZN")
 ##############################################################
+  ## Loading Project Functions
+  sourceDir <- function(path, trace = TRUE, ...) {
+    for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
+      if(trace) cat(nm,":")           
+      source(file.path(path, nm), ...)
+      if(trace) cat("\n")
+    }
+  }
+  sourceDir(paste0(getwd(),'/Codes/Functions/'))
 require(tidyverse)
 require(lubridate)
 require(quantmod)
@@ -195,7 +204,9 @@ require(TTR)
                          Target = "Close",
                          Col_Names = "WPR")
   #################### End TTR Window Optimizations ##################
-  
+  v1 <- ls(pattern='_DF$')
+  Window_TTR<-(do.call(bind_cols,mget(v1)))
+  rm(list = v1)
   #################### TTR Non-Window Functions ######################
   ## Chaikin AD
   # Measure of Money Flow
@@ -236,9 +247,11 @@ require(TTR)
   WAD_DF = as.data.frame(williamsAD(DF_Orig))
   colnames(WAD_DF) = "WAD"
   ######################## End TTR Functions #################
-  
+  v1 <- ls(pattern='_DF$')
+  Fixed_TTR<-(do.call(bind_cols,mget(v1)))
+  rm(list = v1)
   ################ Additional Technical Indicators ###########
-  DF_Add = DF_Stats %>%
+  Standard_TI = DF %>%
   mutate(EMA50 = ema(Adjusted,50),
          EMA100 = ema(Adjusted,100),
          EMA200 = ema(Adjusted,200),
@@ -268,8 +281,15 @@ require(TTR)
          Loss = ifelse(Diff < 0, -Diff, NA),
          AVG_Gain_14 = rollapply(Gain,14,mean,na.rm = T, fill = NA, align = "right"),
          AVG_Loss_14 = rollapply(Loss,14,mean,na.rm = T,fill = NA,align = "right")) %>%
-    select(-c(Diff, Gain, Loss)) %>%
-    na.omit()
+    select(-c(Diff, Gain, Loss))
   
-  return(DF_Add)
+  Combined_Indicators = bind_cols(Standard_TI,
+                           Window_TTR,
+                           Fixed_TTR)
+  
+  Final_Result = Combined_Indicators %>%
+    BS_Indicator_Function("Adjusted")
+  
+  return(Final_Result)
 }  
+
