@@ -13,6 +13,7 @@ BS_Indicator_Function = function(DF,Column = NULL){
     DF = DF %>%
       mutate(Buy = NA,
              Sell = NA)
+    DF = as.data.frame(DF)
     Peaks = findPeaks(DF[,Column])-1
     Valleys = findValleys(DF[,Column])-1
     DF[Peaks,"Sell"] = 1
@@ -26,7 +27,8 @@ BS_Indicator_Function = function(DF,Column = NULL){
       DF2 = DF %>%
         mutate(Buy = 1,
                Max = 6,
-               PR = 0)
+               PR = NA) %>%
+        select(-Sell)
       return(DF2)
     }
     

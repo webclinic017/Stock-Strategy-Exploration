@@ -12,14 +12,14 @@ Spline_Par_Optim = function(DF){
 ##############################################################
   
 ## Running the optimization
-OptSplineParameter = optimize(PR_Cost_Function, c(0,1), maximum = TRUE,tol = 0.0001)
+OptSplineParameter = optimize(PR_Cost_Function, c(0,1), DF,maximum = TRUE,tol = 0.0001)
 
 ## Appending Smoothed Spline
 Smooth = smooth.spline(DF$Date, DF$Adjusted,spar=OptSplineParameter$maximum)
 DF$Adj_Smooth = as.numeric(Smooth[["y"]])
 DF = as.data.frame(DF)
 
-DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
+Adj_Smooth = DF$Adj_Smooth
 
-return(DF2)
+return(Adj_Smooth)
 }

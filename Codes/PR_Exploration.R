@@ -25,6 +25,7 @@ for(i in 1:length(Tickers)){
   
   OptSplineParameter = try(optimize(PR_Cost_Function, 
                                     c(0,1), 
+                                    DF,
                                     maximum = TRUE,
                                     tol = 0.0001),
                            silent = T)
@@ -37,6 +38,7 @@ for(i in 1:length(Tickers)){
                      stringsAsFactors = F)
   }else{
     Risk_Reward = PR_Cost_Function(OptSplineParameter$maximum,
+                                   DF,
                                    Optimize = F)
     TMP = data.frame(Stock = Stock_Loop,
                      Opt = OptSplineParameter$objective,

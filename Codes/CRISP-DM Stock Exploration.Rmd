@@ -1,3 +1,8 @@
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 # By Paul Fullenkamp & Abram Yorde
 ---
 title: "Analytics Project Template"
@@ -65,7 +70,7 @@ updateR(fast = F,
 Root_Folder = getwd()
 
 ## Loading Required Functions
-sourceDir(paste0(getwd(),'/Codes/Functions/'))
+sourceDir(paste0(getwd(),'/Functions/'))
 ```
 
 # Business Understanding {.tabset}
@@ -189,6 +194,53 @@ describe(Combined_Results[,1:6])
 
 ## Derived Attributes
 *List of any attributes generated from some combination of existing variables*
+```{r}
+require(foreach)
+require(doParallel)
+## Initializing Cluster
+c1 = makeCluster(detectCores())
+registerDoParallel(c1)
+
+Combined_Results = Combined_Results %>%
+  group_by(Stock) %>%
+  filter(n() >= 500) %>%
+  ungroup()
+Stocks = unique(Combined_Results$Stock)
+Dump = foreach(i = 1:length(Stocks),
+               .inorder = F,
+               .packages = c("tidyverse",
+                             "zoo",
+                             "TTR")) %dopar% {
+                               TMP = Combined_Results %>%
+                                 filter(Stock == Stocks[i]) %>%
+                                 na.locf() %>%
+                                 BS_Indicator_Function("Adjusted")
+                               
+                               if(nrow(TMP) < 500){
+                                 TMP
+                               }else{
+                                 TMP$Adj_Auto_Smooth = Spline_Par_Optim(TMP)
+                                 TMP = BS_Indicator_Function(TMP,Column = "Adj_Auto_Smooth")
+                                 TMP = na.locf(TMP)
+                                 TMP = Stat_Appendage_Function(TMP)
+                                 
+                                 # ggplot(TMP[1:365,],aes(Date,Adjusted)) +
+                                 #   geom_line(aes(color = "Actual")) +
+                                 #   geom_point(aes(y = Adj_Auto_Smooth,color = "Smoothed"))
+                                 TMP$Adj_Auto_Smooth = NULL
+                                 TMP
+                               }
+                             }
+# Removing Clusters
+registerDoSEQ()
+Train = plyr::ldply(Dump,data.frame)
+rm(Dump)
+
+Train_Red = na.omit(Train)
+save(Train_Red,
+     file = "C://Users//aayorde//Desktop//Stock_Train.Rdata")
+```
+
 
 ## Generated Records
 *Description of any generated data rows with the reasoning behind the creation.*

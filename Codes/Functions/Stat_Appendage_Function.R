@@ -99,7 +99,7 @@ require(TTR)
   # Created to generate Buy/Sell signals for the turtle system
   DC_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
                         DF_Store = DF,
-                        Range = c(2,500),
+                        Range = c(200,600),
                         TTR_Name = "DonchianChannel",
                         Target = "mid",
                         Col_Names = c("Donchian_High",
@@ -121,15 +121,15 @@ require(TTR)
                          TTR_Name = "DVI",
                          Target = "dvi",
                          Col_Names = c("DVI_MAG","DVI_STR","DVI"))
-  ## EMV Optimization
-  # Arms' Ease of Movement minimizes days where the security moves easily
-  EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
-                         DF_Store = DF,
-                         Range = c(2,100),
-                         TTR_Name = "EMV",
-                         Target = "maEMV",
-                         Col_Names =  c("EMV","MA_EMV"),
-                         Volume = DF_Orig$Volume)
+  # ## EMV Optimization
+  # # Arms' Ease of Movement minimizes days where the security moves easily
+  # EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
+  #                        DF_Store = DF,
+  #                        Range = c(2,100),
+  #                        TTR_Name = "EMV",
+  #                        Target = "maEMV",
+  #                        Col_Names =  c("EMV","MA_EMV"),
+  #                        Volume = DF_Orig$Volume)
   ## MFI Optimization
   # Money Flow Index is a ratio of positive and negative money flow over time
   MFI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
@@ -187,19 +187,19 @@ require(TTR)
                          TTR_Name = "VHF",
                          Target = "V1",
                          Col_Names = "VHF")
-  ## Volatility Optimization
-  # Money Flow Index is a ratio of positive and negative money flow over time
-  VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
-                          DF_Store = DF,
-                          Range = c(3,100),
-                          TTR_Name = "volatility",
-                          Target = "V1",
-                          Col_Names = "Volatility")
+  # ## Volatility Optimization
+  # # Money Flow Index is a ratio of positive and negative money flow over time
+  # VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
+  #                         DF_Store = DF,
+  #                         Range = c(3,100),
+  #                         TTR_Name = "volatility",
+  #                         Target = "V1",
+  #                         Col_Names = "Volatility")
   ## WPR Optimization
   # William's %R
   WPR_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
                          DF_Store = DF,
-                         Range = c(2,500),
+                         Range = c(200,600),
                          TTR_Name = "WPR",
                          Target = "Close",
                          Col_Names = "WPR")
@@ -287,8 +287,7 @@ require(TTR)
                            Window_TTR,
                            Fixed_TTR)
   
-  Final_Result = Combined_Indicators %>%
-    BS_Indicator_Function("Adjusted")
+  Final_Result = Combined_Indicators
   
   return(Final_Result)
 }  
