@@ -13,6 +13,11 @@ load(file = "C:/Users/aayorde/Desktop/NASDAQ Historical.RDATA")
 require(tidyverse)
 require(optimization)
 
+Combined_Results = Combined_Results %>%
+  group_by(Stock) %>%
+  filter(n() > 500) %>%
+  ungroup()
+
 ## Looping All Stocks Through Spline Optimization
 Tickers = as.character(unique(Combined_Results$Stock))
 Total_Results = list()

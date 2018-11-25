@@ -119,8 +119,8 @@ require(TTR)
                          TTR_Name = "DVI",
                          Target = "dvi",
                          Col_Names = c("DVI_MAG","DVI_STR","DVI"))
-  # ## EMV Optimization
-  # # Arms' Ease of Movement minimizes days where the security moves easily
+  ## EMV Optimization
+  # Arms' Ease of Movement minimizes days where the security moves easily
   # EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
   #                        DF_Store = DF,
   #                        Range = c(2,100),
@@ -185,14 +185,14 @@ require(TTR)
                          TTR_Name = "VHF",
                          Target = "V1",
                          Col_Names = "VHF")
-  # ## Volatility Optimization
-  # # Money Flow Index is a ratio of positive and negative money flow over time
-  # VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
-  #                         DF_Store = DF,
-  #                         Range = c(3,100),
-  #                         TTR_Name = "volatility",
-  #                         Target = "V1",
-  #                         Col_Names = "Volatility")
+  ## Volatility Optimization
+  # Money Flow Index is a ratio of positive and negative money flow over time
+  VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
+                          DF_Store = DF,
+                          Range = c(3,100),
+                          TTR_Name = "volatility",
+                          Target = "V1",
+                          Col_Names = "Volatility")
   ## WPR Optimization
   # William's %R
   WPR_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),

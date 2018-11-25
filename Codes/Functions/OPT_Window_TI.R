@@ -25,6 +25,7 @@ OPT_Window_TI = function(DF_Eval,
     TMP = bind_cols(DF_Store,Result) %>%
       BS_Indicator_Function(Column = "Adjusted") %>%
       na.omit()
+    TMP = TMP[is.finite(TMP[,Target]),]
     
     Mod = lm(paste0("Buy~",Target),
              data = TMP)
