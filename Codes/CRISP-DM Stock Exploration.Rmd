@@ -70,7 +70,7 @@ updateR(fast = F,
 Root_Folder = getwd()
 
 ## Loading Required Functions
-sourceDir(paste0(getwd(),'/Functions/'))
+sourceDir(paste0(getwd(),'/Codes/Functions/'))
 ```
 
 # Business Understanding {.tabset}
@@ -222,13 +222,17 @@ Dump = foreach(i = 1:length(Stocks),
                                  TMP$Adj_Auto_Smooth = Spline_Par_Optim(TMP)
                                  TMP = BS_Indicator_Function(TMP,Column = "Adj_Auto_Smooth")
                                  TMP = na.locf(TMP)
-                                 TMP = Stat_Appendage_Function(TMP)
+                                 TMP = try(Stat_Appendage_Function(TMP))
                                  
                                  # ggplot(TMP[1:365,],aes(Date,Adjusted)) +
                                  #   geom_line(aes(color = "Actual")) +
                                  #   geom_point(aes(y = Adj_Auto_Smooth,color = "Smoothed"))
-                                 TMP$Adj_Auto_Smooth = NULL
-                                 TMP
+                                 if("try-error" %in% class(TMP)){
+                                   TMP
+                                 }else{
+                                   TMP$Adj_Auto_Smooth = NULL
+                                   TMP
+                                 }
                                }
                              }
 # Removing Clusters

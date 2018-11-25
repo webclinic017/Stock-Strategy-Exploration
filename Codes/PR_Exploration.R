@@ -16,6 +16,7 @@ require(optimization)
 ## Looping All Stocks Through Spline Optimization
 Tickers = as.character(unique(Combined_Results$Stock))
 Total_Results = list()
+Window_Results = list()
 p = progress_estimated(n = length(Tickers),min_time = 3)
 for(i in 1:length(Tickers)){
   p$pause(0.1)$tick()$print()
@@ -48,10 +49,23 @@ for(i in 1:length(Tickers)){
                      stringsAsFactors = F)
   }
   Total_Results[[i]] = TMP
+  
+  ## Finding Optimal Stat Windows
+  Smooth_Data =  try(DF %>%
+    mutate(Adj_Smooth = Spline_Par_Optim(.)) %>%
+    BS_Indicator_Function("Adj_Smooth") %>%
+    Stat_Appendage_Function() %>%
+    group_by(Stock) %>%
+    select(contains("Window")) %>%
+    summarise_all(mean))
+  Window_Results[[i]] = Smooth_Data
 }
 Output = plyr::ldply(Total_Results,data.frame)
 write.csv(Output,
           file = paste0(getwd(),
                        "//Data//Opt_PR_Results.csv"))
+Output2 = Window_Results
+save(Output2,
+     file = "C://Users//aayorde//desktop//Window_Results.RDATA")
 
           

@@ -5,19 +5,18 @@ Stat_Appendage_Function = function(DF){
   #   group_by(Stock) %>%
   #   filter(Stock == "AMZN")
 ##############################################################
-  ## Loading Project Functions
-  sourceDir <- function(path, trace = TRUE, ...) {
-    for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
-      if(trace) cat(nm,":")           
-      source(file.path(path, nm), ...)
-      if(trace) cat("\n")
-    }
-  }
-  sourceDir(paste0(getwd(),'/Codes/Functions/'))
+  # ## Loading Project Functions
+  # sourceDir <- function(path, trace = TRUE, ...) {
+  #   for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
+  #     if(trace) cat(nm,":")           
+  #     source(file.path(path, nm), ...)
+  #     if(trace) cat("\n")
+  #   }
+  # }
+  # sourceDir(paste0(getwd(),'/Codes/Functions/'))
 require(tidyverse)
 require(lubridate)
 require(quantmod)
-require(QuantTools)
 require(TTR)
 
   ## Applying TTR Functions
@@ -82,7 +81,6 @@ require(TTR)
   # Chaikin Money Flow Looks at volume fluctionations
   CMF_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
                          DF_Store = DF,
-                         Range = c(2,100),
                          TTR_Name = "CMF",
                          Target = "V1",
                          Col_Names = "CMF",
@@ -252,12 +250,12 @@ require(TTR)
   rm(list = v1)
   ################ Additional Technical Indicators ###########
   Standard_TI = DF %>%
-  mutate(EMA50 = ema(Adjusted,50),
-         EMA100 = ema(Adjusted,100),
-         EMA200 = ema(Adjusted,200),
-         MA50 = sma(Adjusted,50),
-         MA100 = sma(Adjusted,100),
-         MA200 = sma(Adjusted,200),
+  mutate(EMA50 = EMA(Adjusted,50),
+         EMA100 = EMA(Adjusted,100),
+         EMA200 = EMA(Adjusted,200),
+         MA50 = SMA(Adjusted,50),
+         MA100 = SMA(Adjusted,100),
+         MA200 = SMA(Adjusted,200),
          DEMA50 = DEMA(Adjusted,50),
          DEMA100 = DEMA(Adjusted,100),
          DEMA200 = DEMA(Adjusted,200),
