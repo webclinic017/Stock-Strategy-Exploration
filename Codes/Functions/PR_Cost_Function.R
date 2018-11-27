@@ -1,4 +1,4 @@
-PR_Cost_Function = function(Parameter,DF = NULL,Optimize = T){
+PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T){
   require(tidyverse)
   require(quantmod)
   
@@ -22,20 +22,12 @@ PR_Cost_Function = function(Parameter,DF = NULL,Optimize = T){
   
   # Appending the smoothed spline fit
   DF = na.locf(DF)
-  Smooth = smooth.spline(DF$Date, DF$Adjusted,spar=Parameter)
-  Smooth_Auto = smooth.spline(DF$Date,DF$Adjusted)
+  Smooth = smooth.spline(x = seq(1,nrow(DF)),
+                         y = DF[[Column]],
+                         spar=Parameter)
   DF$Adj_Smooth = as.numeric(Smooth[["y"]])
-  DF$Adj_Auto_Smooth = as.numeric(Smooth_Auto[["y"]])
-  DF = as.data.frame(DF)
-  ggplot(DF[1:365,],aes(Date)) + 
-    geom_point(aes(y = Adj_Smooth,color = "Opt"),alpha = 0.25) + 
-    geom_point(aes(y = Adj_Auto_Smooth,color = "Auto"),alpha = 0.25) + 
-    geom_point(aes(y = Adjusted,color = "Base"),alpha = 0.25)
   
   DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
-  
-  ggplot(DF2,aes(Date,Adj_Smooth,color = factor(Buy))) + 
-    geom_point()
   
   DF_Risk = DF2 %>%
     filter(Buy == 0,

@@ -1,5 +1,5 @@
 # Optimizing spline fit for maximizing return on stock investments
-Spline_Par_Optim = function(DF){
+Spline_Par_Optim = function(DF,Column = "Adjusted"){
   require(optimization)
   require(tidyverse)
   
@@ -12,10 +12,15 @@ Spline_Par_Optim = function(DF){
 ##############################################################
   
 ## Running the optimization
-OptSplineParameter = optimize(PR_Cost_Function, c(0,1), DF,maximum = TRUE,tol = 0.0001)
+OptSplineParameter = optimize(PR_Cost_Function,
+                              c(0,1),
+                              DF =DF,
+                              Column = Column,
+                              maximum = TRUE,
+                              tol = 0.0001)
 
 ## Appending Smoothed Spline
-Smooth = smooth.spline(DF$Date, DF$Adjusted,spar=OptSplineParameter$maximum)
+Smooth = smooth.spline(DF$Date, DF[[Column]],spar=OptSplineParameter$maximum)
 DF$Adj_Smooth = as.numeric(Smooth[["y"]])
 DF = as.data.frame(DF)
 

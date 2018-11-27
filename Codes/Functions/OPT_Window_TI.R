@@ -5,7 +5,8 @@ OPT_Window_TI = function(DF_Eval,
                          TTR_Name = NULL,
                          Target = NULL,
                          Col_Names = NULL,
-                         Volume = NULL){
+                         Volume = NULL,
+                         Column = NULL){
   # ### Sample Data ###
   # DF_Eval = HLC(DF_Orig)
   # DF_Store = DF
@@ -23,7 +24,7 @@ OPT_Window_TI = function(DF_Eval,
                                         TTR_Name,"(DF_Eval,n = n))")))
     }    
     TMP = bind_cols(DF_Store,Result) %>%
-      BS_Indicator_Function(Column = "Adjusted") %>%
+      BS_Indicator_Function(Column) %>%
       na.omit()
     TMP = TMP[is.finite(TMP[,Target]),]
     
