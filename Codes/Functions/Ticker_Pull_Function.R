@@ -1,4 +1,4 @@
-Ticker_Pull_Function = function(Location){
+Ticker_Pull_Function = function(Location = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/"){
   # ############ Sample Data #################
   # Location = "C://Users//aayorde//desktop//"
   # ##########################################
