@@ -1,25 +1,30 @@
 # Optimizing spline fit for maximizing return on stock investments
+Spline_Par_Optim = function(DF,Column = "Adjusted"){
+  require(optimization)
+  require(tidyverse)
+  
+#################### Sample Data #############################
+# load(file = "C:/Users/aayorde/Desktop/NASDAQ Historical.RDATA")
+# 
+# DF <<- Combined_Results %>%
+#   group_by(Stock) %>%
+#   filter(Stock == "ALT")
+##############################################################
+  
+## Running the optimization
+OptSplineParameter = optimize(PR_Cost_Function,
+                              c(0,1),
+                              DF =DF,
+                              Column = Column,
+                              maximum = TRUE,
+                              tol = 0.0001)
 
-library(optimization)
-if (Combined_Results != Combined_Results){
-load(file = "C:/Users/plfullen/Desktop/NASDAQ Historical.RDATA")}
+## Appending Smoothed Spline
+Smooth = smooth.spline(DF$Date, DF[[Column]],spar=OptSplineParameter$maximum)
+DF$Adj_Smooth = as.numeric(Smooth[["y"]])
+DF = as.data.frame(DF)
 
-DF <<- Combined_Results %>%
-  group_by(Stock) %>%
-  filter(Stock == "NFLX")
+Adj_Smooth = DF$Adj_Smooth
 
-#Running the optimization
-OptSplineParameter = optimize(PR_Cost_Function, c(0,1), maximum = TRUE,tol = 0.0001)
-OptSplineParameter$maximum
-OptSplineParameter$objective
-
-
-#Plot check
-n=seq(0,1, by=0.01)
-a=n
-cnt=1
-for (val in n) {
-a[cnt] =  PR_Cost_Function(val)
-cnt=cnt+1
-  }
-plot(a)
+return(Adj_Smooth)
+}

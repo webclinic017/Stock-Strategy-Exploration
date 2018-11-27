@@ -1,4 +1,4 @@
-PR_Cost_Function = function(Parameter){
+PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T){
   require(tidyverse)
   require(quantmod)
   
@@ -17,23 +17,36 @@ PR_Cost_Function = function(Parameter){
   #   group_by(Stock) %>%
   #   filter(Stock == "AMZN")
   # Column = "Adjusted"
-  # Parameter = 0.1
+  # Parameter = 0.2
   ##############################################################
   
   # Appending the smoothed spline fit
-  Smooth = smooth.spline(DF$Date, DF$Adjusted,spar=Parameter)
+  DF = na.locf(DF)
+  Smooth = smooth.spline(x = seq(1,nrow(DF)),
+                         y = DF[[Column]],
+                         spar=Parameter)
   DF$Adj_Smooth = as.numeric(Smooth[["y"]])
-  DF = as.data.frame(DF)
   
   DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
   
-  DF2 = DF2 %>%
+  DF_Risk = DF2 %>%
+    filter(Buy == 0,
+           Days == Max-1)
+  
+  PR_Risk = median(DF_Risk$PR) - 2*mad(DF_Risk$PR)
+  
+  DF_Reward = DF2 %>%
     filter(Buy == 1,
-           Max >= 5)
-
-  PR = sum(DF2$PR)
-
-  return(PR)
+           Max >= 5,
+           Days == Max-1)
+  
+  PR_Opt = sum(DF_Reward$PR)
+  PR_Reward= median(DF_Reward$PR) + 2*mad(DF_Reward$PR)
+  if(Optimize){
+    return(PR_Opt)
+  }else{
+    return(data.frame(PR_Reward,PR_Risk))
+  }
 }
   
   
