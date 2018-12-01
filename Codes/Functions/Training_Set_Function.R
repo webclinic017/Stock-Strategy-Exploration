@@ -11,6 +11,7 @@ Training_Set_Function = function(Combined_Results){
                              .inorder = F,
                              .export = c("Spline_Par_Optim",
                                          "BS_Indicator_Function",
+                                         "OPT_Window_TI",
                                          "PR_Cost_Function",
                                          "Stat_Appendage_Function"),
                              .packages = c("tidyverse",
