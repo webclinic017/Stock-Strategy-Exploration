@@ -1,17 +1,17 @@
-load("//climsidfs07/refeng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/Window_Results.RDATA")
+# load("c://Users//AAyorde//desktop//Window_Results.RDATA")
 
 
-DF = Window_Results %>%
-  filter(Stock == "AMZN") %>%
-  select(Date, everything(), -Stock) %>%
-  na.omit() %>%
-  arrange(Date)
+# DF = Window_Results %>%
+#   filter(Stock == "AMZN") %>%
+#   select(Date, everything(), -Stock) %>%
+#   na.omit() %>%
+#   arrange(Date)
  # rownames(DF) = NULL
  
 # DF = DF2[1:300,]
 
-start_width = 125
-step = 1
+# start_width = 125
+# step = 1
 
 Benchmark = function(DF, start_width = 125, step = 1, expand = T){
 
@@ -84,16 +84,16 @@ print("Test")
 
 
 
-
-RN = CV$Date
-
-library(dygraphs)
-library(xts)
-Plot = CV
-rownames(Plot) = RN
-Plot$Date = NULL
-
-dygraph(Plot) %>%
-  dySeries("Buy", color = "red", label = "Buy", strokeWidth = 2, strokePattern = "dashed") %>%
-  dySeries("Buy_Pred", color = "green", label = "Prediction", strokeWidth = 2, strokePattern = "dashed")
+# 
+# RN = CV$Date
+# 
+# library(dygraphs)
+# library(xts)
+# Plot = CV
+# rownames(Plot) = RN
+# Plot$Date = NULL
+# 
+# dygraph(Plot) %>%
+#   dySeries("Buy", color = "red", label = "Buy", strokeWidth = 2, strokePattern = "dashed") %>%
+#   dySeries("Buy_Pred", color = "green", label = "Prediction", strokeWidth = 2, strokePattern = "dashed")
 
