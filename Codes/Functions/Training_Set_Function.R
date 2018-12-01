@@ -9,6 +9,10 @@ Training_Set_Function = function(Combined_Results){
     
     Window_Results = foreach(i = 1:length(Tickers),
                              .inorder = F,
+                             .export = c("Spline_Par_Optim",
+                                         "BS_Indicator_Function",
+                                         "PR_Cost_Function",
+                                         "Stat_Appendage_Function"),
                              .packages = c("tidyverse",
                                            "zoo",
                                            "TTR",
