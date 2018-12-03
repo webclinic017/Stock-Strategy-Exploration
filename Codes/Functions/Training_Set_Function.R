@@ -1,27 +1,12 @@
 Training_Set_Function = function(Combined_Results){
-  require(doParallel)
-    ## Initializing Cluster
-    c1 = makeCluster(detectCores())
-    registerDoParallel(c1)
 
     ## Looping All Stocks Through Spline Optimization
     Tickers = as.character(unique(Combined_Results$Stock))
+    Window_Results = list()
     
-    Window_Results = foreach(i = 1:length(Tickers),
-                             .inorder = F,
-                             .export = c("Spline_Par_Optim",
-                                         "BS_Indicator_Function",
-                                         "OPT_Window_TI",
-                                         "PR_Cost_Function",
-                                         "Stat_Appendage_Function",
-                                         "Tickers",
-                                         "Combined_Results"),
-                             .packages = c("tidyverse",
-                                           "zoo",
-                                           "TTR",
-                                           "quantmod",
-                                           "lubridate")
-    ) %dopar% {
+    p = progress_estimated(n = length(Tickers),min_time = 3)
+    for(i in 1:length(Tickers)){
+      p$pause(0.1)$tick()$print()
       # Ticker to Optimize
       Stock_Loop = Tickers[i]
       
@@ -49,9 +34,6 @@ Training_Set_Function = function(Combined_Results){
       # Output to ForEach Loop
       Smooth_Data
     }
-    
-    # Removing Clusters
-    registerDoSEQ()
     
     # Simplifying List and Removing Try-Errors
     Window_Results = Window_Results[str_detect(sapply(Window_Results,class),"data.frame")] %>%

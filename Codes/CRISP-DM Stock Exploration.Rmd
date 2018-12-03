@@ -44,7 +44,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel')
 load_or_install(Required_Packages)
 
 # ## REFPROP
@@ -204,6 +204,7 @@ describe(Combined_Results[,1:6])
 ```{r}
 load(file = "C://Users//aayorde//desktop//NASDAQ Historical.RDATA")
 Train_Set = Training_Set_Function(Combined_Results)
+
 
 Train_Red = na.omit(Train)
 save(Train_Set,
