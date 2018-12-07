@@ -205,10 +205,20 @@ describe(Combined_Results[,1:6])
 load(file = "C://Users//aayorde//desktop//NASDAQ Historical.RDATA")
 Train_Set = Training_Set_Function(Combined_Results)
 
+Windows = Train_Set %>%
+  group_by(Stock) %>%
+  select(contains("Window")) %>%
+  summarise_all(mean)
+write.csv(Windows,
+          file = "C://users//aayorde//desktop//Optimized_Windows.csv")
 
 Train_Red = na.omit(Train)
 save(Train_Set,
      file = "C://Users//aayorde//Desktop//Stock_Train.Rdata")
+
+
+## Feature Selection
+
 ```
 
 
