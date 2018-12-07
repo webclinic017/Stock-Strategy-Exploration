@@ -1,3 +1,10 @@
+## Labels all Valleys and Peaks
+## Back fills all Buy / Sells and calculates % return from current point to the next peak / valley
+## Calculates holding time and days to the next peak / valley
+## Returns Original DF appended with...
+# PR           (% Return to next peak or valley)
+# Max          (Total Holding Time in Days for Buy or Sell Period)
+# Days         (Days to the next valley or peak)
 BS_Indicator_Function = function(DF,Column = NULL){
   ########################## Sample Data #######################
     # DF = Combined_Results %>%
