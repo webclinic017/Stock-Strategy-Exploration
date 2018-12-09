@@ -214,8 +214,8 @@ Windows = Train_Set %>%
 write.csv(Windows,
           file = "C://users//aayorde//desktop//Optimized_Windows.csv")
 
-Train_Red = na.omit(Train)
-save(Train_Set,
+Train_Red = na.omit(Train_Set)
+save(Train_Red,
      file = "C://Users//aayorde//Desktop//Stock_Train.Rdata")
 
 
