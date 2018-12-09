@@ -235,7 +235,15 @@ for(i in 1:length(Stocks)){
     Names[[i]] = Cols
   }
 }
-save(Names,
+
+Final_Names = Names[sapply(Names,class) == "character"]
+TMP_Pull = function(x){Stock = x[1]}
+TMP_Cols = function(x){Columns = x[-c(1,2)]}
+Stocks = sapply(Final_Names,TMP_Pull)
+Columns = sapply(Final_Names,TMP_Cols)
+Output = list(Stocks = Stocks,Columns = Columns)
+
+save(Output,
      file = "C://users//aayorde//desktop//Final_Names.RDATA")
 ```
 
