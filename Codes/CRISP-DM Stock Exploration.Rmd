@@ -44,13 +44,8 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','finreportr')
 load_or_install(Required_Packages)
-
-# ## REFPROP
-# install.packages('//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Packages/Emerson REFPROP/EMRrefprop_0.6.0.tar.gz',
-# repos = NULL,
-# INSTALL_opts = '--no-multiarch')
 
 ## Checking for R updates
 updateR(fast = F,
