@@ -1,3 +1,4 @@
+Window_Calc = F
 ## Loading Project Functions
 sourceDir <- function(path, trace = TRUE, ...) {
   for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
@@ -12,6 +13,8 @@ sourceDir(paste0(getwd(),'/Codes/Functions/'))
 load(file = "C:/Users/aayorde/Desktop/NASDAQ Historical.RDATA")
 require(tidyverse)
 require(optimization)
+require(lubridate)
+require(Hmisc)
 
 Combined_Results = Combined_Results %>%
   group_by(Stock) %>%
@@ -103,17 +106,24 @@ for(i in 1:length(Tickers)){
                      stringsAsFactors = F)
   }
   
-  
-  ## Finding Optimal Stat Windows
-  Smooth_Data =  try(DF %>%
-    mutate(Adj_Smooth = Spline_Par_Optim(.,
-                                         Column = "PR_1D")) %>%
-    BS_Indicator_Function("Adj_Smooth") %>%
-    Stat_Appendage_Function(Column = "PR_1D"))
+  if(Window_Calc){
+    ## Finding Optimal Stat Windows
+    Smooth_Data =  try(DF %>%
+                         mutate(Adj_Smooth = Spline_Par_Optim(.,
+                                                              Column = "PR_1D")) %>%
+                         BS_Indicator_Function("Adj_Smooth") %>%
+                         Stat_Appendage_Function(Column = "PR_1D"))
+  }else{
+    ## Finding Optimal Stat Windows
+    Smooth_Data =  try(DF %>%
+                         mutate(Adj_Smooth = Spline_Par_Optim(.,
+                                                              Column = "PR_1D")) %>%
+                         BS_Indicator_Function("Adj_Smooth"))
+  }
   
   if("try-error" %in% class(Smooth_Data)){
   }else{
-  TMP$Median_Hold = median(Smooth_Data$Max[Smooth_Data$Buy == 1],na.rm = T)
+    TMP$Median_Hold = median(Smooth_Data$Max[Smooth_Data$Buy == 1],na.rm = T)
   }
   
   Total_Results[[i]] = TMP
@@ -126,13 +136,14 @@ write.csv(Output,
           file = paste0(getwd(),
                        "//Data//Opt_PR_Results.csv"))
 
-Window_Results = Window_Results[str_detect(sapply(Window_Results,class),"data.frame")] %>%
-  plyr::ldply(data.frame)
-save(Window_Results,
-     file = "C://Users//aayorde//desktop//Window_Results.RDATA")
-write.csv(Window_Results,
-          row.names = F,
-          file = "C://users//aayorde//desktop//Window_Results.csv")
+
+if(Window_Calc){
+  Window_Results = Window_Results[str_detect(sapply(Window_Results,class),"data.frame")] %>%
+    plyr::ldply(data.frame)
+  save(Window_Results,
+       file = "C://Users//aayorde//desktop//Window_Results.RDATA")
+}
+
 
 
           
