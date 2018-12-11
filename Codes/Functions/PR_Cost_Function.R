@@ -1,6 +1,7 @@
 PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T){
   require(tidyverse)
   require(quantmod)
+  require(Hmisc)
   
   #### Notes ####
   # Optimization should be limitied to smoothing parameters in the range (0,1]
@@ -30,22 +31,39 @@ PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T
   DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
   
   DF_Risk = DF2 %>%
-    filter(Buy == 0,
-           Days == Max-1)
+    filter(Buy == 0)
   
-  PR_Risk = median(DF_Risk$PR) - 2*mad(DF_Risk$PR)
+  ## Weighted Mean Time Decreasing
+  timeElapsed = as.numeric(max(ymd(DF_Risk$Date)) - ymd(DF_Risk$Date))
+  K_constant = 1
+  T_constant = 365
+  W=K_constant*exp(-timeElapsed/T_constant)
+  PR_Risk_Mean <- wtd.mean(DF_Risk$PR_1D,W)
+  var <- wtd.var(DF_Risk$PR_1D,W)
+  PR_Risk_SD <- sqrt(var)
+  
   
   DF_Reward = DF2 %>%
     filter(Buy == 1,
-           Max >= 5,
-           Days == Max-1)
+           Max >= 5)
   
-  PR_Opt = sum(DF_Reward$PR)
-  PR_Reward= median(DF_Reward$PR) + 2*mad(DF_Reward$PR)
+  ## Weighted Mean Time Decreasing
+  timeElapsed = as.numeric(max(ymd(DF_Reward$Date)) - ymd(DF_Reward$Date))
+  K_constant = 1
+  T_constant = 365
+  W=K_constant*exp(-timeElapsed/T_constant)
+  PR_Reward_Mean <- wtd.mean(DF_Reward$PR_1D,W)
+  var <- wtd.var(DF_Reward$PR_1D,W)
+  PR_Reward_SD <- sqrt(var)
+  
+  PR_Opt = sum(PR_Reward_Mean)
   if(Optimize){
     return(PR_Opt)
   }else{
-    return(data.frame(PR_Reward,PR_Risk))
+    return(data.frame(PR_Reward_Mean,
+                      PR_Reward_SD,
+                      PR_Risk_Mean,
+                      PR_Risk_SD))
   }
 }
   

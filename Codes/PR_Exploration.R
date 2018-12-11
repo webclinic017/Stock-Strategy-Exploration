@@ -41,22 +41,65 @@ for(i in 1:length(Tickers)){
   if("try-error" %in% class(OptSplineParameter)){
     TMP = data.frame(Stock = paste(Stock_Loop,"Opt_Error"),
                      Opt = NA,
-                     Reward = NA,
-                     Risk = NA,
+                     Reward_Mean = NA,
+                     Reward_SD = NA,
+                     Risk_Mean = NA,
+                     Risk_SD = NA,
                      Ratio = NA,
                      Median_Hold = NA,
+                     Days_History = NA,
+                     Price_Trajectory = NA,
+                     Volume_Mean = NA,
+                     Volume_SD = NA,
+                     Volume_Trajectory = NA,
                      stringsAsFactors = F)
   }else{
-    Risk_Reward = PR_Cost_Function(OptSplineParameter$maximum,
+    Risk_Reward = PR_Cost_Function(Parameter = OptSplineParameter$maximum,
                                    DF = DF,
                                    Column = "PR_1D",
                                    Optimize = F)
+    Days_History = nrow(DF)
+
+    ## Weighting Most Recent Dates
+    timeElapsed = as.numeric(max(ymd(DF$Date)) - ymd(DF$Date))
+    K_constant = 1
+    T_constant = 365
+    W=K_constant*exp(-timeElapsed/T_constant)
+    
+    mod.data = DF %>%
+      select(Adjusted,Date) %>%
+      mutate(Date = as.numeric(Date))
+    mod = lm(Adjusted~.,
+             mod.data,
+             weights = W)
+    Price_Trajectory = round(as.numeric(coef(mod)["Date"]))
+    
+    Volume_Mean <- round(wtd.mean(DF$Volume,W))
+    var <- wtd.var(DF$Volume,W)
+    Volume_SD <- sqrt(var)
+    
+    mod.data = DF %>%
+      select(Adjusted,Date) %>%
+      mutate(Date = as.numeric(Date))
+    mod = lm(Adjusted~.,
+             mod.data,
+             weights = W)
+    Volume_Trajectory = round(as.numeric(coef(mod)["Date"]))
+    
     TMP = data.frame(Stock = Stock_Loop,
                      Opt = OptSplineParameter$objective,
-                     Reward = Risk_Reward$PR_Reward,
-                     Risk = Risk_Reward$PR_Risk,
-                     Ratio = Risk_Reward$PR_Reward/-Risk_Reward$PR_Risk,
+                     Reward_Mean = Risk_Reward$PR_Reward_Mean,
+                     Reward_SD = Risk_Reward$PR_Reward_SD,
+                     Risk_Mean= Risk_Reward$PR_Risk_Mean,
+                     Risk_SD = Risk_Reward$PR_Risk_SD,
+                     Ratio = (Risk_Reward$PR_Reward_Mean + 2*Risk_Reward$PR_Reward_SD)/
+                       -(Risk_Reward$PR_Risk_Mean - 2*Risk_Reward$PR_Risk_SD),
                      Median_Hold = NA,
+                     Days_History = Days_History,
+                     Price_Trajectory = Price_Trajectory,
+                     Volume_Mean = Volume_Mean,
+                     Volume_SD = Volume_SD,
+                     Volume_Trajectory = Volume_Trajectory,
                      stringsAsFactors = F)
   }
   
@@ -70,7 +113,7 @@ for(i in 1:length(Tickers)){
   
   if("try-error" %in% class(Smooth_Data)){
   }else{
-  TMP$Median_Hold = median(Smooth_Data$Max,na.rm = T)
+  TMP$Median_Hold = median(Smooth_Data$Max[Smooth_Data$Buy == 1],na.rm = T)
   }
   
   Total_Results[[i]] = TMP
