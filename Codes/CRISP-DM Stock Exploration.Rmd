@@ -251,15 +251,18 @@ Windows = Train_Set %>%
 Stocks = unique(Train_Set$Stock)
 p = progress_estimated(n = length(Stocks),min_time = 3)
 Names = list()
+Remove = c("Date","Stock","Adj_Smooth","Max","Days","PR","PR_1D")
 for(i in 1:length(Stocks)){
   p$pause(0.1)$tick()$print()
   TMP = Train_Set %>%
     filter(Stock == Stocks[i])
-  Output = try(Stepwise_Log(TMP))
+  Output = try(Variable_Importance_Reduction(TMP,
+                                             Target = "Buy",
+                                             Remove = Remove))
   if("try-error" %in% class(Output)){
     Names[[i]] = Output
   }else{
-    Cols = c(Stocks[i],Output$Names)
+    Cols = c(Stocks[i],Output)
     Names[[i]] = Cols
   }
 }
@@ -269,10 +272,10 @@ TMP_Pull = function(x){Stock = x[1]}
 TMP_Cols = function(x){Columns = x[-c(1,2)]}
 Stocks = sapply(Final_Names,TMP_Pull)
 Columns = sapply(Final_Names,TMP_Cols)
-Output = list(Stocks = Stocks,Columns = Columns)
+Important_Features = list(Stocks = Stocks,Columns = Columns)
 
-save(Output,
-     file = "C://users//aayorde//desktop//Final_Names.RDATA")
+save(Important_Features,Train_Set,Windows,
+     file = "C://users//aayorde//desktop//Training_Prep.RDATA")
 ```
 
 
