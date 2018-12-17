@@ -17,23 +17,14 @@ Training_Set_Function = function(Combined_Results){
                PR_1D = lead(PR_1D,1)) %>%
         na.omit()
       
-      # Attmepting Spline Optimization
-      OptSplineParameter = try(optimize(PR_Cost_Function, 
-                                        c(0,1), 
-                                        DF = DF,
-                                        Column = "PR_1D",
-                                        maximum = TRUE,
-                                        tol = 0.0001),
-                               silent = T)
-      
       ## Finding Optimal Stat Windows
       Smooth_Data =  try(DF %>%
-                           mutate(Adj_Smooth = Spline_Par_Optim(.,Column = "PR_1D")) %>%
-                           BS_Indicator_Function("Adj_Smooth") %>%
-                           Stat_Appendage_Function(Column = "PR_1D"))
+        mutate(Adj_Smooth = Spline_Par_Optim(.,Column = "PR_1D")) %>%
+        BS_Indicator_Function("Adj_Smooth") %>%
+        Stat_Appendage_Function(Column = "PR_1D"),silent = T)
 
       # Output to ForEach Loop
-      Smooth_Data
+      Window_Results[[i]] = Smooth_Data
     }
     
     # Simplifying List and Removing Try-Errors
