@@ -7,14 +7,10 @@ FinViz_Metric_Pull = function(Ticker){
   tableNodes <- getNodeSet(html, "//table")
   
   # ASSIGN TO STOCK NAMED DFS
-  assign(Ticker, readHTMLTable(tableNodes[[9]], 
-                               header= c("data1", "data2", "data3", "data4", "data5", "data6",
-                                         "data7", "data8", "data9", "data10", "data11", "data12")))
+  TMP =  readHTMLTable(tableNodes[[9]], 
+                       header= c("data1", "data2", "data3", "data4", "data5", "data6",
+                                 "data7", "data8", "data9", "data10", "data11", "data12"))
   
-  # ADD COLUMN TO IDENTIFY STOCK 
-  df <- get(Ticker)
-  df['stock'] <- Ticker
-  assign("TMP", df)
   
   ## Names and Values
   Names = TMP %>%
