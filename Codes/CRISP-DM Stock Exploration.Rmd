@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','zoo','xts')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -120,41 +120,115 @@ Ticker_Pull_Function(Location = "C://Users//aayorde//desktop//")
 
 ```{r Pool Reduction}
 Start = Sys.time()
+print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
-print(Sys.time() - Start)
+Sys.time() - Start
 
+## Initial Pool Reduction
+NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
+PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
+  select(-c(X,Summary.Quote,LastSale)) %>%
+  group_by(Sector) %>%
+  filter(Price_Growth >= 15,
+         Opt >= 0,
+         Ratio >= 1,
+         Volume_Trajectory >= 0) %>%
+  mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
+         Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
+         Price_Growth_Score = dense_rank(desc(Price_Growth)),
+         Volume_Norm_Score = dense_rank(desc(Volume_Norm))) %>%
+  filter(Reward_Mean_Score <= quantile(Reward_Mean_Score,0.10,na.rm = T) |
+           Risk_Mean_Score <= quantile(Risk_Mean_Score,0.10,na.rm = T) |
+           Price_Growth_Score <= quantile(Price_Growth_Score,0.10,na.rm = T) |
+           Volume_Norm_Score <= quantile(Volume_Norm_Score,0.10,na.rm = T)) %>%
+  na.omit()
+
+## Appending FinViz Stats
 storage = list()
-p = progress_estimated(nrow(PR_Stage))
-for(i in 1:nrow(PR_Stage)){
-  Ticker = PR_Stage$Stock[i]
+print("Beginning Pool Selection FinViz Stat Pull")
+p = progress_estimated(nrow(PR_Red_1))
+for(i in 1:nrow(PR_Red_1)){
+  Ticker = PR_Red_1$Stock[i]
   TMP = try(FinViz_Metric_Pull(Ticker),
             silent = T)
   storage[[i]] = TMP
   p$pause(0.5)$tick()$print()
 }
-storage2 = storage[sapply(storage,class) %in% "data.frame"]
-Metrics = plyr::ldply(storage2,data.frame)
-```
+Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
 
+Pool_Results = PR_Red_1 %>%
+  left_join(Metrics) %>%
+  mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
+         Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
+         Change = as.numeric(str_remove(Change,"%"))/100,
+         Price = as.numeric(as.character(Price)),
+         Prev.Close = as.numeric(as.character(Prev.Close)),
+         ATR = as.numeric(as.character(ATR)),
+         Beta = as.numeric(as.character(Beta)),
+         Perf.YTD = as.numeric(str_remove(Perf.YTD,"%"))/100,
+         Perf.Year = as.numeric(str_remove(Perf.Year,"%"))/100,
+         Perf.Half.Y = as.numeric(str_remove(Perf.Half.Y,"%"))/100,
+         Perf.Quarter = as.numeric(str_remove(Perf.Quarter,"%"))/100,
+         Perf.Month = as.numeric(str_remove(Perf.Month,"%"))/100,
+         Perf.Week = as.numeric(str_remove(Perf.Week,"%"))/100,
+         RSI..14. = as.numeric(as.character(RSI..14.)),
+         EPS..ttm. = as.numeric(str_remove(EPS..ttm.,"%"))/100,
+         EPS.next.Y = as.numeric(str_remove(EPS.next.Y,"%"))/100,
+         EPS.next.Q = as.numeric(str_remove(EPS.next.Q,"%"))/100,
+         EPS.this.Y = as.numeric(str_remove(EPS.this.Y,"%"))/100,
+         EPS.next.Y.1 = as.numeric(str_remove(EPS.next.Y.1,"%"))/100,
+         EPS.next.5Y = as.numeric(str_remove(EPS.next.5Y,"%"))/100,
+         EPS.past.5Y = as.numeric(str_remove(EPS.past.5Y,"%"))/100,
+         Sales.past.5Y = as.numeric(str_remove(Sales.past.5Y,"%"))/100,
+         Sales.Q.Q = as.numeric(str_remove(Sales.Q.Q,"%"))/100,
+         EPS.Q.Q = as.numeric(str_remove(EPS.Q.Q,"%"))/100,
+         ROA = as.numeric(str_remove(ROA,"%"))/100,
+         ROE = as.numeric(str_remove(ROE,"%"))/100,
+         ROI = as.numeric(str_remove(ROI,"%"))/100,
+         X52W.High = as.numeric(str_remove(X52W.High,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         Target.Price = as.numeric(as.character(Target.Price)),
+         Short.Ratio = as.numeric(as.character(Short.Ratio)),
+         Short.Float = as.numeric(str_remove(Short.Float,"%"))/100,
+         Payout = as.numeric(str_remove(Payout,"%"))/100,
+         Gross.Margin = as.numeric(str_remove(Gross.Margin,"%"))/100,
+         Inst.Trans = as.numeric(str_remove(Inst.Trans,"%"))/100,
+         Inst.Own = as.numeric(str_remove(Inst.Own,"%"))/100,
+         Insider.Trans = as.numeric(str_remove(Insider.Trans,"%"))/100,
+         Insider.Own = as.numeric(str_remove(Insider.Own,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         LT.Debt.Eq = as.numeric(as.character(LT.Debt.Eq)),
+         Debt.Eq = as.numeric(as.character(Debt.Eq)),
+         Current.Ratio = as.numeric(as.character(Current.Ratio)),
+         Quick.Ratio = as.numeric(as.character(Quick.Ratio)),
+         P.FCF = as.numeric(as.character(P.FCF)),
+         P.C = as.numeric(as.character(P.C)),
+         P.B = as.numeric(as.character(P.B)),
+         P.S = as.numeric(as.character(P.S)),
+         PEG = as.numeric(as.character(PEG)),
+         Forward.P.E = as.numeric(as.character(Forward.P.E)),
+         P.E = as.numeric(as.character(P.E)),
+         Recom = as.numeric(as.character(Recom)),
+         Employees = as.numeric(as.character(Employees)),
+         Target.Price = as.numeric(as.character(Target.Price)),
+         Target.Price = as.numeric(as.character(Target.Price)),
+         Target.Price = as.numeric(as.character(Target.Price))
+         ) %>%
+  select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) %>%
+  filter(Profit.Margin >= 0,
+         Oper..Margin >= 0,
+         EPS.next.Y >= 0,
+         ROA >= 0,
+         ROE >= 0,
+         ROI >= 0)
 
-# Verifying Data Quality
+## Reducing Historical Data to Reduced Selections
+Reduced_Results = Combined_Results %>%
+  filter(Stock %in% Pool_Results$Stock)
 
-```{r}
-load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
-
-glimpse(Combined_Results)
-
-Stock_summary = psych::describeBy(as.matrix(Combined_Results[,1:6]),
-                                  group = Combined_Results$Stock,
-                                  na.rm = T,
-                                  interp = T,
-                                  skew = T,
-                                  ranges = T,
-                                  trim = 0.025,
-                                  quant = c(0.05,0.25,0.75,0.95),
-                                  IQR = T,
-                                  omit = T)
-
+## Saving Pool Results and Reduced Raw Data
+save(Pool_Results,Reduced_Results,
+     file = "C://users//aayorde//desktop//Pool_Results.RDATA")
 ```
 
 
