@@ -231,28 +231,24 @@ save(Pool_Results,Reduced_Results,
      file = "C://users//aayorde//desktop//Pool_Results.RDATA")
 ```
 
+## Training Set Creation
 
+```{r Training Set Creation}
+## Loading Pool Results
+load(file = "C://users//aayorde//desktop//Pool_Results.RDATA")
 
-```{r}
-load(file = "C://Users//aayorde//desktop//NASDAQ Historical.RDATA")
-Train_Set = Training_Set_Function(Combined_Results)
+## Building Optimized Training Set
+Train_Set = Training_Set_Function(Reduced_Results)
+Train_Set = na.omit(Train_Set)
 
-load(file = "C://Users//aayorde//desktop//Window_Results.RDATA")
-Train_Set = Window_Results
+## Tabulating Optimized Window Sizes
 Windows = Train_Set %>%
   group_by(Stock) %>%
   select(contains("Window")) %>%
   summarise_all(mean)
-write.csv(Windows,
-          file = "C://users//aayorde//desktop//Optimized_Windows.csv")
-
-Train_Red = na.omit(Train_Set)
-save(Train_Red,
-     file = "C://Users//aayorde//Desktop//Stock_Train.Rdata")
-
 
 ## Feature Selection
-Stocks = unique(Window_Results$Stock)
+Stocks = unique(Train_Set$Stock)
 p = progress_estimated(n = length(Stocks),min_time = 3)
 Names = list()
 for(i in 1:length(Stocks)){
