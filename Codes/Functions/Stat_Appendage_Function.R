@@ -133,14 +133,14 @@ require(TTR)
                          Column = Column)
   ## EMV Optimization
   # Arms' Ease of Movement minimizes days where the security moves easily
-  EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
-                         DF_Store = DF,
-                         Range = c(2,100),
-                         TTR_Name = "EMV",
-                         Target = "maEMV",
-                         Col_Names =  c("EMV","MA_EMV"),
-                         Volume = DF_Orig$Volume,
-                         Column = Column)
+  # EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
+  #                        DF_Store = DF,
+  #                        Range = c(2,100),
+  #                        TTR_Name = "EMV",
+  #                        Target = "maEMV",
+  #                        Col_Names =  c("EMV","MA_EMV"),
+  #                        Volume = DF_Orig$Volume,
+  #                        Column = Column)
   ## MFI Optimization
   # Money Flow Index is a ratio of positive and negative money flow over time
   MFI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
