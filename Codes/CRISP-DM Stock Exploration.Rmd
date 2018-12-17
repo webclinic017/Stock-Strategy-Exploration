@@ -3,10 +3,12 @@ output: html_document
 editor_options: 
   chunk_output_type: console
 ---
-# By Paul Fullenkamp & Abram Yorde
 ---
-title: "Analytics Project Template"
-author: "Abram Yorde"
+title: "Stock Strategy Exploration and Automation"
+author: 
+- Abram Yorde
+- Karen Richard
+- Paul Fullenkamp
 date: "October 1, 2018"
 output: 
   html_document:
@@ -68,97 +70,47 @@ Root_Folder = getwd()
 sourceDir(paste0(getwd(),'/Codes/Functions/'))
 ```
 
-# Business Understanding {.tabset}
-
-## Background
-*Information pertinent to the business issue at the point of project initiation.*
-
-## Business Objectives
-*Outline the primary business objectives, along with subsequent questions/objectives which would make sense to explore while pursuing the primary objectives.*
-
-## Business Success Criteria
-*Criteria under which the project would be deemed successful. This should be as specific as possible, but some projects may require a subjective goal initially until sufficient progress and exploration is done.*
-
-## Inventory of Resources
-*List of resources available to aiding the project. Includes personnel, data, computing resources and software.*
-
-## Requirements
-*Depending on the scope of the project this will include the completion schedule, security and legal concerns, quality of results, and interoperability.*
-
-## Assumptions
-*Assumptions made whether it relates to the data or the business factors surrounding the project.* 
-
-## Constraints
-*Any project constraints ranging from resource availability to practicality of data size.*
-
-## Risks and Contingencies
-*List of risks and events that could delay the project along with the plan and actions that take place should these events occur.*
-
-## Business Terminology
-*Unique terms relevant to the business problem. Could include special acronyms or concepts given by domain expertise.*
-
-## Technical Terminology
-*All terms should be accompanied by an illustration of application relevant to the business problem.*
-
-## Costs and Benefits
-*Cost vs. potential benefits to the business. Comparison should be specific and include monetary measures when possible.*
-
-## Data Mining Goals
-*Describe the intended outputs of the project that enable the achievement of the business objectives.*
-
-## Data Mining Success Criteria
-*Technical criteria for the successful completion of the project. Should be in terms of accuracy or some more complex metric, if subjective terms this should be revisited and updated after more progress is made.*
-
-## Initial Assessment of Tools, and Techniques
-*Decision on tools and methods should be made early as changes could greatly affect the project.*
-
-
-# Data Understanding {.tabset}
-
-## Initial Data Collection Report
-*List of datasets acquired, locations, methods used, problems encountered, and resolutions to problems.*
+## Initial Raw Data Pull
 
 ```{r Initial Data Pull}
-NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
+# NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
 # AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
 # NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
-
-Total_Stocks = bind_rows(NASDAQ_Stocks)
-Dump = list()
-
-p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
-for(i in 1:nrow(Total_Stocks)){
-  p$pause(0.1)$tick()$print()
-  ticker = as.character(Total_Stocks$Symbol[i])
-  
-
-  stockData = try(getSymbols(
-    ticker,
-    src = "yahoo",
-    auto.assign = FALSE) %>% 
-      as.data.frame() %>%
-      mutate(Date = ymd(rownames(.)))) 
-  if("try-error" %in% class(stockData)){
-    Dump[[i]] = stockData
-  }else{
-    colnames(stockData) = c("Open","High","Low","Close","Volume","Adjusted","Date")
-    stockData$Stock = ticker
-    Dump[[i]] = stockData
-  }
-}
-list.condition <- sapply(Dump, function(x) class(x) == "data.frame")
-output.list  <- Dump[list.condition]
-Combined_Results = plyr::ldply(output.list,data.frame)
+# 
+# Total_Stocks = bind_rows(NASDAQ_Stocks)
+# Dump = list()
+# 
+# p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
+# for(i in 1:nrow(Total_Stocks)){
+#   p$pause(0.1)$tick()$print()
+#   ticker = as.character(Total_Stocks$Symbol[i])
+#   
+# 
+#   stockData = try(getSymbols(
+#     ticker,
+#     src = "yahoo",
+#     auto.assign = FALSE) %>% 
+#       as.data.frame() %>%
+#       mutate(Date = ymd(rownames(.)))) 
+#   if("try-error" %in% class(stockData)){
+#     Dump[[i]] = stockData
+#   }else{
+#     colnames(stockData) = c("Open","High","Low","Close","Volume","Adjusted","Date")
+#     stockData$Stock = ticker
+#     Dump[[i]] = stockData
+#   }
+# }
+# list.condition <- sapply(Dump, function(x) class(x) == "data.frame")
+# output.list  <- Dump[list.condition]
+# Combined_Results = plyr::ldply(output.list,data.frame)
 
 # NA_Sum = function(x){Count = sum(is.na(x))}
 # Check = Combined_Results %>%
 #   group_by(Stock) %>%
 #   summarise_all(NA_Sum)
 
-Ticker_Pull_Function(Location = "C://Users//aayorde//desktop//")
-
-save(Combined_Results,
-     file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
+# save(Combined_Results,
+#      file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
 
 ```
 
@@ -166,36 +118,37 @@ save(Combined_Results,
 Ticker_Pull_Function(Location = "C://Users//aayorde//desktop//")
 ```
 
+```{r Pool Reduction}
+Start = Sys.time()
+PR_Stage = PR_Appendage(Combined_Results,parallel = T)
+print(Sys.time() - Start)
 
-## Data Description Report
-*Gross/surface properties of the datasets (format, quantity, etc.). Also give an initial judgment with justification if datasets satisfy any relevant requirements.*
+
+```
+
+
+# Verifying Data Quality
 
 ```{r}
 load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
 
 glimpse(Combined_Results)
 
-describe(Combined_Results[,1:6])
+Stock_summary = psych::describeBy(as.matrix(Combined_Results[,1:6]),
+                                  group = Combined_Results$Stock,
+                                  na.rm = T,
+                                  interp = T,
+                                  skew = T,
+                                  ranges = T,
+                                  trim = 0.025,
+                                  quant = c(0.05,0.25,0.75,0.95),
+                                  IQR = T,
+                                  omit = T)
 
 ```
 
 
-## Data Exploration Report
-*More in-depth statistical exploration than the data description piece. Could include plots and visualizations exploring interesting subsets of data and different distributions, interactions, and correlations to name a few things.*
 
-## Data Quality Report
-*Should answer questions such as is the data complete, does it contain errors, are there missing values, etc. If quality issues exist list possible solutions*
-
-# Data Preparation {.tabset}
-
-## Rationale for Inclusion / Exclusion
-*List the data to be included/excluded and the reasons for these decisions.*
-
-## Data Cleaning Report
-*Decisions and actions taken to raise data quality should all be documented here.*
-
-## Derived Attributes
-*List of any attributes generated from some combination of existing variables*
 ```{r}
 load(file = "C://Users//aayorde//desktop//NASDAQ Historical.RDATA")
 Train_Set = Training_Set_Function(Combined_Results)
