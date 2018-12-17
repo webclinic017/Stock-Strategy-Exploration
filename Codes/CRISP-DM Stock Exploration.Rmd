@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','finreportr')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','zoo','xts')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -123,7 +123,17 @@ Start = Sys.time()
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
 print(Sys.time() - Start)
 
-
+storage = list()
+p = progress_estimated(nrow(PR_Stage))
+for(i in 1:nrow(PR_Stage)){
+  Ticker = PR_Stage$Stock[i]
+  TMP = try(FinViz_Metric_Pull(Ticker),
+            silent = T)
+  storage[[i]] = TMP
+  p$pause(0.5)$tick()$print()
+}
+storage2 = storage[sapply(storage,class) %in% "data.frame"]
+Metrics = plyr::ldply(storage2,data.frame)
 ```
 
 
