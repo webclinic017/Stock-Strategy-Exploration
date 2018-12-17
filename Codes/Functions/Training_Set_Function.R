@@ -13,7 +13,8 @@ Training_Set_Function = function(Combined_Results){
       # Subsetting to Specific Stock
       DF = Combined_Results %>%
         filter(Stock == Stock_Loop) %>%
-        mutate(PR_1D = (Adjusted - lag(Adjusted))/Adjusted) %>%
+        mutate(PR_1D = (Adjusted - lag(Adjusted))/Adjusted,
+               PR_1D = lead(PR_1D,1)) %>%
         na.omit()
       
       # Attmepting Spline Optimization
