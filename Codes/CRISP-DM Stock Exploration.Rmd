@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth', 'lubridate', 'googledrive')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -123,7 +123,12 @@ Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"))
 
 ```{r Pool Reduction}
 ## Takes about 8 Minutes
-load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+File = drive_download("NASDAQ Historical.RDATA")
+load(File$local_path)
+rm(File)
+
+# load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
@@ -243,7 +248,11 @@ save(Pool_Results,Reduced_Results,
 
 ```{r Training Set Creation}
 ## Loading Pool Results
-load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+File = drive_download("Pool_Results.RDATA")
+load(File$local_path)
+rm(File)
+
+# load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 
 ## Building Optimized Training Set
 ## Takes About 7 Minutes
@@ -260,36 +269,105 @@ Windows = Train_Set %>%
 
 ## Feature Selection
 ## Takes about 2 Minutes
-Stocks = unique(Train_Set$Stock)
 Start = Sys.time()
-p = progress_estimated(n = length(Stocks),min_time = 3)
-Names = list()
-Remove = c("Date","Stock","Adj_Smooth","Max","Days","PR","PR_1D")
-for(i in 1:length(Stocks)){
-  p$pause(0.1)$tick()$print()
-  TMP = Train_Set %>%
-    filter(Stock == Stocks[i])
-  Output = try(Variable_Importance_Reduction(TMP,
-                                             Target = "Buy",
-                                             Remove = Remove))
-  if("try-error" %in% class(Output)){
-    Names[[i]] = Output
-  }else{
-    Cols = c(Stocks[i],Output)
-    Names[[i]] = Cols
+Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D")
+
+DF = Train_Set %>%
+  group_by(Stock) %>%
+  nest()
+
+Variables = DF %>%
+  mutate(Variable = map(data, Variable_Importance_Reduction, Target = c("Buy"), Remove = Remove)) 
+
+Sys.time() - Start
+
+
+
+save(Variables,Train_Set,Windows,
+     file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+
+
+```
+
+```{r}
+## Adds NA to columns where variable importance says they arent needed. 
+File = drive_download("Training_Prep.RDATA")
+load(File$local_path)
+rm(File)
+
+# load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+Unique = as.character(unique(Variables$Stock))
+
+Train_Set = Train_Set %>%
+  filter(Stock %in% Unique)
+
+Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D")
+NAFUNCTION = function(x){x = NA}
+
+for(i in 1:length(Unique)){
+  
+  idx = which(Variables$Stock %in% Unique[i])
+  Vars = unlist(Variables$Variable[idx])
+  
+  Keep = Train_Set %>%
+    filter(Stock == Unique[i]) %>%
+    dplyr::select(Date, Stock, Buy)
+  
+  Temp = Train_Set %>%
+    filter(Stock == Unique[i])
+  Temp = Temp %>%
+    mutate_if(colnames(Temp) %in% Vars == FALSE, NAFUNCTION) %>%
+    dplyr::select(-Stock, -Buy, -Date)
+  
+  Temp = cbind(Keep, Temp)
+  
+if(i == 1) {
+  Comb = Temp
+}
+  if(i != 1){
+    Comb = rbind(Comb, Temp)
   }
 }
 
-Final_Names = Names[sapply(Names,class) == "character"]
-TMP_Pull = function(x){Stock = x[1]}
-TMP_Cols = function(x){Columns = x[-1]}
-Lengths = sapply(Final_Names,length)
-Final_Names = Final_Names[Lengths > 1]
-Stocks = sapply(Final_Names,TMP_Pull)
-Columns = sapply(Final_Names,TMP_Cols)
-Important_Features = list(Stocks = Stocks,Columns = Columns)
-Sys.time() - Start
+Train = Comb
 
-save(Important_Features,Train_Set,Windows,
-     file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+save(Train,
+     file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
 ```
+
+```{r}
+# Modeling with the crossfold function
+File = drive_download("Training_Data.RDATA")
+load(File$local_path)
+rm(File)
+
+# load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+DF = Train %>%
+  # filter(Stock == "AMZN" | Stock == "ADBE" | Stock == "AMED") %>%
+  group_by(Stock) %>%
+  nest()
+
+Results= DF %>%
+  mutate(model = map(data, Crossfold, start_width = 200, expand = F)) %>%
+  unnest(model)
+
+save(Results, file = "Results.RDATA")
+
+library(dygraphs)
+library(xts)
+
+Plot = Results %>%
+  filter(Stock == "ADBE")
+
+RN = Plot$Date
+rownames(Plot) =RN
+Plot$Date = NULL
+Plot = as.xts(Plot)
+
+dygraph(Plot) %>%
+  dySeries("Buy", color = "red", label = "Buy", strokeWidth = 2, strokePattern = "dashed") %>%
+  dySeries("Buy_Pred", color = "green", label = "Prediction", strokeWidth = 2, strokePattern = "dashed")
+
+
+```
+
