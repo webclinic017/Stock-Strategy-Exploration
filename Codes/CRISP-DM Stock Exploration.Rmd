@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -64,10 +64,12 @@ updateR(fast = F,
         to_checkMD5sums = T,
         keep_install_file = F)
 
-Root_Folder = getwd()
-
 ## Loading Required Functions
 sourceDir(paste0(getwd(),'/Codes/Functions/'))
+
+## Root Data Folder
+# Root_Folder = getwd()
+Root_Folder = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/"
 ```
 
 ## Initial Raw Data Pull
@@ -115,10 +117,13 @@ sourceDir(paste0(getwd(),'/Codes/Functions/'))
 ```
 
 ```{r Data Update}
-Ticker_Pull_Function(Location = "C://Users//aayorde//desktop//")
+## Takes About 15 Minutes
+Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"))
 ```
 
 ```{r Pool Reduction}
+## Takes about 8 Minutes
+load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
@@ -144,6 +149,8 @@ PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
   na.omit()
 
 ## Appending FinViz Stats
+## Takes About 2 Minutes
+Start = Sys.time()
 storage = list()
 print("Beginning Pool Selection FinViz Stat Pull")
 p = progress_estimated(nrow(PR_Red_1))
@@ -155,6 +162,7 @@ for(i in 1:nrow(PR_Red_1)){
   p$pause(0.5)$tick()$print()
 }
 Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
+Sys.time() - Start
 
 Pool_Results = PR_Red_1 %>%
   left_join(Metrics) %>%
@@ -228,18 +236,21 @@ Reduced_Results = Combined_Results %>%
 
 ## Saving Pool Results and Reduced Raw Data
 save(Pool_Results,Reduced_Results,
-     file = "C://users//aayorde//desktop//Pool_Results.RDATA")
+     file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 ```
 
 ## Training Set Creation
 
 ```{r Training Set Creation}
 ## Loading Pool Results
-load(file = "C://users//aayorde//desktop//Pool_Results.RDATA")
+load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 
 ## Building Optimized Training Set
+## Takes About 7 Minutes
+Start = Sys.time()
 Train_Set = Training_Set_Function(Reduced_Results)
 Train_Set = na.omit(Train_Set)
+Sys.time() - Start
 
 ## Tabulating Optimized Window Sizes
 Windows = Train_Set %>%
@@ -248,7 +259,9 @@ Windows = Train_Set %>%
   summarise_all(mean)
 
 ## Feature Selection
+## Takes about 2 Minutes
 Stocks = unique(Train_Set$Stock)
+Start = Sys.time()
 p = progress_estimated(n = length(Stocks),min_time = 3)
 Names = list()
 Remove = c("Date","Stock","Adj_Smooth","Max","Days","PR","PR_1D")
@@ -269,79 +282,14 @@ for(i in 1:length(Stocks)){
 
 Final_Names = Names[sapply(Names,class) == "character"]
 TMP_Pull = function(x){Stock = x[1]}
-TMP_Cols = function(x){Columns = x[-c(1,2)]}
+TMP_Cols = function(x){Columns = x[-1]}
+Lengths = sapply(Final_Names,length)
+Final_Names = Final_Names[Lengths > 1]
 Stocks = sapply(Final_Names,TMP_Pull)
 Columns = sapply(Final_Names,TMP_Cols)
 Important_Features = list(Stocks = Stocks,Columns = Columns)
+Sys.time() - Start
 
 save(Important_Features,Train_Set,Windows,
-     file = "C://users//aayorde//desktop//Training_Prep.RDATA")
+     file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 ```
-
-
-## Generated Records
-*Description of any generated data rows with the reasoning behind the creation.*
-
-## Merged Data
-*Execution and justification for various joins and aggregations used to create a central data set.*
-
-## Reformatted Data
-*Execution and justification for different modifications to the data (syntactic or order based changes)*
-
-# Modeling {.tabset}
-
-## Modeling Technique
-*Document the actual modeling technique that is to be used.*
-
-## Modeling Assumptions
-*Record any assumptions that the specific model technique takes, uniform distribution, no missing values, etc.*
-
-## Test Design
-*Describe the plan for defining training, testing, and evaluation of the modeling technique. This is normally centered around defining how to best segment the data.*
-
-## Parameter Settings 
-*List the parameters and their chosen values, along with the rationale for the choice of parameter settings.*
-
-## Models
-*These are the actual models produced by the modeling tool, not a report.*
-
-## Model Description
-*Report on the interpretation of the models and document any difficulties encountered with their meanings.*
-
-## Model Assessment
-*Rank models in terms of the evaluation criteria. Note that this only evaluates models, not the entire scope of the project. Should be in terms similar to accuracy and/or generality.*
-
-## Revised Parameter Settings
-*Discuss methodology for the tuning of the hyper parameters and how the "best" final model was chosen.*
-
-
-# Evaluation {.tabset}
-
-## Assessment of Data Mining Results
-*Summary of results in relation to business objective along with a statement of if the original objectives have been met.*
-
-## Approved Models
-*Formal listing of "final" models to be used to address the business problem at hand.*
-
-## Review of Process
-*Summarize the process review and highlight activities that have been missed and those that should be repeated.*
-
-## List of Possible Actions
-*List the potential further actions, along with the reasons for and against each option.*
-
-## Decision
-*Describe the decision as to how to proceed, along with the rationale.*
-
-
-# Deployment {.tabset}
-
-
-## Deployment Plan
-*Summarize the deployment strategy, including the necessary steps and how to perform them.*
-
-## Monitoring and Maintenance Plan
-*Summarize the monitoring and maintenance strategy, including the necessary steps and how to perform them*
-
-## Experience Documentation
-*Summarize important experience, pitfalls, hints for future projects that may be similar in some way.*
-
