@@ -4,10 +4,10 @@ Variable_Importance_Reduction = function(DF,Target,Remove){
 
   # Reducing to Numeric Predictors
   DF = na.omit(DF)
-  Weight_Vector = abs(DF$PR_1D)
   DF_mod = DF %>%
     dplyr::select(-Remove)
 
+  TMP = DF[,Target]
   # NZV, Highly Correlated, Linear Combo Reduction
   nzv = nearZeroVar(DF_mod)
   if(!is_empty(nzv)){
@@ -22,6 +22,7 @@ Variable_Importance_Reduction = function(DF,Target,Remove){
   if(!is_empty(combos$remove)){
     DF_mod = DF_mod[,-combos$remove]
   }
+  DF_mod[,Target] = TMP
   
   # # Boruta Variable Importance
   # Stage_1 = Boruta(fmla,
@@ -34,7 +35,8 @@ Variable_Importance_Reduction = function(DF,Target,Remove){
   
   ## MARS Variable Importance
   Stage_2 = earth(fmla,
-                  data = DF_mod)
+                  data = DF_mod,
+                  Scale.y = F)
   Keep_Stage_2 = rownames(evimp(Stage_2))
   
 
