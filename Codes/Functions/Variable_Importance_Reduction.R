@@ -6,7 +6,7 @@ Variable_Importance_Reduction = function(DF,Target,Remove){
   DF = na.omit(DF)
   DF_mod = DF %>%
     dplyr::select(-Remove)
-
+print("Test")
   TMP = DF[,Target]
   # NZV, Highly Correlated, Linear Combo Reduction
   nzv = nearZeroVar(DF_mod)
