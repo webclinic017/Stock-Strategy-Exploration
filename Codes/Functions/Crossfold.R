@@ -1,9 +1,11 @@
-Benchmark = function(DF, start_width = 125, step = 1, expand = T){
+Crossfold = function(DF, start_width = 200, step = 1, expand = F){
   
   library(tidyverse)
   library(zoo)
   library(xts)
   
+  DF = DF %>%
+    select_if(~ !any(is.na(.)))
   
   PRED_Func = function(TRAIN,TEST,H){
     suppressWarnings(expr)
@@ -25,7 +27,7 @@ Benchmark = function(DF, start_width = 125, step = 1, expand = T){
     ## Starting Parallel Clusters
     c1 = makeCluster(detectCores())
     registerDoParallel(c1)
-    
+    print("Test")
     CV_Results = foreach(i = 1:floor((nrow(DF)-start_width)/step),
                          .inorder = F,
                          .packages = c("tidyverse"),
