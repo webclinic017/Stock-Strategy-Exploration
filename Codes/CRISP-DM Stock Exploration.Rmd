@@ -68,8 +68,7 @@ updateR(fast = F,
 sourceDir(paste0(getwd(),'/Codes/Functions/'))
 
 ## Root Data Folder
-# Root_Folder = getwd()
-Root_Folder = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/"
+Root_Folder = getwd()
 ```
 
 ## Initial Raw Data Pull
