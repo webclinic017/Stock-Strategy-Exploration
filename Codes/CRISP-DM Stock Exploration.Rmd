@@ -123,10 +123,12 @@ Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"))
 
 ```{r Pool Reduction}
 ## Takes about 8 Minutes
-File = drive_download("NASDAQ Historical.RDATA")
+# Google Drive Method
+File = drive_download(file = "NASDAQ Historical.RDATA",
+                      overwrite = T)
 load(File$local_path)
 rm(File)
-
+# Local Method
 # load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
 
 Start = Sys.time()
@@ -240,18 +242,26 @@ Reduced_Results = Combined_Results %>%
   filter(Stock %in% Pool_Results$Stock)
 
 ## Saving Pool Results and Reduced Raw Data
-save(Pool_Results,Reduced_Results,
-     file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+# Local Method
+# save(Pool_Results,Reduced_Results,
+#      file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+# Google Drive Method
+save(Combined_Results,
+     file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
+drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
+             path = "Pool_Results.RDATA")
 ```
 
 ## Training Set Creation
 
 ```{r Training Set Creation}
 ## Loading Pool Results
-File = drive_download("Pool_Results.RDATA")
+# Google Drive Method
+File = drive_download("Pool_Results.RDATA",
+                      overwrite = T)
 load(File$local_path)
 rm(File)
-
+# Local Method
 # load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 
 ## Building Optimized Training Set
@@ -282,19 +292,25 @@ Variables = DF %>%
 Sys.time() - Start
 
 
-
-save(Variables,Train_Set,Windows,
-     file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
-
+# # Local Method
+# save(Variables,Train_Set,Windows,
+#      file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+# Google Drive Method
+save(Combined_Results,
+     file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
+drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
+             path = "Training_Prep.RDATA")
 
 ```
 
 ```{r}
 ## Adds NA to columns where variable importance says they arent needed. 
-File = drive_download("Training_Prep.RDATA")
+# Google Drive Method
+File = drive_download("Training_Prep.RDATA",
+                      overwrite = T)
 load(File$local_path)
 rm(File)
-
+# Local Method
 # load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 Unique = as.character(unique(Variables$Stock))
 
@@ -331,17 +347,26 @@ if(i == 1) {
 
 Train = Comb
 
-save(Train,
-     file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+# Google Drive Method
+save(Combined_Results,
+     file = paste0(tempdir(),'/',"Training_Data.RDATA"))
+drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
+             path = "Training_Data.RDATA")
+# # Local Method
+# save(Train,
+#      file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
 ```
 
 ```{r}
 # Modeling with the crossfold function
-File = drive_download("Training_Data.RDATA")
+# Google Drive Method
+File = drive_download("Training_Data.RDATA",
+                      overwrite = T)
 load(File$local_path)
 rm(File)
-
+# Local Method
 # load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+
 DF = Train %>%
   # filter(Stock == "AMZN" | Stock == "ADBE" | Stock == "AMED") %>%
   group_by(Stock) %>%

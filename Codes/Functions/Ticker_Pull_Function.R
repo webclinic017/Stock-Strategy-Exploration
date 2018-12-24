@@ -1,16 +1,16 @@
-Ticker_Pull_Function = function(Location = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/"){
-  # ############ Sample Data #################
-  # Location = "C://Users//aayorde//desktop//"
-  # ##########################################
+Ticker_Pull_Function = function(Location = "NASDAQ Historical.RDATA",
+                                Google_Drive = T){
   
-  ## Loading Required Packages
-  require(quantmod)
-  require(tidyverse)
-  require(lubridate)
-  
-  ## Defining Historical Data Location
-  Historical_File = paste0(Location,"NASDAQ Historical.RDATA")
-  load(Historical_File)
+  if(Google_Drive){
+    File = drive_download(file = Location,
+                          overwrite = T)
+    load(File$local_path)
+    rm(File)
+  }else{
+    ## Defining Historical Data Location
+    Historical_File = paste0(Location,"NASDAQ Historical.RDATA")
+    load(Historical_File)
+  }
   
   ## Defining Ticker List And Start Date
   Tickers = unique(Combined_Results$Stock)
@@ -44,6 +44,14 @@ Ticker_Pull_Function = function(Location = "//climsidfs07/RefEng/1 Ref. Engineer
   
   ## Appending New Data and Saving Results
   Combined_Results = bind_rows(Combined_Results,New_Results)
-  save(Combined_Results,
-       file = Historical_File)
+  
+  if(Google_Drive){
+    save(Combined_Results,
+         file = paste0(tempdir(),'/',Location))
+    drive_upload(media = paste0(tempdir(),'/',Location),
+                 path = Location)
+  }else{
+    save(Combined_Results,
+         file = Historical_File)
+  }
 }
