@@ -69,78 +69,107 @@ sourceDir(paste0(getwd(),'/Codes/Functions/'))
 
 ## Root Data Folder
 Root_Folder = getwd()
+
+## Disabling API Warning
+options("getSymbols.yahoo.warning" = FALSE)
+
+## General RMD Options
+Local_S = T
+Local_L = T
+Google_Drive_S = T
+Google_Drive_L = F
+Initial_Pull = F
+Update_Pull = T
 ```
 
 ## Initial Raw Data Pull
 
 ```{r Initial Data Pull}
-NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
-AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
-NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
-Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI"),
-                            Name = c("S&P 500","NASDAQ","Dow Jones"),
-                            IPOyear = "1900",
-                            LastSale = "1000")
-
-Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks) %>%
-  mutate(IPOyear = as.numeric(as.character(IPOyear)),
-         LastSale = as.numeric(as.character(LastSale))) %>%
-  filter(!is.na(IPOyear),
-         !is.na(LastSale)) %>%
-  filter(IPOyear <=  year(Sys.Date()) - 7,
-         LastSale >= 10)
-Dump = list()
-
-p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
-for(i in 1:nrow(Total_Stocks)){
-  p$pause(0.1)$tick()$print()
-  ticker = as.character(Total_Stocks$Symbol[i])
-
-
-  stockData = try(getSymbols(
-    ticker,
-    src = "yahoo",
-    auto.assign = FALSE) %>%
-      as.data.frame() %>%
-      mutate(Date = ymd(rownames(.))))
-  if("try-error" %in% class(stockData)){
-    Dump[[i]] = stockData
-  }else{
-    colnames(stockData) = c("Open","High","Low","Close","Volume","Adjusted","Date")
-    stockData$Stock = ticker
-    Dump[[i]] = stockData
+if(Initial_Pull){
+  NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
+  AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
+  NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
+  Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI"),
+                              Name = c("S&P 500","NASDAQ","Dow Jones"),
+                              IPOyear = "1900",
+                              LastSale = "1000")
+  
+  Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks) %>%
+    mutate(IPOyear = as.numeric(as.character(IPOyear)),
+           LastSale = as.numeric(as.character(LastSale))) %>%
+    filter(!is.na(IPOyear),
+           !is.na(LastSale)) %>%
+    filter(IPOyear <=  year(Sys.Date()) - 7,
+           LastSale >= 10)
+  Dump = list()
+  
+  p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
+  for(i in 1:nrow(Total_Stocks)){
+    p$pause(0.1)$tick()$print()
+    ticker = as.character(Total_Stocks$Symbol[i])
+    
+    
+    stockData = try(getSymbols(
+      ticker,
+      src = "yahoo",
+      auto.assign = FALSE) %>%
+        as.data.frame() %>%
+        mutate(Date = ymd(rownames(.))))
+    if("try-error" %in% class(stockData)){
+      Dump[[i]] = stockData
+    }else{
+      colnames(stockData) = c("Open","High","Low","Close","Volume","Adjusted","Date")
+      stockData$Stock = ticker
+      Dump[[i]] = stockData
+    }
+  }
+  list.condition <- sapply(Dump, function(x) class(x) == "data.frame")
+  output.list  <- Dump[list.condition]
+  Combined_Results = plyr::ldply(output.list,data.frame)
+  
+  Combined_Results = Combined_Results %>%
+    group_by(Stock) %>%
+    na.locf() %>%
+    ungroup()
+  
+  
+  if(Local_S){
+    save(Combined_Results,
+         file = paste0(Root_Folder,"/Data//NASDAQ Historical.RDATA"))
+  }
+  if(Google_Drive_S){
+    save(Combined_Results,
+         file = paste0(tempdir(),'/',"NASDAQ Historical.RDATA"))
+    drive_upload(media =paste0(tempdir(),'/',"NASDAQ Historical.RDATA"),
+                 path = "NASDAQ Historical.RDATA")
   }
 }
-list.condition <- sapply(Dump, function(x) class(x) == "data.frame")
-output.list  <- Dump[list.condition]
-Combined_Results = plyr::ldply(output.list,data.frame)
-
-Combined_Results = Combined_Results %>%
-  group_by(Stock) %>%
-  na.locf() %>%
-  ungroup()
-
-
-# # Local Method
-# save(Combined_Results,
-#      file = paste0(Root_Folder,"/Data//NASDAQ Historical.RDATA"))
-# Google Drive Method
-save(Combined_Results,
-     file = paste0(tempdir(),'/',"NASDAQ Historical.RDATA"))
-drive_upload(media =paste0(tempdir(),'/',"NASDAQ Historical.RDATA"),
-             path = "NASDAQ Historical.RDATA")
 
 ```
 
 ```{r Data Update}
-## Takes About 15 Minutes
-# Local Method
-Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),Google_Drive = F)
-# Google Drive Method
-Ticker_Pull_Function(Google_Drive = T)
+# Takes About 15 Minutes
+if(Update_Pull){
+  if(Local_L){
+    Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),Google_Drive = F)
+  }
+  if(Google_Drive_L){
+    Ticker_Pull_Function(Google_Drive = T)
+  }
+}
 ```
 
 ```{r Market Designation}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+}
+
 ## Defining MArket Directions
 Market_DF = Combined_Results %>%
   filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
@@ -189,27 +218,36 @@ Market_Ind = Market_DF %>%
   )) %>%
   select(Date,Market_Status)
 
-# Local Method
+if(Local_S){
 save(Market_Ind,
      file = paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
-# Google Drive Method
-save(Market_Ind,
-     file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
-drive_upload(media = paste0(tempdir(),'/',"Market_Ind.RDATA"),
-             path = "Market_Ind.RDATA")
+}
+if(Google_Drive_S){
+  save(Market_Ind,
+       file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
+  drive_upload(media = paste0(tempdir(),'/',"Market_Ind.RDATA"),
+               path = "Market_Ind.RDATA")
+}
 ```
 
 
 ```{r Pool Reduction}
 ## Takes about 8 Minutes
-# Google Drive Method
-File = drive_download(file = "NASDAQ Historical.RDATA",
-                      overwrite = T)
-load(File$local_path)
-rm(File)
-# Local Method
-# load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
-
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Market_Ind.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+  load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+}
+  
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
@@ -320,28 +358,32 @@ Pool_Results = PR_Red_1 %>%
 Reduced_Results = Combined_Results %>%
   filter(Stock %in% Pool_Results$Stock)
 
-## Saving Pool Results and Reduced Raw Data
-# Local Method
-# save(Pool_Results,Reduced_Results,
-#      file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
-# Google Drive Method
-save(Pool_Results,Reduced_Results,
-     file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
-drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
-             path = "Pool_Results.RDATA")
+# Saving Pool Results and Reduced Raw Data
+if(Local_S){
+  save(Pool_Results,Reduced_Results,
+       file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+}
+if(Google_Drive_S){
+  save(Pool_Results,Reduced_Results,
+       file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
+  drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
+               path = "Pool_Results.RDATA")
+}
 ```
 
 ## Training Set Creation
 
 ```{r Training Set Creation}
 ## Loading Pool Results
-# Google Drive Method
-File = drive_download("Pool_Results.RDATA",
-                      overwrite = T)
-load(File$local_path)
-rm(File)
-# Local Method
-# load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+if(Google_Drive_L){
+  File = drive_download("Pool_Results.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+}
 
 ## Building Optimized Training Set
 ## Takes About 7 Minutes
@@ -371,26 +413,31 @@ Variables = DF %>%
 Sys.time() - Start
 
 
-# # Local Method
-# save(Variables,Train_Set,Windows,
-#      file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
-# Google Drive Method
-save(Variables,Train_Set,Windows,
-     file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
-drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
-             path = "Training_Prep.RDATA")
+if(Local_S){
+  save(Variables,Train_Set,Windows,
+       file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+}
+if(Google_Drive_S){
+  save(Variables,Train_Set,Windows,
+       file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
+  drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
+               path = "Training_Prep.RDATA")
+}
 
 ```
 
-```{r}
+```{r Variable Importance Correction}
 ## Adds NA to columns where variable importance says they arent needed. 
-# Google Drive Method
-File = drive_download("Training_Prep.RDATA",
-                      overwrite = T)
-load(File$local_path)
-rm(File)
-# Local Method
-# load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+if(Google_Drive_L){
+  File = drive_download("Training_Prep.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+}
+
 Unique = as.character(unique(Variables$Stock))
 
 Train_Set = Train_Set %>%
@@ -426,25 +473,29 @@ if(i == 1) {
 
 Train = Comb
 
-# Google Drive Method
-save(Train,
-     file = paste0(tempdir(),'/',"Training_Data.RDATA"))
-drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
-             path = "Training_Data.RDATA")
-# # Local Method
-# save(Train,
-#      file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+if(Google_Drive_S){
+  save(Train,
+       file = paste0(tempdir(),'/',"Training_Data.RDATA"))
+  drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
+               path = "Training_Data.RDATA")
+}
+if(Local_S){
+  save(Train,
+       file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+}
 ```
 
-```{r}
+```{r Modeling}
 # Modeling with the crossfold function
-# Google Drive Method
-File = drive_download("Training_Data.RDATA",
-                      overwrite = T)
-load(File$local_path)
-rm(File)
-# Local Method
-# load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+if(Google_Drive_L){
+  File = drive_download("Training_Data.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+}
 
 DF = Train %>%
   # filter(Stock == "AMZN" | Stock == "ADBE" | Stock == "AMED") %>%
