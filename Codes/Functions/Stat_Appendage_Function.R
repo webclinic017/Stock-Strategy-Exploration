@@ -27,6 +27,7 @@ require(TTR)
   rownames(DF2) = ymd(DF2$Date)
   DF2$Date = NULL
   DF2$Stock = NULL
+  DF2$Market_Status = NULL
   DF_Orig = as.xts(DF2)
   
   
@@ -133,14 +134,16 @@ require(TTR)
                          Column = Column)
   ## EMV Optimization
   # Arms' Ease of Movement minimizes days where the security moves easily
-  EMV_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
-                         DF_Store = DF,
-                         Range = c(2,100),
-                         TTR_Name = "EMV",
-                         Target = "maEMV",
-                         Col_Names =  c("EMV","MA_EMV"),
-                         Volume = DF_Orig$Volume,
-                         Column = Column)
+  # EMV_DF = try(OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
+  #                        DF_Store = DF,
+  #                        Range = c(2,100),
+  #                        TTR_Name = "EMV",
+  #                        Target = "maEMV",
+  #                        Col_Names =  c("EMV","MA_EMV"),
+  #                        Volume = DF_Orig$Volume,
+  #                        Column = Column))
+  # if(class(EMV_DF) %in% "try-error"){rm(EMV_DF)}
+    
   ## MFI Optimization
   # Money Flow Index is a ratio of positive and negative money flow over time
   MFI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),

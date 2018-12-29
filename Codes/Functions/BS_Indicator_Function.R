@@ -43,17 +43,18 @@ BS_Indicator_Function = function(DF,Column = NULL){
     DF2 = DF %>%
       mutate(Indicator = sequence(rle(Buy)$lengths),
              Max = ifelse(lead(Indicator) == 1,Indicator + 1,NA)) %>%
-      na.locf(fromLast = T) %>%
+      na.locf(fromLast = T,na.rm = F) %>%
       mutate(Days = Max - Indicator,
              End_Price_Buy = ifelse(Sell == 1 & Indicator == 1,
                                     Adjusted,NA),
              End_Price_Sell = ifelse(Buy == 1 & Indicator == 1,
                                      Adjusted,NA)) %>%
-      na.locf(fromLast = T) %>%
+      na.locf(fromLast = T,na.rm = F) %>%
       mutate(PR = ifelse(Buy == 1,
                          (End_Price_Buy-Adjusted)/(Days*Adjusted),
                          (End_Price_Sell-Adjusted)/(Days*Adjusted))) %>%
       select(-c(Indicator,End_Price_Buy,End_Price_Sell,Sell))
+    DF2[is.na(DF2)] = 0
       
       # ggplot(DF2[1:100,],aes(Date,Adjusted,color = factor(Buy))) +
       #   geom_point()

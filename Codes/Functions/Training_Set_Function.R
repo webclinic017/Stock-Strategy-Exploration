@@ -1,6 +1,7 @@
 Training_Set_Function = function(Combined_Results){
 
     ## Looping All Stocks Through Spline Optimization
+    Combined_Results = as.data.frame(Combined_Results)
     Tickers = as.character(unique(Combined_Results$Stock))
     Window_Results = list()
     
@@ -18,6 +19,7 @@ Training_Set_Function = function(Combined_Results){
         na.omit()
       
       ## Finding Optimal Stat Windows
+      ## Removing Date Information
       Smooth_Data =  try(DF %>%
         mutate(Adj_Smooth = Spline_Par_Optim(.,Column = "PR_1D")) %>%
         BS_Indicator_Function("Adj_Smooth") %>%

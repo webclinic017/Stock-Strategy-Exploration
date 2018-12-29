@@ -72,13 +72,14 @@ Root_Folder = getwd()
 
 ## Disabling API Warning
 options("getSymbols.yahoo.warning" = FALSE)
+options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Local_S = T
 Local_L = T
 Google_Drive_S = T
 Google_Drive_L = F
-Initial_Pull = F
+Initial_Pull = T
 Update_Pull = T
 ```
 
@@ -91,7 +92,7 @@ if(Initial_Pull){
   NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
   Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI"),
                               Name = c("S&P 500","NASDAQ","Dow Jones"),
-                              IPOyear = "1900",
+                              IPOyear = as.character(year(Sys.Date()) - 5),
                               LastSale = "1000")
   
   Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks) %>%
@@ -99,7 +100,8 @@ if(Initial_Pull){
            LastSale = as.numeric(as.character(LastSale))) %>%
     filter(!is.na(IPOyear),
            !is.na(LastSale)) %>%
-    filter(IPOyear <=  year(Sys.Date()) - 7,
+    filter(IPOyear <= year(Sys.Date()) - 5,
+           IPOyear >= year(Sys.Date()) - 15,
            LastSale >= 10)
   Dump = list()
   
@@ -232,7 +234,6 @@ if(Google_Drive_S){
 
 
 ```{r Pool Reduction}
-## Takes about 8 Minutes
 if(Google_Drive_L){
   File = drive_download(file = "NASDAQ Historical.RDATA",
                         overwrite = T)
@@ -247,7 +248,8 @@ if(Local_L){
   load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
   load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
 }
-  
+
+## Takes about 5 Minutes  
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
@@ -257,19 +259,14 @@ Sys.time() - Start
 NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
 PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
-  group_by(Sector) %>%
-  filter(Price_Growth >= 15,
-         Opt >= 0,
+  filter(Opt >= 0,
          Ratio >= 1,
+         Price_Growth >= 0,
          Volume_Trajectory >= 0) %>%
   mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
          Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
          Price_Growth_Score = dense_rank(desc(Price_Growth)),
          Volume_Norm_Score = dense_rank(desc(Volume_Norm))) %>%
-  filter(Reward_Mean_Score <= quantile(Reward_Mean_Score,0.10,na.rm = T) |
-           Risk_Mean_Score <= quantile(Risk_Mean_Score,0.10,na.rm = T) |
-           Price_Growth_Score <= quantile(Price_Growth_Score,0.10,na.rm = T) |
-           Volume_Norm_Score <= quantile(Volume_Norm_Score,0.10,na.rm = T)) %>%
   na.omit()
 
 ## Appending FinViz Stats
@@ -342,21 +339,34 @@ Pool_Results = PR_Red_1 %>%
          P.E = as.numeric(as.character(P.E)),
          Recom = as.numeric(as.character(Recom)),
          Employees = as.numeric(as.character(Employees)),
-         Target.Price = as.numeric(as.character(Target.Price)),
-         Target.Price = as.numeric(as.character(Target.Price)),
          Target.Price = as.numeric(as.character(Target.Price))
          ) %>%
   select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) %>%
-  filter(Profit.Margin >= 0,
-         Oper..Margin >= 0,
+  filter(Sales.Q.Q >= 0,
+         Sales.past.5Y >=0,
+         Profit.Margin >= 0,
+         EPS.past.5Y >= 0,
+         EPS.this.Y >= 0,
          EPS.next.Y >= 0,
-         ROA >= 0,
+         EPS.next.Y.1 >= 0,
          ROE >= 0,
-         ROI >= 0)
+         Beta >= 1)
+
+Tickers = unique(Pool_Results$Stock)
+for(i in 1:length(Tickers)){
+  TMP = Combined_Results %>%
+    filter(Stock == Tickers[i])
+  p1 = ggplot(TMP,aes(x = Date,y = Adjusted)) + 
+    geom_line() + 
+    labs(title = paste(Tickers[i]))
+  print(p1)
+}
 
 ## Reducing Historical Data to Reduced Selections
 Reduced_Results = Combined_Results %>%
-  filter(Stock %in% Pool_Results$Stock)
+  filter(Stock %in% Pool_Results$Stock) %>%
+  left_join(Market_Ind) %>%
+  na.omit()
 
 # Saving Pool Results and Reduced Raw Data
 if(Local_S){
@@ -386,7 +396,7 @@ if(Local_L){
 }
 
 ## Building Optimized Training Set
-## Takes About 7 Minutes
+## Takes About 3 Minute
 Start = Sys.time()
 Train_Set = Training_Set_Function(Reduced_Results)
 Train_Set = na.omit(Train_Set)
@@ -401,7 +411,7 @@ Windows = Train_Set %>%
 ## Feature Selection
 ## Takes about 2 Minutes
 Start = Sys.time()
-Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D")
+Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D","Market_Status")
 
 DF = Train_Set %>%
   group_by(Stock) %>%
@@ -443,13 +453,13 @@ Unique = as.character(unique(Variables$Stock))
 Train_Set = Train_Set %>%
   filter(Stock %in% Unique)
 
-Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D")
 NAFUNCTION = function(x){x = NA}
 
+p = progress_estimated(length(Unique))
 for(i in 1:length(Unique)){
   
   idx = which(Variables$Stock %in% Unique[i])
-  Vars = unlist(Variables$Variable[idx])
+  Vars = c(unlist(Variables$Variable[idx]),"Market_Status")
   
   Keep = Train_Set %>%
     filter(Stock == Unique[i]) %>%
@@ -463,12 +473,14 @@ for(i in 1:length(Unique)){
   
   Temp = cbind(Keep, Temp)
   
-if(i == 1) {
-  Comb = Temp
-}
+  if(i == 1) {
+    Comb = Temp
+  }
   if(i != 1){
     Comb = rbind(Comb, Temp)
   }
+  
+  p$pause(0.5)$tick()$print()
 }
 
 Train = Comb
