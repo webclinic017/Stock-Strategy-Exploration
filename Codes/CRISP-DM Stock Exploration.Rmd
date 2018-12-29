@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth', 'lubridate', 'googledrive')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth', 'lubridate', 'googledrive','cumstats')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -260,7 +260,6 @@ NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
 PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
   filter(Opt >= 0,
-         Ratio >= 1,
          Price_Growth >= 0,
          Volume_Trajectory >= 0) %>%
   mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
@@ -349,8 +348,9 @@ Pool_Results = PR_Red_1 %>%
          EPS.this.Y >= 0,
          EPS.next.Y >= 0,
          EPS.next.Y.1 >= 0,
-         ROE >= 0,
-         Beta >= 1)
+         EPS.Q.Q >= 0,
+         ROE >= 0.10,
+         Insider.Own > 0)
 
 Tickers = unique(Pool_Results$Stock)
 for(i in 1:length(Tickers)){
@@ -436,6 +436,7 @@ if(Google_Drive_S){
 
 ```
 
+
 ```{r Variable Importance Correction}
 ## Adds NA to columns where variable importance says they arent needed. 
 if(Google_Drive_L){
@@ -496,6 +497,44 @@ if(Local_S){
        file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
 }
 ```
+
+```{r Model Testing}
+if(Google_Drive_L){
+  File = drive_download("Training_Data.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+}
+
+NA_Select = function(x){sum(is.na(x)) == 0}
+TMP = Train %>%
+  filter(Stock == "YNDX") %>%
+  select_if(NA_Select)
+Train_DF = TMP %>%
+  filter(Date < "2018-01-01 00:00:00") %>%
+  select(-c(Date,Stock))
+Test_DF = TMP %>%
+  filter(Date >= "2018-01-01 00:00:00")
+
+mod = earth(Buy~.,
+          Train_DF,
+          nfold = 5,
+          ncross = 5,
+          degree = 2,
+          nk = 5)
+
+pred_train = predict(mod,Train_DF,type = "response")
+Test_DF$pred = predict(mod,Test_DF,type = "response")
+ggplot(Test_DF,aes(x = Date,y = pred)) +
+  geom_point() + 
+  geom_point(aes(y = Buy)) + 
+  geom_point(aes(y = Close))
+
+```
+
 
 ```{r Modeling}
 # Modeling with the crossfold function
