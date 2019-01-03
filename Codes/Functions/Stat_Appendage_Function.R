@@ -31,15 +31,15 @@ require(TTR)
   DF_Orig = as.xts(DF2)
   
   
-  ## ADX Optimization
-  # Welles Wilder's Directional Movement Index
-  ADX_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
-                         DF_Store = DF,
-                         Range = c(2,100),
-                         TTR_Name = "ADX",
-                         Target = "ADX",
-                         Col_Names = c("DIP","DIL","DX","ADX"),
-                         Column = Column)
+  # ## ADX Optimization
+  # # Welles Wilder's Directional Movement Index
+  # ADX_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  #                        DF_Store = DF,
+  #                        Range = c(2,100),
+  #                        TTR_Name = "ADX",
+  #                        Target = "ADX",
+  #                        Col_Names = c("DIP","DIL","DX","ADX"),
+  #                        Column = Column)
   ## Aroon Optimization
   # Indicator attempts to idnetify starting trends
   AROON_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
@@ -49,15 +49,15 @@ require(TTR)
                            Target = "oscillator",
                            Col_Names = c("AROON_Up","AROON_Down","AROON_Osc"),
                            Column = Column)
-  ## ATR Optimization
-  # Measure of the volatility for a HLC series
-  ATR_DF = OPT_Window_TI(DF_Eval = DF_Orig,
-                         DF_Store = DF,
-                         Range = c(2,250),
-                         TTR_Name = "ATR",
-                         Target = "atr",
-                         Col_Names = c("TR","ATR","trueHigh","trueLow"),                          
-                         Column = Column)
+  # ## ATR Optimization
+  # # Measure of the volatility for a HLC series
+  # ATR_DF = OPT_Window_TI(DF_Eval = DF_Orig,
+  #                        DF_Store = DF,
+  #                        Range = c(2,250),
+  #                        TTR_Name = "ATR",
+  #                        Target = "atr",
+  #                        Col_Names = c("TR","ATR","trueHigh","trueLow"),                          
+  #                        Column = Column)
   ## BBands Optimization
   # Compares volatility and Price Levels Over Time
   BBANDS_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
@@ -67,6 +67,8 @@ require(TTR)
                             Target = "pctB",
                             Col_Names = c("B_Down","B_MAVG","B_Up","B_Pct"),                          
                             Column = Column)
+  BBANDS_DF = BBANDS_DF %>%
+    select(BBands_Window,B_Pct)
   ## CCI Optimization
   # Commodity Channel Index attempts to find start/end trends
   CCI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
@@ -103,17 +105,17 @@ require(TTR)
                          Target = "cmo",
                          Col_Names = "CMO",
                          Column = Column)
-  ## DonchianChannel Optimization
-  # Created to generate Buy/Sell signals for the turtle system
-  DC_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
-                        DF_Store = DF,
-                        Range = c(200,600),
-                        TTR_Name = "DonchianChannel",
-                        Target = "mid",
-                        Col_Names = c("Donchian_High",
-                                      "Donchian_Mid",
-                                      "Donchian_Low"),
-                        Column = Column)
+  # ## DonchianChannel Optimization
+  # # Created to generate Buy/Sell signals for the turtle system
+  # DC_DF = OPT_Window_TI(DF_Eval = DF_Orig[,c("High","Low")],
+  #                       DF_Store = DF,
+  #                       Range = c(200,600),
+  #                       TTR_Name = "DonchianChannel",
+  #                       Target = "mid",
+  #                       Col_Names = c("Donchian_High",
+  #                                     "Donchian_Mid",
+  #                                     "Donchian_Low"),
+  #                       Column = Column)
   ## DPO Optimization
   # De-trended Price Oscillator
   DPO_DF = OPT_Window_TI(DF_Eval = DF_Orig$Column,
@@ -231,13 +233,13 @@ require(TTR)
   Window_TTR<-(do.call(bind_cols,mget(v1)))
   rm(list = v1)
   #################### TTR Non-Window Functions ######################
-  ## Chaikin AD
-  # Measure of Money Flow
-  chaikinAD_DF = as.data.frame(chaikinAD(HLC(DF_Orig),DF_Orig$Volume))
-  colnames(chaikinAD_DF) = "chaikin_AD"
+  # ## Chaikin AD
+  # # Measure of Money Flow
+  # chaikinAD_DF = as.data.frame(chaikinAD(HLC(DF_Orig),DF_Orig$Volume))
+  # colnames(chaikinAD_DF) = "chaikin_AD"
   ## CLV
   # Close Location Value relates close value to trading range
-  CLV_DF = as.data.frame(CLV(DF_Orig))
+  CLV_DF = as.data.frame(CLV(HLC(DF_Orig)))
   colnames(CLV_DF) = "CLV"
   ## GMMA
   # Guppy Multiple Moving Averages
@@ -250,25 +252,25 @@ require(TTR)
   # MACD Oscillator
   MACD_DF = as.data.frame(MACD(DF_Orig$Column))
   colnames(MACD_DF) = c("MACD","MACD_Signal")
-  ## OBV
-  # On Balance Volume
-  OBV_DF = as.data.frame(OBV(DF_Orig$Adjusted,DF_Orig$Volume))
-  colnames(OBV_DF) = "OBV"
+  # ## OBV
+  # # On Balance Volume
+  # OBV_DF = as.data.frame(OBV(DF_Orig$Adjusted,DF_Orig$Volume))
+  # colnames(OBV_DF) = "OBV"
   ## SAR
-  # Parabolic Stop-and-Reverse
-  SAR_DF = as.data.frame(SAR(DF_Orig[,c("High","Low")]))
-  colnames(SAR_DF) = "SAR"
+  # # Parabolic Stop-and-Reverse
+  # SAR_DF = as.data.frame(SAR(DF_Orig[,c("High","Low")]))
+  # colnames(SAR_DF) = "SAR"
   ## stoch
   # Stochastic Oscillator
   stoch_DF = as.data.frame(stoch(HLC(DF_Orig)))
   colnames(stoch_DF) = c("Fast_K","Slow_K","Slow_D")
   ## ultimateOscillator
   # Capture momentum across different time frames
-  UO_DF = as.data.frame(ultimateOscillator(DF_Orig))
+  UO_DF = as.data.frame(ultimateOscillator(HLC(DF_Orig)))
   colnames(UO_DF) = "Ultimate_Oscillator"
-  ## williamsAD
-  WAD_DF = as.data.frame(williamsAD(DF_Orig))
-  colnames(WAD_DF) = "WAD"
+  # ## williamsAD
+  # WAD_DF = as.data.frame(williamsAD(HLC(DF_Orig)))
+  # colnames(WAD_DF) = "WAD"
   ######################## End TTR Functions #################
   v1 <- ls(pattern='_DF$')
   Fixed_TTR<-(do.call(bind_cols,mget(v1)))
@@ -287,15 +289,15 @@ require(TTR)
          WMA50 = WMA(Column,50),
          WMA100 = WMA(Column,100),
          WMA200 = WMA(Column,200),
-         EVWMA50 = EVWMA(Column,Volume,50),
-         EVWMA100 = EVWMA(Column,Volume,100),
-         EVWMA200 = EVWMA(Column,Volume,200),
+         # EVWMA50 = EVWMA(Column,Volume,50),
+         # EVWMA100 = EVWMA(Column,Volume,100),
+         # EVWMA200 = EVWMA(Column,Volume,200),
          ZLEMA50 = ZLEMA(Column,50),
          ZLEMA100 = ZLEMA(Column,100),
          ZLEMA200 = ZLEMA(Column,200),
-         VWAP50 = VWAP(Column,Volume,50),
-         VWAP100 = VWAP(Column,Volume,100),
-         VWAP200 = VWAP(Column,Volume,200),
+         # VWAP50 = VWAP(Column,Volume,50),
+         # VWAP100 = VWAP(Column,Volume,100),
+         # VWAP200 = VWAP(Column,Volume,200),
          HMA50 = HMA(Column,50),
          HMA100 = HMA(Column,100),
          HMA200 = HMA(Column,200)) %>%

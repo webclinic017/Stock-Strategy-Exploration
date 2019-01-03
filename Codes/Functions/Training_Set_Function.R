@@ -21,8 +21,7 @@ Training_Set_Function = function(Combined_Results){
       ## Finding Optimal Stat Windows
       ## Removing Date Information
       Smooth_Data =  try(DF %>%
-        mutate(Adj_Smooth = Spline_Par_Optim(.,Column = "PR_1D")) %>%
-        BS_Indicator_Function("Adj_Smooth") %>%
+        BS_Indicator_Function("PR_1D") %>%
         Stat_Appendage_Function(Column = "PR_1D"),silent = T)
 
       # Output to ForEach Loop
