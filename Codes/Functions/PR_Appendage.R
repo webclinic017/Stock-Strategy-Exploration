@@ -5,21 +5,16 @@ PR_Appendage = function(Combined_Results = NULL,
     # Subsetting to Specific Stock
     DF = Combined_Results %>%
       filter(Stock == Stock_Loop) %>%
-      mutate(PR_1D = (Adjusted - lag(Adjusted))/Adjusted,
-             PR_1D = lead(PR_1D,1)) %>%
+      mutate(Cumulative_Return = (Adjusted - Adjusted[1])/Adjusted[1],
+             Cumulative_Return = lead(Cumulative_Return,1),
+             PR_1D = (Adjusted - lag(Adjusted,1))/lag(Adjusted,1),
+             PR_1D = lead(Adjusted,1)) %>%
       na.omit()
+    Spline = try(smooth.spline(DF$Cumulative_Return),
+                 silent = T)
     
-    OptSplineParameter = try(optimize(PR_Cost_Function, 
-                                      c(0,1), 
-                                      DF = DF,
-                                      Column = "PR_1D",
-                                      maximum = TRUE,
-                                      tol = 0.0001),
-                             silent = T)
-    
-    if("try-error" %in% class(OptSplineParameter)){
+    if("try-error" %in% class(Spline)){
       TMP = data.frame(Stock = paste(Stock_Loop,"Opt_Error"),
-                       Opt = NA,
                        Reward_Mean = NA,
                        Reward_SD = NA,
                        Risk_Mean = NA,
@@ -35,11 +30,9 @@ PR_Appendage = function(Combined_Results = NULL,
                        Last_Date = NA,
                        stringsAsFactors = F)
     }else{
-      
-      Risk_Reward = PR_Cost_Function(Parameter = OptSplineParameter$maximum,
-                                     DF = DF,
-                                     Column = "PR_1D",
-                                     Optimize = F)
+      DF$Fit = Spline$y
+      Risk_Reward = PR_Cost_Function(DF = DF,
+                                     Column = "Cumulative_Return")
       Days_History = nrow(DF)
       Last_Date = ymd(max(DF$Date))
       ## Weighting Most Recent Dates
@@ -72,7 +65,6 @@ PR_Appendage = function(Combined_Results = NULL,
       Volume_Trajectory = as.numeric(coef(mod)["Date"])
       
       TMP = data.frame(Stock = Stock_Loop,
-                       Opt = OptSplineParameter$objective,
                        Reward_Mean = Risk_Reward$PR_Reward_Mean,
                        Reward_SD = Risk_Reward$PR_Reward_SD,
                        Risk_Mean= Risk_Reward$PR_Risk_Mean,

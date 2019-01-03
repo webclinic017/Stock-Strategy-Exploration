@@ -81,6 +81,9 @@ Google_Drive_S = T
 Google_Drive_L = T
 Initial_Pull = T
 Update_Pull = T
+
+## Google Drive Maintinance
+drive_empty_trash()
 ```
 
 ## Initial Raw Data Pull
@@ -142,8 +145,12 @@ if(Initial_Pull){
   if(Google_Drive_S){
     save(Combined_Results,
          file = paste0(tempdir(),'/',"NASDAQ Historical.RDATA"))
+    Check = drive_find("NASDAQ Historical.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("NASDAQ Historical.RDATA")
+    }
     drive_upload(media =paste0(tempdir(),'/',"NASDAQ Historical.RDATA"),
-                 path = "NASDAQ Historical.RDATA")
+                   path = "NASDAQ Historical.RDATA")
   }
 }
 
@@ -176,11 +183,10 @@ if(Local_L){
 Market_DF = Combined_Results %>%
   filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
   group_by(Stock) %>%
-  mutate(PR_1D = (Adjusted - lag(Adjusted,1))/lag(Adjusted,1)) %>%
+  mutate(Cumulative_Return = (Adjusted-Adjusted[1])/Adjusted[1]) %>%
   na.omit() %>%
-  mutate(PR_Cum = cumsum(PR_1D),
-         Indicator = runMax(PR_Cum,90),
-         Delta = PR_Cum - Indicator) %>%
+  mutate(Indicator = runMax(Cumulative_Return,90),
+         Delta = Cumulative_Return - Indicator) %>%
   na.omit() %>%
   mutate(Market_Status = as.factor(case_when(
     Delta <= -0.20 ~ "Bear",
@@ -195,12 +201,12 @@ Plot_DF[Plot_DF$Stock == "^GSPC","Stock"] = "S&P 500"
 Plot_DF[Plot_DF$Stock == "^IXIC","Stock"] = "NASDAQ"
 Plot_DF[Plot_DF$Stock == "^DJI","Stock"] = "Dow Jones"
 Plot_DF$Market_Status = factor(Plot_DF$Market_Status, levels = c("Bull",
-                                                                      "Pullback",
-                                                                      "Correction",
-                                                                      "Bear"))
+                                                                 "Pullback",
+                                                                 "Correction",
+                                                                 "Bear"))
 
 ## Plot Examining Market Direction Designation
-ggplot(Plot_DF,aes(x = Date,y = PR_Cum,color = Market_Status)) +
+ggplot(Plot_DF,aes(x = Date,y = Cumulative_Return,color = Market_Status)) +
   geom_point() +
   scale_y_continuous(labels = scales::percent) +
   labs(x = "Date",
@@ -225,10 +231,14 @@ save(Market_Ind,
      file = paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
 }
 if(Google_Drive_S){
-  save(Market_Ind,
-       file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
-  drive_upload(media = paste0(tempdir(),'/',"Market_Ind.RDATA"),
-               path = "Market_Ind.RDATA")
+    save(Market_Ind,
+         file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
+    Check = drive_find("Market_Ind.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Market_Ind.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Market_Ind.RDATA"),
+                   path = "Market_Ind.RDATA")
 }
 ```
 
@@ -259,9 +269,7 @@ Sys.time() - Start
 NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
 PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
-  filter(Opt >= 0,
-         Price_Growth >= 0,
-         Volume_Trajectory >= 0) %>%
+  filter(Price_Growth >= 0) %>%
   mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
          Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
          Price_Growth_Score = dense_rank(desc(Price_Growth)),
@@ -350,6 +358,7 @@ Pool_Results = PR_Red_1 %>%
          EPS.next.Y.1 >= 0,
          EPS.Q.Q >= 0,
          ROE >= 0.10,
+         Beta >= 1,
          Insider.Own > 0)
 
 Tickers = unique(Pool_Results$Stock)
@@ -367,17 +376,24 @@ Reduced_Results = Combined_Results %>%
   filter(Stock %in% Pool_Results$Stock) %>%
   left_join(Market_Ind) %>%
   na.omit()
+Total_Results = Combined_Results %>%
+  left_join(Market_Ind) %>%
+  na.omit()
 
 # Saving Pool Results and Reduced Raw Data
 if(Local_S){
-  save(Pool_Results,Reduced_Results,
+  save(Pool_Results,Reduced_Results,Total_Results,
        file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 }
 if(Google_Drive_S){
-  save(Pool_Results,Reduced_Results,
-       file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
-  drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
-               path = "Pool_Results.RDATA")
+    save(Pool_Results,Reduced_Results,Total_Results,
+         file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
+    Check = drive_find("Pool_Results.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Pool_Results.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
+                   path = "Pool_Results.RDATA")
 }
 ```
 
@@ -400,7 +416,7 @@ if(Local_L){
 Start = Sys.time()
 Train_Set = Training_Set_Function(Reduced_Results) %>%
   na.omit()
-Train_Set_Total = Training_Set_Function(Combined_Results) %>%
+Train_Set_Total = Training_Set_Function(Total_Results) %>%
   na.omit()
 Sys.time() - Start
 
@@ -408,7 +424,10 @@ Sys.time() - Start
 Windows = Train_Set_Total %>%
   group_by(Stock) %>%
   select(contains("Window")) %>%
-  summarise_all(mean)
+  summarise_all(mean) %>%
+  ungroup() %>%
+  select(-Stock) %>%
+  summarise_all(median)
 
 ## Feature Selection
 ## Takes about 2 Minutes
@@ -430,10 +449,14 @@ if(Local_S){
        file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 }
 if(Google_Drive_S){
-  save(Variables,Train_Set,Train_Set_Total,Windows,
-       file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
-  drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
-               path = "Training_Prep.RDATA")
+    save(Variables,Train_Set,Train_Set_Total,Windows,
+         file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
+    Check = drive_find("Training_Prep.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Training_Prep.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
+                   path = "Training_Prep.RDATA")
 }
 
 ```
@@ -488,15 +511,19 @@ for(i in 1:length(Unique)){
 
 Train = Comb
 
-if(Google_Drive_S){
-  save(Train,
-       file = paste0(tempdir(),'/',"Training_Data.RDATA"))
-  drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
-               path = "Training_Data.RDATA")
-}
 if(Local_S){
   save(Train,
        file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+}
+if(Google_Drive_S){
+    save(Train,
+         file = paste0(tempdir(),'/',"Training_Data.RDATA"))
+    Check = drive_find("Training_Data.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Training_Data.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
+                   path = "Training_Data.RDATA")
 }
 ```
 

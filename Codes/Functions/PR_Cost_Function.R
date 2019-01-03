@@ -1,4 +1,4 @@
-PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T){
+PR_Cost_Function = function(DF,Column = "Fit"){
   require(tidyverse)
   require(quantmod)
   require(Hmisc)
@@ -23,12 +23,8 @@ PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T
   
   # Appending the smoothed spline fit
   DF = na.locf(DF)
-  Smooth = smooth.spline(x = seq(1,nrow(DF)),
-                         y = DF[[Column]],
-                         spar=Parameter)
-  DF$Adj_Smooth = as.numeric(Smooth[["y"]])
   
-  DF2 = BS_Indicator_Function(DF,Column = "Adj_Smooth")
+  DF2 = BS_Indicator_Function(DF,Column = Column)
   
   DF_Risk = DF2 %>%
     filter(Buy == 0)
@@ -55,16 +51,11 @@ PR_Cost_Function = function(Parameter,DF = NULL,Column = "Adjusted",Optimize = T
   PR_Reward_Mean <- wtd.mean(DF_Reward$PR_1D,W)
   var <- wtd.var(DF_Reward$PR_1D,W)
   PR_Reward_SD <- sqrt(var)
-  
-  PR_Opt = sum(PR_Reward_Mean)
-  if(Optimize){
-    return(PR_Opt)
-  }else{
-    return(data.frame(PR_Reward_Mean,
+    
+  return(data.frame(PR_Reward_Mean,
                       PR_Reward_SD,
                       PR_Risk_Mean,
                       PR_Risk_SD))
-  }
 }
   
   

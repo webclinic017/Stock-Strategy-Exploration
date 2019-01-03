@@ -15,14 +15,23 @@ Training_Set_Function = function(Combined_Results){
       DF = Combined_Results %>%
         filter(Stock == Stock_Loop) %>%
         mutate(PR_1D = (Adjusted - lag(Adjusted))/Adjusted,
-               PR_1D = lead(PR_1D,1)) %>%
-        na.omit()
+               PR_1D = lead(PR_1D,1),
+               Cum_Ret = cumsum(PR_1D)) %>%
+        mutate(Open = rollapply(data = Open,width = 90,FUN = scale,fill = NA),
+               High = rollapply(data = High,width = 90,FUN = scale,fill = NA),
+               Low = rollapply(data = Low,width = 90,FUN = scale,fill = NA),
+               Close = rollapply(data = Close,width = 90,FUN = scale,fill = NA),
+               Adjusted = rollapply(data = Adjusted,width = 90,FUN = scale,fill = NA),
+               Volume = rollapply(data = Volume,width = 90,FUN = scale,fill = NA)) %>% 
+        na.omit() %>%
+        as.data.frame()
       
       ## Finding Optimal Stat Windows
       ## Removing Date Information
       Smooth_Data =  try(DF %>%
-        BS_Indicator_Function("PR_1D") %>%
-        Stat_Appendage_Function(Column = "PR_1D"),silent = T)
+                           BS_Indicator_Function(Column = "Cum_Ret")
+        Stat_Appendage_Function(Column = "Cum_Ret"),
+        silent = T)
 
       # Output to ForEach Loop
       Window_Results[[i]] = Smooth_Data
