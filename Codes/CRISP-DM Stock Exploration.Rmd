@@ -76,9 +76,9 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Local_S = T
-Local_L = T
+Local_L = F
 Google_Drive_S = T
-Google_Drive_L = F
+Google_Drive_L = T
 Initial_Pull = T
 Update_Pull = T
 ```
@@ -398,12 +398,14 @@ if(Local_L){
 ## Building Optimized Training Set
 ## Takes About 3 Minute
 Start = Sys.time()
-Train_Set = Training_Set_Function(Reduced_Results)
-Train_Set = na.omit(Train_Set)
+Train_Set = Training_Set_Function(Reduced_Results) %>%
+  na.omit()
+Train_Set_Total = Training_Set_Function(Combined_Results) %>%
+  na.omit()
 Sys.time() - Start
 
 ## Tabulating Optimized Window Sizes
-Windows = Train_Set %>%
+Windows = Train_Set_Total %>%
   group_by(Stock) %>%
   select(contains("Window")) %>%
   summarise_all(mean)
@@ -424,11 +426,11 @@ Sys.time() - Start
 
 
 if(Local_S){
-  save(Variables,Train_Set,Windows,
+  save(Variables,Train_Set,Train_Set_Total,Windows,
        file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 }
 if(Google_Drive_S){
-  save(Variables,Train_Set,Windows,
+  save(Variables,Train_Set,Train_Set_Total,Windows,
        file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
   drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
                path = "Training_Prep.RDATA")
