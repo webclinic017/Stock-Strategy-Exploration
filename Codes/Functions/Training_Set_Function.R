@@ -14,24 +14,78 @@ Training_Set_Function = function(Combined_Results){
       # Subsetting to Specific Stock
       DF = Combined_Results %>%
         filter(Stock == Stock_Loop) %>%
-        mutate(PR_1D = (Adjusted - lag(Adjusted))/Adjusted,
-               PR_1D = lead(PR_1D,1),
-               Cum_Ret = cumsum(PR_1D)) %>%
-        mutate(Open = rollapply(data = Open,width = 90,FUN = scale,fill = NA),
-               High = rollapply(data = High,width = 90,FUN = scale,fill = NA),
-               Low = rollapply(data = Low,width = 90,FUN = scale,fill = NA),
-               Close = rollapply(data = Close,width = 90,FUN = scale,fill = NA),
-               Adjusted = rollapply(data = Adjusted,width = 90,FUN = scale,fill = NA),
-               Volume = rollapply(data = Volume,width = 90,FUN = scale,fill = NA)) %>% 
+        mutate(Cumulative_Return = (Adjusted - Adjusted[1])/Adjusted[1],
+               Cumulative_Return = lead(Cumulative_Return,1),
+               Adjust_TMP = Adjusted,
+               Adjust_TMP = lead(Adjust_TMP,1)) %>%
+        mutate(Open = as.numeric(rollapply(data = Open,width = 90,FUN = scale,fill = NA)),
+               High = as.numeric(rollapply(data = High,width = 90,FUN = scale,fill = NA)),
+               Low = as.numeric(rollapply(data = Low,width = 90,FUN = scale,fill = NA)),
+               Close = as.numeric(rollapply(data = Close,width = 90,FUN = scale,fill = NA)),
+               Adjusted = as.numeric(rollapply(data = Adjusted,width = 90,FUN = scale,fill = NA)),
+               Volume = as.numeric(rollapply(data = Volume,width = 90,FUN = scale,fill = NA))) %>% 
         na.omit() %>%
         as.data.frame()
       
+      TMP = DF %>%
+        mutate(Buy = 0)
+      Min = TMP$Adjust_TMP[1]
+      for(k in 2:(nrow(TMP)-1)){
+        Stance = TMP$Buy[k-1]
+        Delta = (TMP$Adjust_TMP[k] - TMP$Adjust_TMP[k-1])/TMP$Adjust_TMP[k-1]
+        
+        # Not Currently Holding and Price Reduction
+        if(Stance == 0 & Delta < 0){
+          if(TMP$Adjust_TMP[k] < Min){
+            Min = TMP$Adjust_TMP[k]
+          }
+          TMP$Buy[k] = 0
+        }
+        # Not Currently Holding and Price Increase
+        if(Stance == 0 & Delta > 0){
+          if((TMP$Adjust_TMP[k]-Min)/Min >= 0.05){
+            TMP$Buy[k] = 1
+            Purchase = TMP$Adjust_TMP[k]
+            Max = Purchase
+            counter = 0
+          }else{
+            TMP$Buy[k] = 0
+          }
+        }
+        # Currently Holding and Price Reduction
+        if(Stance == 1 & Delta <= 0){
+          Diff_Purc = (TMP$Adjust_TMP[k] - Purchase)/Purchase
+          Diff_Max = (TMP$Adjust_TMP[k] - Max)/Max
+          if(Diff_Max <= -0.10 | Diff_Purc <= -0.05){
+            TMP$Buy[k] = 0
+            Min = TMP$Adjust_TMP[k]
+          }else{
+            TMP$Buy[k] = 1
+          }
+        }
+        # Currently Holding and Price Increase
+        if(Stance == 1 & Delta > 0){
+          if(TMP$Adjust_TMP[k] > Max){
+            Max = TMP$Adjust_TMP[k]
+          }
+          TMP$Buy[k] = 1
+        }
+      }
+    
+    TMP = TMP %>%
+      mutate(Indicator = sequence(rle(Buy)$lengths),
+             Max = ifelse(lead(Indicator) == 1,Indicator + 1,NA)) %>%
+      na.locf(fromLast = T,na.rm = F) %>%
+      mutate(W = 1/Indicator)
+    TMP$Buy[TMP$Max < 10] = 0
+    
+    # ggplot(TMP,aes(x = Date,y = Adjust_TMP)) +
+    #   geom_point(aes(color = factor(Buy)))
+
       ## Finding Optimal Stat Windows
       ## Removing Date Information
-      Smooth_Data =  try(DF %>%
-                           BS_Indicator_Function(Column = "Cum_Ret")
-        Stat_Appendage_Function(Column = "Cum_Ret"),
-        silent = T)
+      Smooth_Data =  try(TMP %>%
+                           Stat_Appendage_Function())
 
       # Output to ForEach Loop
       Window_Results[[i]] = Smooth_Data
