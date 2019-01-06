@@ -474,10 +474,13 @@ if(Local_L){
   load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 }
 
+## Removing Window Sizes and Expanding MArket Status Variable
 Train_Set_Total_IMP = Train_Set_Total %>%
   select(-contains("Window")) %>%
   cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
   select(-c(Market_Status))
+
+## Checking Descriptive Stats on Technical Indicators
 Sum_Stats = describe(x = Train_Set_Total_IMP,
                      na.rm = F,
                      ranges = T,
@@ -485,21 +488,23 @@ Sum_Stats = describe(x = Train_Set_Total_IMP,
                      quant = c(0.025,0.975),
                      IQR = T)
 
+## Removing Indicators Which Are Unstable After Normalization
 Keep = Sum_Stats %>%
   mutate(Vars = as.character(rownames(.))) %>%
   filter(!is.infinite(range)) %>%
   select(Vars)
 Keep = Keep$Vars
-
 Train_Set_Total_IMP = Train_Set_Total_IMP %>%
   select(Keep)
 
+## Removing Window Sizes and Expanding MArket Status Variable
 Train_Set_IMP = Train_Set %>%
   select(-contains("Window")) %>%
   cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
   select(-c(Market_Status)) %>%
   select(Keep)
 
+## Running Variable Importance On Total Training Set
 Target = "Buy"
 Remove = c("Date","Stock","Indicator","Max","W","Adjust_TMP","Cumulative_Return")
 Weights = Train_Set_Total_IMP$W
@@ -507,6 +512,8 @@ Columns = Variable_Importance_Reduction(DF = Train_Set_Total_IMP,
                                         Target = Target,
                                         Remove = Remove,
                                         Weights = Weights)
+
+
 ```
 
 
