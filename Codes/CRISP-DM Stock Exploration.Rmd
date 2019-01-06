@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth', 'lubridate', 'googledrive','cumstats')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','caret','earth', 'lubridate', 'googledrive','cumstats','dummy')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -461,6 +461,52 @@ if(Google_Drive_S){
                    path = "Training_Prep.RDATA")
 }
 
+```
+
+```{r Total Train Exploration}
+if(Google_Drive_L){
+  File = drive_download("Training_Prep.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
+}
+
+Train_Set_Total_IMP = Train_Set_Total %>%
+  select(-contains("Window")) %>%
+  cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
+  select(-c(Market_Status))
+Sum_Stats = describe(x = Train_Set_Total_IMP,
+                     na.rm = F,
+                     ranges = T,
+                     fast = T,
+                     quant = c(0.025,0.975),
+                     IQR = T)
+
+Keep = Sum_Stats %>%
+  mutate(Vars = as.character(rownames(.))) %>%
+  filter(!is.infinite(range)) %>%
+  select(Vars)
+Keep = Keep$Vars
+
+Train_Set_Total_IMP = Train_Set_Total_IMP %>%
+  select(Keep)
+
+Train_Set_IMP = Train_Set %>%
+  select(-contains("Window")) %>%
+  cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
+  select(-c(Market_Status)) %>%
+  select(Keep)
+
+Target = "Buy"
+Remove = c("Date","Stock","Indicator","Max","W","Adjust_TMP","Cumulative_Return")
+Weights = Train_Set_Total_IMP$W
+Columns = Variable_Importance_Reduction(DF = Train_Set_Total_IMP,
+                                        Target = Target,
+                                        Remove = Remove,
+                                        Weights = Weights)
 ```
 
 
