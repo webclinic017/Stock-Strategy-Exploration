@@ -443,7 +443,9 @@ Variables = DF %>%
 
 Sys.time() - Start
 
-
+if(exists("Variables") == FALSE){
+  Variables = data.frame()
+}
 if(Local_S){
   save(Variables,Train_Set,Train_Set_Total,Windows,
        file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
