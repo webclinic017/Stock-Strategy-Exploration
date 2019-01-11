@@ -34,20 +34,23 @@ Variable_Importance_Reduction = function(DF,
               family = "binomial")
   Imp = as.data.frame(coefficients(summary(mod_1))) %>%
     mutate(Var = rownames(.)) %>%
-    filter(`Pr(>|z|)` <= 0.15)
+    filter(`Pr(>|z|)` <= 0.05)
   Keep_Stage_1 = Imp$Var
   Keep_Stage_1 = Keep_Stage_1[!Keep_Stage_1 %in% "(Intercept)"]
   DF_mod = DF_mod[c(Target,Keep_Stage_1)]
   
   ## MARS Variable Importance
   mod_2 = earth(fmla,
+                nfold = 5,
+                Scale.y = T,
+                thresh = 1e-04,
+                pmethod = "cv",
+                stratify = T,
                 data = DF_mod)
   Keep_Stage_2 = rownames(evimp(mod_2))
   DF_mod = DF_mod[c(Target,Keep_Stage_2)]
 
   Final_Keep = Keep_Stage_2
-
-  Final_Keep = Keep_Stage_1
   
   Output = Final_Keep
   return(Output)
