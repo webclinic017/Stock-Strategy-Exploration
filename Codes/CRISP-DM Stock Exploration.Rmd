@@ -543,51 +543,49 @@ if(Google_Drive_L){
 if(Local_L){
   load(file = paste0(Root_Folder,"/Data/Total_Set_Feat.RDATA"))
 }
-Target = "Buy"
+
 
 Stocks = unique(Train_Set_IMP$Stock)
 
 Train = Train_Set_Total_IMP %>%
   filter(!Stock %in% Stocks) %>%
-  select(c(Target,Columns,W,Date)) %>%
-  mutate(Buy = as.factor(Buy)) %>%
-  filter(chaikin_AD > quantile(chaikin_AD,0.025),
-         chaikin_AD < quantile(chaikin_AD,0.975)) %>%
-  select(-c(Date,W))
+  dplyr::select(c(Buy,Columns,W)) %>%
+  mutate(Buy = as.factor(Buy))
+
+DF = Train %>%
+  select(Columns)
+YCS_Process = preProcess(DF,method = c("YeoJohnson","center","scale"))
+YCS_DF = predict(YCS_Process,DF)
+PCA_Process = preProcess(YCS_DF,method = "pca")
+PCA_DF = predict(PCA_Process,YCS_DF)
+FA_Process = psych::fa(YCS_DF,nfactors = 3,fm = "minchi")
+FA_DF = as.data.frame(predict(FA_Process,YCS_DF))
+LDA_Process = MASS::lda(x = YCS_DF,
+                        grouping = Train$Buy)
+LDA_DF = as.data.frame(predict(LDA_Process,YCS_DF)$x)
+Train_Combined_DF = bind_cols(YCS_DF,PCA_DF,LDA_DF) %>%
+  mutate(Buy = Train$Buy)
+
 
 Test = Train_Set_IMP %>%
   filter(Stock %in% Stocks) %>%
   mutate(Buy = as.factor(Buy))
+DF_Test = Test %>%
+  select(Columns)
+YCS_Test = predict(YCS_Process,DF_Test)
+PCA_Test = predict(PCA_Process,YCS_Test)
+LDA_Test = as.data.frame(predict(LDA_Process,YCS_Test))
+Test_Combined_DF = bind_cols(YCS_Test,PCA_Test,LDA_Test) %>%
+  mutate(Buy = Test$Buy)
 
 source("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Functions/Caret Model Compare.R")
-Model_Compare(Train = Train,
-              Test = Test,
+Model_Compare(Train = Train_Combined_DF,
+              Test = Test_Combined_DF,
               Obs = "Buy",
               Type = "C",
               parallel = T,
-              Transform = T)
-
-(LDA_Mod = MASS::lda(Buy~.^2,
-                    data = LDA_DF))
-plot(LDA_Mod)
-
-LDA_Vals = as.data.frame(predict(LDA_Mod)$x)
-EARTH_DF = LDA_Vals %>%
-  cbind(select(Train,contains("Market"),c(Buy,W,Date)))
-  
-
-(mod = glm(Buy~.-Date-W,
-          data = EARTH_DF,
-          family = "binomial"))
-
-Test = Test %>%
-  cbind(as.data.frame(predict(LDA_Mod,Test)$x))
-Test = Test %>%
-  mutate(Pred = predict(mod,Test,type = "response"),
-         Decision = case_when(
-           Pred >= 0.75 ~ 1,
-           Pred < 0.75 ~ 0
-         ))
+              p = 0.01,
+              Transform = F)
 
 
 ggplot(Test,aes(Date,Adjust_TMP,color = factor(Decision))) +
