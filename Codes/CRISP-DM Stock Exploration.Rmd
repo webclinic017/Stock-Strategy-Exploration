@@ -549,8 +549,13 @@ Stocks = unique(Train_Set_IMP$Stock)
 
 Train = Train_Set_Total_IMP %>%
   filter(!Stock %in% Stocks) %>%
-  dplyr::select(c(Buy,Columns,W)) %>%
-  mutate(Buy = as.factor(Buy))
+  mutate(Buy = case_when(
+           Indicator <= 5 ~ Buy,
+           Indicator > 5 ~ 0
+         ),
+         Buy = as.factor(Buy)) %>%
+  dplyr::select(c(Buy,Columns,W))
+  
 
 DF = Train %>%
   select(Columns)
@@ -592,6 +597,38 @@ ggplot(Test,aes(Date,Adjust_TMP,color = factor(Decision))) +
   geom_point()
   
 ```
+
+## Top 10  Method Results
+bagFDA - Bagged Flexible Discriminant Analysis
+monmlp - Monotone Multi-Layer Perceptron NNet
+avNNet - Model Averaged Neural Network
+glm - Generalized Linear Model
+multinom - Penalized Multinomial Regression
+regLogistic - Regularized Logistic Regression 
+bayesglm - Bayesian Generalized Linear Model
+glmnet - glmnet
+spls - Sparse Partial Least Squares
+sparseLDA - Sparse Linear Discriminant Analysis
+
+bagFDA is the least correlated, the rest are essentially one. Least correlated to bagFDA is the regularized logistic. Nice that they are also some of the simplest approaches as well.
+
+```{r Training Final Model}
+## Bagged FDA, built in caret function, allows for weights
+sample = runif(nrow(Train_Combined_DF))
+DF_mod = Train_Combined_DF[sample <= 0.05,]
+
+mod = bagFDA(formula = Buy~.,
+             data = DF_mod,
+             B = 50)
+Pred_Test = predict(mod,Test_Combined_DF)
+(Acc = sum(Pred_Test == Test_Combined_DF$Buy) / nrow(Test_Combined_DF))
+Pred_Train = predict(mod,DF_mod)
+(Acc = sum(Pred_Train == DF_mod$Buy) / nrow(DF_mod))
+plot(Pred_Test)
+plot(Pred_Train)
+plot(Train_Combined_DF$Buy)
+```
+
 
 
 ```{r Variable Importance Correction}
