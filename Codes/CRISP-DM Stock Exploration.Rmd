@@ -574,7 +574,11 @@ Train_Combined_DF = bind_cols(YCS_DF,PCA_DF,LDA_DF) %>%
 
 Test = Train_Set_IMP %>%
   filter(Stock %in% Stocks) %>%
-  mutate(Buy = as.factor(Buy))
+   mutate(Buy = case_when(
+           Indicator <= 5 ~ Buy,
+           Indicator > 5 ~ 0
+         ),
+         Buy = as.factor(Buy))
 DF_Test = Test %>%
   select(Columns)
 YCS_Test = predict(YCS_Process,DF_Test)
@@ -589,7 +593,7 @@ Model_Compare(Train = Train_Combined_DF,
               Obs = "Buy",
               Type = "C",
               parallel = T,
-              p = 0.05,
+              p = 0.01,
               Transform = F)
 
 

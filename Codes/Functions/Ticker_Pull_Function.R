@@ -48,6 +48,10 @@ Ticker_Pull_Function = function(Location = "NASDAQ Historical.RDATA",
   if(Google_Drive){
     save(Combined_Results,
          file = paste0(tempdir(),'/',Location))
+    Check = drive_find(Location)
+    if(nrow(Check) > 0){
+      drive_rm(Location)
+    }
     drive_upload(media = paste0(tempdir(),'/',Location),
                  path = Location)
   }else{
