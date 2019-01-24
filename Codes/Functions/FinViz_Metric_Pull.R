@@ -14,11 +14,11 @@ FinViz_Metric_Pull = function(Ticker){
   
   ## Names and Values
   Names = TMP %>%
-    select(data1,data3,data5,data7,data9,data11) %>%
+    dplyr::select(data1,data3,data5,data7,data9,data11) %>%
     as.matrix() %>%
     as.vector()
   Values = TMP %>%
-    select(data2,data4,data6,data8,data10,data12) %>%
+    dplyr::select(data2,data4,data6,data8,data10,data12) %>%
     as.matrix() %>%
     as.vector() %>%
     t() %>%
