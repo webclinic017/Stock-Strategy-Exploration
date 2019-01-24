@@ -14,16 +14,13 @@ Training_Set_Function = function(Combined_Results){
       # Subsetting to Specific Stock
       DF = Combined_Results %>%
         filter(Stock == Stock_Loop) %>%
-        mutate(Cumulative_Return = (Adjusted - Adjusted[1])/Adjusted[1],
-               Cumulative_Return = lead(Cumulative_Return,1),
-               Adjust_TMP = Adjusted,
-               Adjust_TMP = lead(Adjust_TMP,1)) %>%
-        mutate(Open = as.numeric(rollapply(data = Open,width = 90,FUN = scale,fill = NA)),
-               High = as.numeric(rollapply(data = High,width = 90,FUN = scale,fill = NA)),
-               Low = as.numeric(rollapply(data = Low,width = 90,FUN = scale,fill = NA)),
-               Close = as.numeric(rollapply(data = Close,width = 90,FUN = scale,fill = NA)),
-               Adjusted = as.numeric(rollapply(data = Adjusted,width = 90,FUN = scale,fill = NA)),
-               Volume = as.numeric(rollapply(data = Volume,width = 90,FUN = scale,fill = NA))) %>% 
+        mutate(Adjust_TMP = lead(Adjusted,1)) %>%
+        mutate(Open = as.numeric(rollapply(data = Open,width = 90,align = "right",fill = NA,FUN = scale)),
+               High = as.numeric(rollapply(data = High,width = 90,fill = NA,align = "right",FUN = scale)),
+               Low = as.numeric(rollapply(data = Low,width = 90,fill = NA,align = "right",FUN = scale)),
+               Close = as.numeric(rollapply(data = Close,width = 90,fill = NA,align = "right",FUN = scale)),
+               Adjusted = as.numeric(rollapply(data = Adjusted,width = 90,fill = NA,align = "right",FUN = scale)),
+               Volume = as.numeric(rollapply(data = Volume,width = 90,fill = NA,align = "right",FUN = scale))) %>% 
         na.omit() %>%
         as.data.frame()
       
