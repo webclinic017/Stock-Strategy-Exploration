@@ -46,7 +46,7 @@ sourceDir <- function(path, trace = TRUE, ...) {
     }
 }
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'lubridate', 'googledrive','cumstats','dummy','caret')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'lubridate', 'googledrive','cumstats','dummy','caret','plotly')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -183,10 +183,8 @@ if(Local_L){
 Market_DF = Combined_Results %>%
   filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
   group_by(Stock) %>%
-  mutate(Cumulative_Return = (Adjusted-Adjusted[1])/Adjusted[1]) %>%
-  na.omit() %>%
-  mutate(Indicator = runMax(Cumulative_Return,90),
-         Delta = Cumulative_Return - Indicator) %>%
+ mutate(Indicator = runMax(Adjusted,90),
+         Delta = (Adjusted -Indicator)/Indicator) %>%
   na.omit() %>%
   mutate(Market_Status = as.factor(case_when(
     Delta <= -0.20 ~ "Bear",
@@ -206,13 +204,14 @@ Plot_DF$Market_Status = factor(Plot_DF$Market_Status, levels = c("Bull",
                                                                  "Bear"))
 
 ## Plot Examining Market Direction Designation
-ggplot(Plot_DF,aes(x = Date,y = Cumulative_Return,color = Market_Status)) +
+p1 = ggplot(Plot_DF,aes(x = Date,y = Adjusted,color = Market_Status)) +
   geom_point() +
-  scale_y_continuous(labels = scales::percent) +
   labs(x = "Date",
-       y = "Cumulative % Return",
+       y = "Adjusted",
        color = "Market Status") +
-  facet_wrap(Stock~.,nrow = 3,ncol = 1)
+  facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+print(p1)
+# ggplotly(p1)
 
 ## Final_Indicator
 Market_Ind = Market_DF %>%
@@ -550,42 +549,55 @@ Stocks = unique(Train_Set_IMP$Stock)
 Train = Train_Set_Total_IMP %>%
   filter(!Stock %in% Stocks) %>%
   mutate(Buy = case_when(
-           Indicator <= 5 ~ Buy,
-           Indicator > 5 ~ 0
+           Indicator <= 0.65*Max ~ Buy,
+           Indicator > 0.65*Max ~ 0
          ),
          Buy = as.factor(Buy)) %>%
-  dplyr::select(c(Buy,Columns,W))
-  
+  dplyr::select(-c(Adjust_TMP,Indicator,Max,Stock,Cumulative_Return,Max,W,Date))
+(table(Train$Buy))
+
+glm_var = glm(Buy~.,
+              data = Train,
+              family = "binomial")
+p_vals = as.data.frame(coef(summary(glm_var))[,4]) %>%
+  mutate(vars = as.character(rownames(.)))
+colnames(p_vals)[1] = "P_Value"
+p_val_sig = p_vals %>%
+  dplyr::filter(P_Value <= 0.05,
+                vars != "(Intercept)")
+
+Train = Train %>%
+  dplyr::select(p_val_sig$vars,"Buy")
+high_cor = findCorrelation(cor(sapply(Train,as.numeric)))
+if(!is_empty(high_cor)){
+  Train = Train[,-high_cor]
+}
+lin_comb = findLinearCombos((sapply(Train,as.numeric)))
+if(!is_empty(lin_comb$remove)){
+  Train = Train[,-lin_comb$remove]
+}
+
 
 DF = Train %>%
-  select(Columns)
-YCS_Process = preProcess(DF,method = c("BoxCox","center","scale"))
+  select(-Buy)
+YCS_Process = preProcess(DF,method = c("YeoJohnson","center","scale"))
 YCS_DF = predict(YCS_Process,DF)
-PCA_Process = preProcess(YCS_DF,method = "pca")
-PCA_DF = predict(PCA_Process,YCS_DF)
-FA_Process = psych::fa(YCS_DF,nfactors = 3,fm = "minchi")
-FA_DF = as.data.frame(predict(FA_Process,YCS_DF))
-LDA_Process = MASS::lda(x = YCS_DF,
-                        grouping = Train$Buy)
-LDA_DF = as.data.frame(predict(LDA_Process,YCS_DF)$x)
-Train_Combined_DF = bind_cols(YCS_DF,PCA_DF,LDA_DF) %>%
+Train_Combined_DF = bind_cols(YCS_DF) %>%
   mutate(Buy = Train$Buy)
 
 
 Test = Train_Set_IMP %>%
   filter(Stock %in% Stocks) %>%
    mutate(Buy = case_when(
-           Indicator <= 5 ~ Buy,
-           Indicator > 5 ~ 0
+           Indicator <= 0.65*Max ~ Buy,
+           Indicator > 0.65*Max ~ 0
          ),
          Buy = as.factor(Buy))
-DF_Test = Test %>%
-  select(Columns)
+DF_Test = Test
 YCS_Test = predict(YCS_Process,DF_Test)
-PCA_Test = predict(PCA_Process,YCS_Test)
-LDA_Test = as.data.frame(predict(LDA_Process,YCS_Test))
-Test_Combined_DF = bind_cols(YCS_Test,PCA_Test,LDA_Test) %>%
-  mutate(Buy = Test$Buy)
+Test_Combined_DF = bind_cols(YCS_Test) %>%
+  mutate(Buy = Test$Buy) %>%
+  dplyr::select(colnames(Train_Combined_DF))
 
 source("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Functions/Caret Model Compare.R")
 Model_Compare(Train = Train_Combined_DF,
@@ -595,6 +607,9 @@ Model_Compare(Train = Train_Combined_DF,
               parallel = T,
               p = 0.01,
               Transform = F)
+
+
+
 
 
 ggplot(Test,aes(Date,Adjust_TMP,color = factor(Decision))) +
