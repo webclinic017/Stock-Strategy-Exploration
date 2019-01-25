@@ -14,7 +14,7 @@ Training_Set_Function = function(Combined_Results){
       # Subsetting to Specific Stock
       DF = Combined_Results %>%
         filter(Stock == Stock_Loop) %>%
-        mutate(Adjust_TMP = lead(Adjusted,1)) %>%
+        mutate(Adjust_TMP = Adjusted) %>%
         mutate(Open = as.numeric(rollapply(data = Open,width = 90,align = "right",fill = NA,FUN = scale)),
                High = as.numeric(rollapply(data = High,width = 90,fill = NA,align = "right",FUN = scale)),
                Low = as.numeric(rollapply(data = Low,width = 90,fill = NA,align = "right",FUN = scale)),

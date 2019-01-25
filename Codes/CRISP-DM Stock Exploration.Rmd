@@ -184,7 +184,7 @@ Market_DF = Combined_Results %>%
   filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
   group_by(Stock) %>%
  mutate(Indicator = runMax(Adjusted,90),
-         Delta = (Adjusted -Indicator)/Indicator) %>%
+        Delta = (Adjusted -Indicator)/Indicator) %>%
   na.omit() %>%
   mutate(Market_Status = as.factor(case_when(
     Delta <= -0.20 ~ "Bear",
@@ -580,7 +580,7 @@ if(!is_empty(lin_comb$remove)){
 
 DF = Train %>%
   select(-Buy)
-YCS_Process = preProcess(DF,method = c("YeoJohnson","center","scale"))
+YCS_Process = preProcess(DF,method = c("BoxCox","center","scale"))
 YCS_DF = predict(YCS_Process,DF)
 Train_Combined_DF = bind_cols(YCS_DF) %>%
   mutate(Buy = Train$Buy)
