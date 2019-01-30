@@ -1,7 +1,6 @@
 Variable_Importance_Reduction = function(DF,
                                          Target = NULL,
-                                         Remove = NULL,
-                                         Weights = NULL){
+                                         Remove = NULL){
   # Defining Formula
   (fmla = as.formula(paste0(Target,"~.")))
 
@@ -17,7 +16,7 @@ Variable_Importance_Reduction = function(DF,
     DF_mod = DF_mod[,-nzv]
   }
   DF_cor = cor(DF_mod)
-  highlyCor = findCorrelation(DF_cor, cutoff = .999)
+  highlyCor = findCorrelation(DF_cor, cutoff = .95)
   if(!is_empty(highlyCor)){
     DF_mod = DF_mod[,-highlyCor]
   }
@@ -28,29 +27,26 @@ Variable_Importance_Reduction = function(DF,
   DF_mod[,Target] = TMP
 
   ## GLM Variable Importance
-  mod_1 = glm(fmla,
-              DF_mod,
-              weights = Weights,
-              family = "binomial")
-  Imp = as.data.frame(coefficients(summary(mod_1))) %>%
-    mutate(Var = rownames(.)) %>%
-    filter(`Pr(>|z|)` <= 0.05)
-  Keep_Stage_1 = Imp$Var
-  Keep_Stage_1 = Keep_Stage_1[!Keep_Stage_1 %in% "(Intercept)"]
-  DF_mod = DF_mod[c(Target,Keep_Stage_1)]
-  
-  ## MARS Variable Importance
-  mod_2 = earth(fmla,
-                nfold = 5,
-                Scale.y = T,
-                thresh = 1e-04,
-                pmethod = "cv",
-                stratify = T,
-                data = DF_mod)
-  Keep_Stage_2 = rownames(evimp(mod_2))
-  DF_mod = DF_mod[c(Target,Keep_Stage_2)]
-
-  Final_Keep = Keep_Stage_2
+  while_stop = F
+  counter = 0
+  while(!while_stop){
+    counter = counter + 1
+    mod_1 = glm(fmla,
+                DF_mod,
+                family = "binomial")
+    Imp = as.data.frame(coefficients(summary(mod_1))) %>%
+      mutate(Var = rownames(.)) %>%
+      filter(Var != "(Intercept)")
+    Max = max(Imp$`Pr(>|z|)`)
+    Rm = Imp$Var[Imp$`Pr(>|z|)` == Max]
+    if(Max >= 0.05){
+      DF_mod = DF_mod %>%
+        select(-Rm)
+    }else{
+      while_stop = T
+    }
+  }
+  Final_Keep = Imp$Var
   
   Output = Final_Keep
   return(Output)
