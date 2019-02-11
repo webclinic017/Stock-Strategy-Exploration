@@ -179,7 +179,7 @@ if(Local_L){
   load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
 }
 
-## Defining MArket Directions
+## Defining Market Directions
 Market_DF = Combined_Results %>%
   filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
   group_by(Stock) %>%
@@ -211,7 +211,6 @@ p1 = ggplot(Plot_DF,aes(x = Date,y = Adjusted,color = Market_Status)) +
        color = "Market Status") +
   facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
 print(p1)
-# ggplotly(p1)
 
 ## Final_Indicator
 Market_Ind = Market_DF %>%
@@ -268,7 +267,6 @@ Sys.time() - Start
 NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
 PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
-  filter(Price_Growth >= 0) %>%
   mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
          Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
          Price_Growth_Score = dense_rank(desc(Price_Growth)),
@@ -345,20 +343,17 @@ Pool_Results = PR_Red_1 %>%
          P.E = as.numeric(as.character(P.E)),
          Recom = as.numeric(as.character(Recom)),
          Employees = as.numeric(as.character(Employees)),
-         Target.Price = as.numeric(as.character(Target.Price))
+         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close
          ) %>%
-  select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) %>%
-  filter(Sales.Q.Q >= 0,
-         Sales.past.5Y >=0,
-         Profit.Margin >= 0,
-         EPS.past.5Y >= 0,
-         EPS.this.Y >= 0,
-         EPS.next.Y >= 0,
-         EPS.next.Y.1 >= 0,
-         EPS.Q.Q >= 0,
+  filter(Outlook.Growth > 0,
          ROE >= 0.10,
-         Beta >= 1,
-         Insider.Own > 0)
+         ROA > 0,
+         ROI > 0,
+         Insider.Own > 0,
+         Sales.Q.Q > 0,
+         EPS.Q.Q > 0,
+         EPS.next.Y.1 > 0) %>%
+  select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) 
 
 Tickers = unique(Pool_Results$Stock)
 for(i in 1:length(Tickers)){
