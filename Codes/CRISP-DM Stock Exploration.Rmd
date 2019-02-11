@@ -366,21 +366,17 @@ for(i in 1:length(Tickers)){
 }
 
 ## Reducing Historical Data to Reduced Selections
-Reduced_Results = Combined_Results %>%
-  filter(Stock %in% Pool_Results$Stock) %>%
-  left_join(Market_Ind) %>%
-  na.omit()
 Total_Results = Combined_Results %>%
   left_join(Market_Ind) %>%
   na.omit()
 
 # Saving Pool Results and Reduced Raw Data
 if(Local_S){
-  save(Pool_Results,Reduced_Results,Total_Results,
+  save(Pool_Results,Total_Results,
        file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 }
 if(Google_Drive_S){
-    save(Pool_Results,Reduced_Results,Total_Results,
+    save(Pool_Results,Total_Results,
          file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
     Check = drive_find("Pool_Results.RDATA")
     if(nrow(Check) > 0){
@@ -408,8 +404,6 @@ if(Local_L){
 ## Building Optimized Training Set
 ## Takes About 3 Minute
 Start = Sys.time()
-Train_Set = Training_Set_Function(Reduced_Results) %>%
-  na.omit()
 Train_Set_Total = Training_Set_Function(Total_Results) %>%
   na.omit()
 Sys.time() - Start
@@ -423,29 +417,13 @@ Windows = Train_Set_Total %>%
   select(-Stock) %>%
   summarise_all(median)
 
-## Feature Selection
-## Takes about 2 Minutes
-Start = Sys.time()
-Remove = c("Date","Adj_Smooth","Max","Days","PR","PR_1D","Market_Status")
 
-DF = Train_Set %>%
-  group_by(Stock) %>%
-  nest()
-
-Variables = DF %>%
-  mutate(Variable = map(data, Variable_Importance_Reduction, Target = c("Buy"), Remove = Remove)) 
-
-Sys.time() - Start
-
-if(exists("Variables") == FALSE){
-  Variables = data.frame()
-}
 if(Local_S){
-  save(Variables,Train_Set,Train_Set_Total,Windows,
+  save(Train_Set_Total,Windows,
        file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
 }
 if(Google_Drive_S){
-    save(Variables,Train_Set,Train_Set_Total,Windows,
+    save(Train_Set_Total,Windows,
          file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
     Check = drive_find("Training_Prep.RDATA")
     if(nrow(Check) > 0){
@@ -478,44 +456,31 @@ Train_Set_Total_IMP = Train_Set_Total %>%
 Sum_Stats = describe(x = Train_Set_Total_IMP,
                      na.rm = F,
                      ranges = T,
-                     fast = T,
-                     quant = c(0.025,0.975),
-                     IQR = T)
+                     fast = T)
 
 ## Removing Indicators Which Are Unstable After Normalization
 Keep = Sum_Stats %>%
   mutate(Vars = as.character(rownames(.))) %>%
   filter(!is.infinite(range)) %>%
-  select(Vars)
+  dplyr::select(Vars)
 Keep = Keep$Vars
 Train_Set_Total_IMP = Train_Set_Total_IMP %>%
-  select(Keep)
-
-## Removing Window Sizes and Expanding MArket Status Variable
-Train_Set_IMP = Train_Set %>%
-  select(-contains("Window")) %>%
-  cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
-  select(-c(Market_Status)) %>%
-  select(Keep)
+  dplyr::select(Keep)
 
 ## Running Variable Importance On Total Training Set
 Target = "Buy"
-Remove = c("Date","Stock","Indicator","Max","W","Adjust_TMP","Cumulative_Return")
-Weights = Train_Set_Total_IMP$W
+Remove = c("Date","Stock","Indicator","Max","W","Adjust_TMP")
 Columns = Variable_Importance_Reduction(DF = Train_Set_Total_IMP,
                                         Target = Target,
-                                        Remove = Remove,
-                                        Weights = Weights)
-
-
+                                        Remove = Remove)
 
 ## Saving Intermediate Results
 if(Local_S){
-  save(Columns,Train_Set_IMP,Train_Set_Total_IMP,
+  save(Columns,Train_Set_Total_IMP,
        file = paste0(Root_Folder,"/Data/Total_Set_Feat.RDATA"))
 }
 if(Google_Drive_S){
-    save(Columns,Train_Set_IMP,Train_Set_Total_IMP,
+    save(Columns,Train_Set_Total_IMP,
          file = paste0(tempdir(),'/',"Total_Set_Feat.RDATA"))
     Check = drive_find("Total_Set_Feat.RDATA")
     if(nrow(Check) > 0){
@@ -524,7 +489,6 @@ if(Google_Drive_S){
     drive_upload(media =paste0(tempdir(),'/',"Total_Set_Feat.RDATA"),
                    path = "Total_Set_Feat.RDATA")
 }
-
 ```
 
 ```{r Total Train Modeling}
@@ -537,10 +501,10 @@ if(Google_Drive_L){
 if(Local_L){
   load(file = paste0(Root_Folder,"/Data/Total_Set_Feat.RDATA"))
 }
-
-
+## Pulling Pool Selection Stocks
 Stocks = unique(Train_Set_IMP$Stock)
 
+## Creating Train / Test Sets
 Train = Train_Set_Total_IMP %>%
   filter(!Stock %in% Stocks) %>%
   mutate(Buy = case_when(
@@ -548,68 +512,43 @@ Train = Train_Set_Total_IMP %>%
            Indicator > 0.65*Max ~ 0
          ),
          Buy = as.factor(Buy)) %>%
-  dplyr::select(-c(Adjust_TMP,Indicator,Max,Stock,Cumulative_Return,Max,W,Date))
+  dplyr::select(Buy,Columns)
 (table(Train$Buy))
 
-glm_var = glm(Buy~.,
-              data = Train,
-              family = "binomial")
-p_vals = as.data.frame(coef(summary(glm_var))[,4]) %>%
-  mutate(vars = as.character(rownames(.)))
-colnames(p_vals)[1] = "P_Value"
-p_val_sig = p_vals %>%
-  dplyr::filter(P_Value <= 0.05,
-                vars != "(Intercept)")
-
-Train = Train %>%
-  dplyr::select(p_val_sig$vars,"Buy")
-high_cor = findCorrelation(cor(sapply(Train,as.numeric)))
-if(!is_empty(high_cor)){
-  Train = Train[,-high_cor]
-}
-lin_comb = findLinearCombos((sapply(Train,as.numeric)))
-if(!is_empty(lin_comb$remove)){
-  Train = Train[,-lin_comb$remove]
-}
-
-
-DF = Train %>%
-  select(-Buy)
-YCS_Process = preProcess(DF,method = c("BoxCox","center","scale"))
-YCS_DF = predict(YCS_Process,DF)
-Train_Combined_DF = bind_cols(YCS_DF) %>%
-  mutate(Buy = Train$Buy)
-
-
-Test = Train_Set_IMP %>%
+Test = Train_Set_Total_IMP %>%
   filter(Stock %in% Stocks) %>%
    mutate(Buy = case_when(
            Indicator <= 0.65*Max ~ Buy,
            Indicator > 0.65*Max ~ 0
          ),
-         Buy = as.factor(Buy))
-DF_Test = Test
-YCS_Test = predict(YCS_Process,DF_Test)
-Test_Combined_DF = bind_cols(YCS_Test) %>%
-  mutate(Buy = Test$Buy) %>%
-  dplyr::select(colnames(Train_Combined_DF))
+         Buy = as.factor(Buy)) %>%
+  dplyr::select(Buy,Columns)
+(table(Test$Buy))
 
-source("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Functions/Caret Model Compare.R")
-Model_Compare(Train = Train_Combined_DF,
-              Test = Test_Combined_DF,
-              Obs = "Buy",
-              Type = "C",
-              parallel = T,
-              p = 0.01,
-              Transform = F)
+# source("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Functions/Caret Model Compare.R")
+# Model_Compare(Train = Train,
+#               Test = Test,
+#               Obs = "Buy",
+#               Type = "C",
+#               parallel = T,
+#               p = 0.01,
+#               Transform = F)
 
-
-
-
-
-ggplot(Test,aes(Date,Adjust_TMP,color = factor(Decision))) +
-  geom_point()
-  
+## Saving Intermediate Results
+if(Local_S){
+  save(Train,Test,
+       file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
+}
+if(Google_Drive_S){
+    save(Train,Test,
+         file = paste0(tempdir(),'/',"Training_Data.RDATA"))
+    Check = drive_find("Training_Data.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Training_Data.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
+                   path = "Training_Data.RDATA")
+}
 ```
 
 ## Top 10  Method Results
@@ -626,128 +565,6 @@ sparseLDA - Sparse Linear Discriminant Analysis
 
 bagFDA is the least correlated, the rest are essentially one. Least correlated to bagFDA is the regularized logistic. Nice that they are also some of the simplest approaches as well.
 
-```{r Training Final Model}
-## Bagged FDA, built in caret function, allows for weights
-sample = runif(nrow(Train_Combined_DF))
-DF_mod = Train_Combined_DF[sample <= 0.05,]
-
-mod = bagFDA(formula = Buy~.,
-             data = DF_mod,
-             B = 50)
-Pred_Test = predict(mod,Test_Combined_DF)
-(Acc = sum(Pred_Test == Test_Combined_DF$Buy) / nrow(Test_Combined_DF))
-Pred_Train = predict(mod,DF_mod)
-(Acc = sum(Pred_Train == DF_mod$Buy) / nrow(DF_mod))
-plot(Pred_Test)
-plot(Pred_Train)
-plot(Train_Combined_DF$Buy)
-```
-
-
-
-```{r Variable Importance Correction}
-## Adds NA to columns where variable importance says they arent needed. 
-if(Google_Drive_L){
-  File = drive_download("Training_Prep.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
-}
-
-Unique = as.character(unique(Variables$Stock))
-
-Train_Set = Train_Set %>%
-  filter(Stock %in% Unique)
-
-NAFUNCTION = function(x){x = NA}
-
-p = progress_estimated(length(Unique))
-for(i in 1:length(Unique)){
-  
-  idx = which(Variables$Stock %in% Unique[i])
-  Vars = c(unlist(Variables$Variable[idx]),"Market_Status")
-  
-  Keep = Train_Set %>%
-    filter(Stock == Unique[i]) %>%
-    dplyr::select(Date, Stock, Buy)
-  
-  Temp = Train_Set %>%
-    filter(Stock == Unique[i])
-  Temp = Temp %>%
-    mutate_if(colnames(Temp) %in% Vars == FALSE, NAFUNCTION) %>%
-    dplyr::select(-Stock, -Buy, -Date)
-  
-  Temp = cbind(Keep, Temp)
-  
-  if(i == 1) {
-    Comb = Temp
-  }
-  if(i != 1){
-    Comb = rbind(Comb, Temp)
-  }
-  
-  p$pause(0.5)$tick()$print()
-}
-
-Train = Comb
-
-if(Local_S){
-  save(Train,
-       file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
-}
-if(Google_Drive_S){
-    save(Train,
-         file = paste0(tempdir(),'/',"Training_Data.RDATA"))
-    Check = drive_find("Training_Data.RDATA")
-    if(nrow(Check) > 0){
-      drive_rm("Training_Data.RDATA")
-    }
-    drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
-                   path = "Training_Data.RDATA")
-}
-```
-
-```{r Model Testing}
-if(Google_Drive_L){
-  File = drive_download("Training_Data.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
-}
-
-NA_Select = function(x){sum(is.na(x)) == 0}
-TMP = Train %>%
-  filter(Stock == "YNDX") %>%
-  select_if(NA_Select)
-Train_DF = TMP %>%
-  filter(Date < "2018-01-01 00:00:00") %>%
-  select(-c(Date,Stock))
-Test_DF = TMP %>%
-  filter(Date >= "2018-01-01 00:00:00")
-
-mod = earth(Buy~.,
-          Train_DF,
-          nfold = 5,
-          ncross = 5,
-          degree = 2,
-          nk = 5)
-
-pred_train = predict(mod,Train_DF,type = "response")
-Test_DF$pred = predict(mod,Test_DF,type = "response")
-ggplot(Test_DF,aes(x = Date,y = pred)) +
-  geom_point() + 
-  geom_point(aes(y = Buy)) + 
-  geom_point(aes(y = Close))
-
-```
-
-
 ```{r Modeling}
 # Modeling with the crossfold function
 if(Google_Drive_L){
@@ -760,31 +577,50 @@ if(Local_L){
   load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
 }
 
-DF = Train %>%
-  # filter(Stock == "AMZN" | Stock == "ADBE" | Stock == "AMED") %>%
-  group_by(Stock) %>%
-  nest()
+## Baseline no Pre Processing
+mod_BSL = glm(Buy~.,
+          data = Train,
+          family = "binomial")
+summary(mod_BSL)
+Pred = predict(mod,Test,type = "response")
+(AUC_BSL = MLmetrics::AUC(Pred,Test$Buy))
+## Additional Variable Reduction
+Imp = coef(summary(mod_BSL))[,4] %>%
+  as.data.frame()
+Imp$Var = rownames(Imp)
+Imp = Imp %>%
+  filter(`.` <= 0.001) %>%
+  filter(Var != "(Intercept)")
+Train = Train %>%
+  select(Buy,Imp$Var)
 
-Results= DF %>%
-  mutate(model = map(data, Crossfold, start_width = 200, expand = F)) %>%
-  unnest(model)
+## Redoing Model
+mod_BSL = glm(Buy~.,
+          data = Train,
+          family = "binomial")
+summary(mod_BSL)
+Pred = predict(mod,Test,type = "response")
+(AUC_BSL = MLmetrics::AUC(Pred,Test$Buy))
 
-save(Results, file = "Results.RDATA")
+## Standard Pre Process
+PP_Recipe = recipe(Buy~.,
+                   data = Train) %>%
+  step_interact(~.^2) %>%
+  step_YeoJohnson(all_predictors() - contains("Market")) %>%
+  step_center(all_predictors()- contians("Market")) %>%
+  step_scale(all_predictors()) %>%
+  step_pca(all_predictors(),
+           threshold = 0.95)
+PP_Prep = prep(PP_Recipe,Train)
+Train.PP = bake(PP_Prep,Train)
 
-library(dygraphs)
-library(xts)
-
-Plot = Results %>%
-  filter(Stock == "ADBE")
-
-RN = Plot$Date
-rownames(Plot) =RN
-Plot$Date = NULL
-Plot = as.xts(Plot)
-
-dygraph(Plot) %>%
-  dySeries("Buy", color = "red", label = "Buy", strokeWidth = 2, strokePattern = "dashed") %>%
-  dySeries("Buy_Pred", color = "green", label = "Prediction", strokeWidth = 2, strokePattern = "dashed")
+## Round 1 Improvements
+mod_R1 = glm(Buy~.,
+          data = Train.PP,
+          family = "binomial")
+summary(mod_R1)
+Pred = predict(mod,Test,type = "response")
+(AUC_R1 = MLmetrics::AUC(Pred,Test$Buy))
 
 
 ```
