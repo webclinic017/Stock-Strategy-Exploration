@@ -340,6 +340,8 @@ Pool_Results = PR_Red_1 %>%
          EPS.next.Y.1 > 0) %>%
   select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) 
 
+kable(Pool_Results)
+
 Tickers = unique(Pool_Results$Stock)
 for(i in 1:length(Tickers)){
   TMP = Combined_Results %>%
@@ -352,6 +354,7 @@ for(i in 1:length(Tickers)){
 
 ## Reducing Historical Data to Reduced Selections
 Total_Results = Combined_Results %>%
+  filter(Stock %in% Tickers) %>%
   left_join(Market_Ind) %>%
   na.omit()
 
@@ -372,21 +375,18 @@ if(Google_Drive_S){
 }
 ```
 
-```{r Compile and Send}
-## Compiling Document
-knitr::knit2html("CRISP-DM Stock Exploration.Rmd")
-
-## Defining EMAIL Parameters
-From = "abram.yorde@emerson.com"
-To = c("abram.yorde@emerson.com","Karen.Richard@Emerson.com","Paul.Fullenkamp@Emerson.com")
-Subject = paste(Sys.Date,"Stocks Report")
-Authenticate = TRUE
-SMTP_Settings = list(host.name = "smtp.office365.com",
-                     port = 587,
-                     user.name = "abram.yorde@emerson.com",
-                     passwd = "@Marbla2",
-                     tls = TRUE)
-Body = "Results from the daily stock exploration, use this power wisely..."
+```{r Compile and Send,echo = F}
+# ## Defining EMAIL Parameters
+# From = "abram.yorde@emerson.com"
+# To = c("abram.yorde@emerson.com","Karen.Richard@Emerson.com","Paul.Fullenkamp@Emerson.com")
+# Subject = paste(Sys.Date,"Stocks Report")
+# Authenticate = TRUE
+# SMTP_Settings = list(host.name = "smtp.office365.com",
+#                      port = 587,
+#                      user.name = "abram.yorde@emerson.com",
+#                      passwd = "@Marbla2",
+#                      tls = TRUE)
+# Body = "Results from the daily stock exploration, use this power wisely..."
 
 ```
 
