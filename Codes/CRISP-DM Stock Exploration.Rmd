@@ -19,34 +19,11 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-######################## Functions ########################
-is_installed = function(mypkg)
-  is.element(mypkg, installed.packages()[, 1])
-load_or_install <- function(package_names)
-{
-  for (package_name in package_names)
-  {
-    if (!is_installed(package_name))
-    {
-      install.packages(package_name, dependencies = TRUE)
-    }
-    library(
-      package_name,
-      character.only = TRUE,
-      quietly = TRUE,
-      verbose = FALSE
-    )
-  }
-}
-sourceDir <- function(path, trace = TRUE, ...) {
-    for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
-       if(trace) cat(nm,":")           
-       source(file.path(path, nm), ...)
-       if(trace) cat("\n")
-    }
-}
+library(EmersonDataScience)
+# devtools::install_github("Emerson-Data-Science/EmersonDataScience",auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",INSTALL_opts = '--no-multiarch')
+
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'lubridate', 'googledrive','cumstats','dummy','caret','plotly')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','plotly','mailR','knitr','xts')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -75,20 +52,18 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Local_S = T
+Local_S = F
 Local_L = F
 Google_Drive_S = T
 Google_Drive_L = T
-Initial_Pull = T
+Initial_Pull = F
 Update_Pull = T
 
 ## Google Drive Maintinance
 drive_empty_trash()
 ```
 
-## Initial Raw Data Pull
-
-```{r Initial Data Pull}
+```{r Initial Data Pull, echo = F}
 if(Initial_Pull){
   NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
   AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
@@ -98,7 +73,7 @@ if(Initial_Pull){
                               IPOyear = as.character(year(Sys.Date()) - 5),
                               LastSale = "1000")
   
-  Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks) %>%
+  Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks,NYSE_Stocks,AMEX_Stocks) %>%
     mutate(IPOyear = as.numeric(as.character(IPOyear)),
            LastSale = as.numeric(as.character(LastSale))) %>%
     filter(!is.na(IPOyear),
@@ -156,7 +131,7 @@ if(Initial_Pull){
 
 ```
 
-```{r Data Update}
+```{r Data Update, echo = F}
 # Takes About 15 Minutes
 if(Update_Pull){
   if(Local_L){
@@ -168,7 +143,7 @@ if(Update_Pull){
 }
 ```
 
-```{r Market Designation}
+```{r Market Designation, echo = F}
 if(Google_Drive_L){
   File = drive_download(file = "NASDAQ Historical.RDATA",
                         overwrite = T)
@@ -223,6 +198,7 @@ Market_Ind = Market_DF %>%
     TRUE ~ "Bull"
   )) %>%
   select(Date,Market_Status)
+glimpse(arrange(Market_Ind,desc(Date)))
 
 if(Local_S){
 save(Market_Ind,
@@ -241,7 +217,7 @@ if(Google_Drive_S){
 ```
 
 
-```{r Pool Reduction}
+```{r Pool Reduction, echo = F}
 if(Google_Drive_L){
   File = drive_download(file = "NASDAQ Historical.RDATA",
                         overwrite = T)
@@ -265,7 +241,11 @@ Sys.time() - Start
 
 ## Initial Pool Reduction
 NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
-PR_Red_1 = left_join(PR_Stage,NASDAQ_Stocks,by = c("Stock" = "Symbol")) %>%
+AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
+NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
+Total_Stocks = bind_rows(NASDAQ_Stocks,AMEX_Stocks,NYSE_Stocks)
+
+PR_Red_1 = left_join(PR_Stage,Total_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
   mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
          Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
@@ -343,15 +323,20 @@ Pool_Results = PR_Red_1 %>%
          P.E = as.numeric(as.character(P.E)),
          Recom = as.numeric(as.character(Recom)),
          Employees = as.numeric(as.character(Employees)),
-         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close
-         ) %>%
-  filter(Outlook.Growth > 0,
+         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
+         Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
+  distinct() %>%
+  filter(Outlook.Growth > quantile(Outlook.Growth,0.50,na.rm = T),
          ROE >= 0.10,
          ROA > 0,
          ROI > 0,
          Insider.Own > 0,
          Sales.Q.Q > 0,
+         Sales.past.5Y > 0,
          EPS.Q.Q > 0,
+         EPS.next.Q > 0,
+         EPS.past.5Y > 0,
+         EPS.next.5Y > 0,
          EPS.next.Y.1 > 0) %>%
   select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) 
 
@@ -359,10 +344,10 @@ Tickers = unique(Pool_Results$Stock)
 for(i in 1:length(Tickers)){
   TMP = Combined_Results %>%
     filter(Stock == Tickers[i])
-  p1 = ggplot(TMP,aes(x = Date,y = Adjusted)) + 
-    geom_line() + 
-    labs(title = paste(Tickers[i]))
-  print(p1)
+  x = as.xts(OHLCV(TMP),order.by = TMP$Date)
+  x = last(x,'3 months')
+  chartSeries(x,name = Tickers[i])
+  rm(x,TMP)
 }
 
 ## Reducing Historical Data to Reduced Selections
@@ -387,241 +372,21 @@ if(Google_Drive_S){
 }
 ```
 
-## Training Set Creation
+```{r Compile and Send}
+## Compiling Document
+knitr::knit2html("CRISP-DM Stock Exploration.Rmd")
 
-```{r Training Set Creation}
-## Loading Pool Results
-if(Google_Drive_L){
-  File = drive_download("Pool_Results.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
-}
-
-## Building Optimized Training Set
-## Takes About 3 Minute
-Start = Sys.time()
-Train_Set_Total = Training_Set_Function(Total_Results) %>%
-  na.omit()
-Sys.time() - Start
-
-## Tabulating Optimized Window Sizes
-Windows = Train_Set_Total %>%
-  group_by(Stock) %>%
-  select(contains("Window")) %>%
-  summarise_all(mean) %>%
-  ungroup() %>%
-  select(-Stock) %>%
-  summarise_all(median)
-
-
-if(Local_S){
-  save(Train_Set_Total,Windows,
-       file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
-}
-if(Google_Drive_S){
-    save(Train_Set_Total,Windows,
-         file = paste0(tempdir(),'/',"Training_Prep.RDATA"))
-    Check = drive_find("Training_Prep.RDATA")
-    if(nrow(Check) > 0){
-      drive_rm("Training_Prep.RDATA")
-    }
-    drive_upload(media =paste0(tempdir(),'/',"Training_Prep.RDATA"),
-                   path = "Training_Prep.RDATA")
-}
-
-```
-
-```{r Total Train Exploration}
-if(Google_Drive_L){
-  File = drive_download("Training_Prep.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data/Training_Prep.RDATA"))
-}
-
-## Removing Window Sizes and Expanding MArket Status Variable
-Train_Set_Total_IMP = Train_Set_Total %>%
-  select(-contains("Window")) %>%
-  cbind(dummy(select(.,-c("Stock")),int = TRUE,verbose = T)) %>%
-  select(-c(Market_Status))
-
-## Checking Descriptive Stats on Technical Indicators
-Sum_Stats = describe(x = Train_Set_Total_IMP,
-                     na.rm = F,
-                     ranges = T,
-                     fast = T)
-
-## Removing Indicators Which Are Unstable After Normalization
-Keep = Sum_Stats %>%
-  mutate(Vars = as.character(rownames(.))) %>%
-  filter(!is.infinite(range)) %>%
-  dplyr::select(Vars)
-Keep = Keep$Vars
-Train_Set_Total_IMP = Train_Set_Total_IMP %>%
-  dplyr::select(Keep)
-
-## Running Variable Importance On Total Training Set
-Target = "Buy"
-Remove = c("Date","Stock","Indicator","Max","W","Adjust_TMP")
-Columns = Variable_Importance_Reduction(DF = Train_Set_Total_IMP,
-                                        Target = Target,
-                                        Remove = Remove)
-
-## Saving Intermediate Results
-if(Local_S){
-  save(Columns,Train_Set_Total_IMP,
-       file = paste0(Root_Folder,"/Data/Total_Set_Feat.RDATA"))
-}
-if(Google_Drive_S){
-    save(Columns,Train_Set_Total_IMP,
-         file = paste0(tempdir(),'/',"Total_Set_Feat.RDATA"))
-    Check = drive_find("Total_Set_Feat.RDATA")
-    if(nrow(Check) > 0){
-      drive_rm("Total_Set_Feat.RDATA")
-    }
-    drive_upload(media =paste0(tempdir(),'/',"Total_Set_Feat.RDATA"),
-                   path = "Total_Set_Feat.RDATA")
-}
-```
-
-```{r Total Train Modeling}
-if(Google_Drive_L){
-  File = drive_download("Total_Set_Feat.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data/Total_Set_Feat.RDATA"))
-}
-## Pulling Pool Selection Stocks
-Stocks = unique(Train_Set_IMP$Stock)
-
-## Creating Train / Test Sets
-Train = Train_Set_Total_IMP %>%
-  filter(!Stock %in% Stocks) %>%
-  mutate(Buy = case_when(
-           Indicator <= 0.65*Max ~ Buy,
-           Indicator > 0.65*Max ~ 0
-         ),
-         Buy = as.factor(Buy)) %>%
-  dplyr::select(Buy,Columns)
-(table(Train$Buy))
-
-Test = Train_Set_Total_IMP %>%
-  filter(Stock %in% Stocks) %>%
-   mutate(Buy = case_when(
-           Indicator <= 0.65*Max ~ Buy,
-           Indicator > 0.65*Max ~ 0
-         ),
-         Buy = as.factor(Buy)) %>%
-  dplyr::select(Buy,Columns)
-(table(Test$Buy))
-
-# source("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/R Functions/Caret Model Compare.R")
-# Model_Compare(Train = Train,
-#               Test = Test,
-#               Obs = "Buy",
-#               Type = "C",
-#               parallel = T,
-#               p = 0.01,
-#               Transform = F)
-
-## Saving Intermediate Results
-if(Local_S){
-  save(Train,Test,
-       file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
-}
-if(Google_Drive_S){
-    save(Train,Test,
-         file = paste0(tempdir(),'/',"Training_Data.RDATA"))
-    Check = drive_find("Training_Data.RDATA")
-    if(nrow(Check) > 0){
-      drive_rm("Training_Data.RDATA")
-    }
-    drive_upload(media =paste0(tempdir(),'/',"Training_Data.RDATA"),
-                   path = "Training_Data.RDATA")
-}
-```
-
-## Top 10  Method Results
-bagFDA - Bagged Flexible Discriminant Analysis
-monmlp - Monotone Multi-Layer Perceptron NNet
-avNNet - Model Averaged Neural Network
-glm - Generalized Linear Model
-multinom - Penalized Multinomial Regression
-regLogistic - Regularized Logistic Regression 
-bayesglm - Bayesian Generalized Linear Model
-glmnet - glmnet
-spls - Sparse Partial Least Squares
-sparseLDA - Sparse Linear Discriminant Analysis
-
-bagFDA is the least correlated, the rest are essentially one. Least correlated to bagFDA is the regularized logistic. Nice that they are also some of the simplest approaches as well.
-
-```{r Modeling}
-# Modeling with the crossfold function
-if(Google_Drive_L){
-  File = drive_download("Training_Data.RDATA",
-                        overwrite = T)
-  load(File$local_path)
-  rm(File)
-}
-if(Local_L){
-  load(file = paste0(Root_Folder,"/Data/Training_Data.RDATA"))
-}
-
-## Baseline no Pre Processing
-mod_BSL = glm(Buy~.,
-          data = Train,
-          family = "binomial")
-summary(mod_BSL)
-Pred = predict(mod,Test,type = "response")
-(AUC_BSL = MLmetrics::AUC(Pred,Test$Buy))
-## Additional Variable Reduction
-Imp = coef(summary(mod_BSL))[,4] %>%
-  as.data.frame()
-Imp$Var = rownames(Imp)
-Imp = Imp %>%
-  filter(`.` <= 0.001) %>%
-  filter(Var != "(Intercept)")
-Train = Train %>%
-  select(Buy,Imp$Var)
-
-## Redoing Model
-mod_BSL = glm(Buy~.,
-          data = Train,
-          family = "binomial")
-summary(mod_BSL)
-Pred = predict(mod,Test,type = "response")
-(AUC_BSL = MLmetrics::AUC(Pred,Test$Buy))
-
-## Standard Pre Process
-PP_Recipe = recipe(Buy~.,
-                   data = Train) %>%
-  step_interact(~.^2) %>%
-  step_YeoJohnson(all_predictors() - contains("Market")) %>%
-  step_center(all_predictors()- contians("Market")) %>%
-  step_scale(all_predictors()) %>%
-  step_pca(all_predictors(),
-           threshold = 0.95)
-PP_Prep = prep(PP_Recipe,Train)
-Train.PP = bake(PP_Prep,Train)
-
-## Round 1 Improvements
-mod_R1 = glm(Buy~.,
-          data = Train.PP,
-          family = "binomial")
-summary(mod_R1)
-Pred = predict(mod,Test,type = "response")
-(AUC_R1 = MLmetrics::AUC(Pred,Test$Buy))
-
+## Defining EMAIL Parameters
+From = "abram.yorde@emerson.com"
+To = c("abram.yorde@emerson.com","Karen.Richard@Emerson.com","Paul.Fullenkamp@Emerson.com")
+Subject = paste(Sys.Date,"Stocks Report")
+Authenticate = TRUE
+SMTP_Settings = list(host.name = "smtp.office365.com",
+                     port = 587,
+                     user.name = "abram.yorde@emerson.com",
+                     passwd = "@Marbla2",
+                     tls = TRUE)
+Body = "Results from the daily stock exploration, use this power wisely..."
 
 ```
 
