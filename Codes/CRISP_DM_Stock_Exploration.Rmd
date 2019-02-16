@@ -19,11 +19,16 @@ output:
 ---
 
 ```{r setup, include=FALSE}
+devtools::install_github("Emerson-Data-Science/EmersonDataScience",  
+                         auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",  
+                         INSTALL_opts = '--no-multiarch',  
+                         dependencies = TRUE,  
+                         quiet = FALSE,  
+                         upgrade = FALSE)
 library(EmersonDataScience)
-# devtools::install_github("Emerson-Data-Science/EmersonDataScience",auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",INSTALL_opts = '--no-multiarch')
 
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','plotly','mailR','knitr','xts')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','plotly','knitr','xts')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -52,15 +57,17 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Local_S = F
+Local_S = T
 Local_L = F
-Google_Drive_S = T
-Google_Drive_L = T
-Initial_Pull = F
+Google_Drive_S = F
+Google_Drive_L = F
+Initial_Pull = T
 Update_Pull = T
 
 ## Google Drive Maintinance
-drive_empty_trash()
+if(Google_Drive_L | Google_Drive_S){
+  drive_empty_trash()
+}
 ```
 
 ```{r Initial Data Pull, echo = F}
@@ -347,7 +354,7 @@ for(i in 1:length(Tickers)){
   TMP = Combined_Results %>%
     filter(Stock == Tickers[i])
   x = as.xts(OHLCV(TMP),order.by = TMP$Date)
-  x = last(x,'3 months')
+  x = last(x,'6 months')
   chartSeries(x,name = Tickers[i])
   rm(x,TMP)
 }
@@ -376,6 +383,7 @@ if(Google_Drive_S){
 ```
 
 ```{r Compile and Send,echo = F}
+
 # ## Defining EMAIL Parameters
 # From = "abram.yorde@emerson.com"
 # To = c("abram.yorde@emerson.com","Karen.Richard@Emerson.com","Paul.Fullenkamp@Emerson.com")
