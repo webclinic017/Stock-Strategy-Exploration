@@ -58,11 +58,10 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Local_S = T
-Local_L = F
+Local_L = T
 Google_Drive_S = F
 Google_Drive_L = F
-Initial_Pull = T
-Update_Pull = T
+Initial_Pull = F
 
 ## Google Drive Maintinance
 if(Google_Drive_L | Google_Drive_S){
@@ -140,7 +139,7 @@ if(Initial_Pull){
 
 ```{r Data Update, echo = F}
 # Takes About 15 Minutes
-if(Update_Pull){
+if(!Initial_Pull){
   if(Local_L){
     Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),Google_Drive = F)
   }
@@ -377,24 +376,31 @@ if(Google_Drive_S){
     if(nrow(Check) > 0){
       drive_rm("Pool_Results.RDATA")
     }
-    drive_upload(media =paste0(tempdir(),'/',"Pool_Results.RDATA"),
+    drive_upload(media = paste0(tempdir(),'/',"Pool_Results.RDATA"),
                    path = "Pool_Results.RDATA")
 }
 ```
 
-```{r Compile and Send,echo = F}
-
-# ## Defining EMAIL Parameters
-# From = "abram.yorde@emerson.com"
-# To = c("abram.yorde@emerson.com","Karen.Richard@Emerson.com","Paul.Fullenkamp@Emerson.com")
-# Subject = paste(Sys.Date,"Stocks Report")
-# Authenticate = TRUE
-# SMTP_Settings = list(host.name = "smtp.office365.com",
-#                      port = 587,
-#                      user.name = "abram.yorde@emerson.com",
-#                      passwd = "@Marbla2",
-#                      tls = TRUE)
-# Body = "Results from the daily stock exploration, use this power wisely..."
+```{r Final Reports,echo = F}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Market_Ind.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Pool_Results.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+  load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+  load(paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+}
 
 ```
 
