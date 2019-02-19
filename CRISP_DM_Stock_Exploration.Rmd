@@ -386,15 +386,7 @@ Pool_Results_Potential_Buys = Pool_Results %>%
          Close_PD_50_200_Norm >= 0,
          Close_Slope_200_Norm >=0) %>%
   filter(Pseudo_Beta_PD > 0)
-Pool_Results_Interesting_Behavior = Pool_Results %>%
-  mutate(Outlook.Growth_Rank = scales::rescale(Outlook.Growth,c(0,1))) %>%
-  filter(Outlook.Growth_Rank >= quantile(Outlook.Growth_Rank,0.99,na.rm = T) |
-           Volume_SD_Norm_Rank >= quantile(Volume_SD_Norm_Rank,0.99,na.rm = T) |
-           Price_Range_15_SD_Norm_Rank <= quantile(Price_Range_15_SD_Norm_Rank,0.01,na.rm = T) |
-           Pseudo_Beta_PD_Rank >= quantile(Pseudo_Beta_PD_Rank,0.99,na.rm = T)) %>%
-  select(-Outlook.Growth_Rank)
-Pool_Results_Potential_Buys = Pool_Results_Potential_Buys %>%
-  bind_rows(Pool_Results_Interesting_Behavior)
+
 
 ## Reducing Historical Data to Reduced Selections
 Tickers = unique(Pool_Results$Stock)
