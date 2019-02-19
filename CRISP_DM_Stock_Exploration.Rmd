@@ -87,7 +87,6 @@ if(Initial_Pull){
     filter(!is.na(IPOyear),
            !is.na(LastSale)) %>%
     filter(IPOyear <= year(Sys.Date()) - 5,
-           IPOyear >= year(Sys.Date()) - 15,
            LastSale >= 10)
   Dump = list()
   
