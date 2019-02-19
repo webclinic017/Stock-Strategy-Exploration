@@ -241,6 +241,19 @@ Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
 PR_Stage = PR_Appendage(Combined_Results,parallel = T)
 Sys.time() - Start
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Index_Beta_Slope = PR_Stage %>%
+  filter(Stock %in% Major_Indexs) %>%
+  select(Stock,Date,Close_Slope_50_Norm) %>%
+  spread(Stock,Close_Slope_50_Norm) %>%
+  mutate(Beta_Slope = rowMeans(cbind(`^GSPC`,`^IXIC`,`^DJI`))) %>%
+  select(Date,Beta_Slope)
+PR_Stage_R2 = PR_Stage %>%
+  left_join(Index_Beta_Slope,by = "Date") %>%
+  na.omit() %>%
+  mutate(Pseudo_Beta_PD = (Close_Slope_50_Norm - Beta_Slope)/Beta_Slope) %>%
+  select(-Beta_Slope)
+
 
 ## Initial Pool Reduction
 NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
@@ -248,13 +261,28 @@ AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
 NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
 Total_Stocks = bind_rows(NASDAQ_Stocks,AMEX_Stocks,NYSE_Stocks)
 
-PR_Red_1 = left_join(PR_Stage,Total_Stocks,by = c("Stock" = "Symbol")) %>%
+PR_Red_1 = PR_Stage_R2 %>%
+  filter(Date == max(Date)) %>%
+  group_by(Stock) %>%
+  filter(n() == 1) %>%
+  ungroup() %>%
+  left_join(Total_Stocks,by = c("Stock" = "Symbol")) %>%
   select(-c(X,Summary.Quote,LastSale)) %>%
-  mutate(Reward_Mean_Score = dense_rank(desc(Reward_Mean)),
-         Risk_Mean_Score = dense_rank(desc(Risk_Mean)),
-         Price_Growth_Score = dense_rank(desc(Price_Growth)),
-         Volume_Norm_Score = dense_rank(desc(Volume_Norm))) %>%
-  na.omit()
+  na.omit() %>%
+  mutate(Volume_PD_Norm_Rank = scales::rescale(Volume_PD_Norm,c(0,1)),
+         Volume_SD_Norm_Rank = scales::rescale(Volume_SD_Norm,c(0,1)),
+         Close_High_PD_Norm_Rank = scales::rescale(Close_High_PD_Norm,c(0,1)),
+         Close_PD_50_Norm_Rank = scales::rescale(Close_PD_50_Norm,c(0,1)),
+         Close_PD_200_Norm_Rank = scales::rescale(Close_PD_200_Norm,c(0,1)),
+         Close_SD_50_Norm_Rank = scales::rescale(Close_SD_50_Norm,c(0,1)),
+         Close_PD_50_200_Norm_Rank = scales::rescale(Close_PD_50_200_Norm,c(0,1)),
+         Close_Slope_50_Norm_Rank = scales::rescale(Close_Slope_50_Norm,c(0,1)),
+         Close_Slope_200_Norm_Rank = scales::rescale(Close_Slope_200_Norm,c(0,1)),
+         Close_50_Time_Norm_Rank = scales::rescale(Close_50_Time_Norm,c(0,1)),
+         Price_Range_15_SD_Norm_Rank = scales::rescale(Price_Range_15_SD_Norm,c(0,1)),
+         Pseudo_Beta_PD_Rank = scales::rescale(Pseudo_Beta_PD,c(0,1)))
+  
+  
 
 ## Appending FinViz Stats
 ## Takes About 2 Minutes
@@ -273,7 +301,7 @@ Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.fram
 Sys.time() - Start
 
 Pool_Results = PR_Red_1 %>%
-  left_join(Metrics) %>%
+  left_join(Metrics,by = "Stock") %>%
   mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
          Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
          Change = as.numeric(str_remove(Change,"%"))/100,
@@ -329,19 +357,44 @@ Pool_Results = PR_Red_1 %>%
          Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
          Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
   distinct() %>%
-  filter(Outlook.Growth > quantile(Outlook.Growth,0.50,na.rm = T),
-         ROE >= 0.10,
+    rename("Volume" = Volume.x) %>%
+  select(-c(SMA20,SMA50,Index,Income,Dividend..,Optionable,Shortable,
+            Earnings,SMA200,Target.Price,X52W.High,X52W.Low,X52W.Range,
+            Rel.Volume,Avg.Volume,Volume.y,ATR,Volatility,Prev.Close,
+            Price,Change,Open,High,Low,Adjusted,Volume,Date)) %>%
+  select(Stock,Close,Outlook.Growth,contains("Rank"),everything())
+
+## Applying More Rigid Filters
+Pool_Results_Potential_Buys = Pool_Results %>%
+  filter(ROE > 0,
          ROA > 0,
          ROI > 0,
          Insider.Own > 0,
          Sales.Q.Q > 0,
          Sales.past.5Y > 0,
+         EPS.this.Y >0,
          EPS.Q.Q > 0,
          EPS.next.Q > 0,
          EPS.past.5Y > 0,
          EPS.next.5Y > 0,
-         EPS.next.Y.1 > 0) %>%
-  select(-c(Volume,Avg.Volume,Rel.Volume,SMA200,SMA50,SMA20)) 
+         EPS.next.Y.1 > 0,
+         Profit.Margin > 0,
+         Outlook.Growth > 0) %>%
+  filter(Close_PD_50_Norm >= 0,
+         Close_Slope_50_Norm >= 0,
+         Close_High_PD_Norm >= -0.15,
+         Close_PD_50_200_Norm >= 0,
+         Close_Slope_200_Norm >=0) %>%
+  filter(Pseudo_Beta_PD > 0)
+Pool_Results_Interesting_Behavior = Pool_Results %>%
+  mutate(Outlook.Growth_Rank = scales::rescale(Outlook.Growth,c(0,1))) %>%
+  filter(Outlook.Growth_Rank >= quantile(Outlook.Growth_Rank,0.99,na.rm = T) |
+           Volume_SD_Norm_Rank >= quantile(Volume_SD_Norm_Rank,0.99,na.rm = T) |
+           Price_Range_15_SD_Norm_Rank <= quantile(Price_Range_15_SD_Norm_Rank,0.01,na.rm = T) |
+           Pseudo_Beta_PD_Rank >= quantile(Pseudo_Beta_PD_Rank,0.99,na.rm = T)) %>%
+  select(-Outlook.Growth_Rank)
+Pool_Results_Potential_Buys = Pool_Results_Potential_Buys %>%
+  bind_rows(Pool_Results_Interesting_Behavior)
 
 ## Reducing Historical Data to Reduced Selections
 Tickers = unique(Pool_Results$Stock)
@@ -352,11 +405,11 @@ Total_Results = Combined_Results %>%
 
 # Saving Pool Results and Reduced Raw Data
 if(Local_S){
-  save(Pool_Results,Total_Results,
+  save(Pool_Results,Total_Results,Pool_Results_Potential_Buys,
        file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 }
 if(Google_Drive_S){
-    save(Pool_Results,Total_Results,
+    save(Pool_Results,Total_Results,Pool_Results_Potential_Buys,
          file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
     Check = drive_find("Pool_Results.RDATA")
     if(nrow(Check) > 0){
@@ -412,7 +465,7 @@ p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted,color = Market_Status)) +
 print(p1)
 ```
 
-### Stock Monitoring Table
+### Stock Monitoring Table (Unfiltered)
 
 ```{r Table,echo = F}
 ## Interactive Table of Stock Selections
@@ -420,11 +473,19 @@ DT::datatable(data = Pool_Results,
               filter = list(position = 'top'))
 ```
 
+### Stock Monitoring Table (Filtered to Buy Positions)
+
+```{r Table PBs,echo = F}
+## Interactive Table of Stock Selections
+DT::datatable(data = Pool_Results_Potential_Buys,
+              filter = list(position = 'top'))
+```
+
 ### Stock Monitoring Charts
 
 ```{r Charts,echo = F}
 ## Plotting last 6 Months of Stock Data
-Tickers = unique(Pool_Results$Stock)
+Tickers = unique(Pool_Results_Potential_Buys$Stock)
 for(i in 1:length(Tickers)){
   TMP = Combined_Results %>%
     filter(Stock == Tickers[i])

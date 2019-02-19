@@ -1,87 +1,91 @@
 PR_Appendage = function(Combined_Results = NULL,
                         parallel = T){
+  
   Loop_Function = function(Combined_Results,
                            Stock_Loop){
     # Subsetting to Specific Stock
     DF = Combined_Results %>%
       filter(Stock == Stock_Loop) %>%
-      mutate(Cumulative_Return = (Adjusted - Adjusted[1])/Adjusted[1],
-             Cumulative_Return = lead(Cumulative_Return,1),
-             PR_1D = (Adjusted - lag(Adjusted,1))/lag(Adjusted,1),
-             PR_1D = lead(Adjusted,1)) %>%
-      na.omit()
-    Spline = try(smooth.spline(DF$Cumulative_Return),
-                 silent = T)
+      na.omit() %>%
+      mutate(Volume_50_SMA = rollapply(data = Volume,
+                                       width = 50,
+                                       FUN = mean,
+                                       na.rm = T,
+                                       fill = NA,
+                                       align = "right"),
+             Volume_50_SD = rollapply(data = Volume,
+                                      width = 50,
+                                      FUN = sd,
+                                      na.rm = T,
+                                      fill = NA,
+                                      align = "right"),
+             Volume_PD_Norm = (Volume - Volume_50_SMA)/Volume_50_SMA,
+             Volume_SD_Norm = (Volume - Volume_50_SMA)/Volume_50_SD) %>%
+      mutate(Close_Max_50 =  rollapply(data = Close,
+                                       width = 50,
+                                       FUN = max,
+                                       na.rm = T,
+                                       fill = NA,
+                                       align = "right"),
+             Close_High_PD_Norm = (Close - Close_Max_50)/Close_Max_50,
+             Close_50_SMA = rollapply(data = Close,
+                                      width = 50,
+                                      FUN = mean,
+                                      na.rm = T,
+                                      fill = NA,
+                                      align = "right"),
+             Close_200_SMA = rollapply(data = Close,
+                                      width = 200,
+                                      FUN = mean,
+                                      na.rm = T,
+                                      fill = NA,
+                                      align = "right"),
+             Close_50_SD = rollapply(data = Close,
+                                     width = 50,
+                                     FUN = sd,
+                                     na.rm = T,
+                                     fill = NA,
+                                     align = "right"),
+             Close_PD_50_Norm = (Close - Close_50_SMA)/Close_50_SMA,
+             Close_PD_200_Norm = (Close - Close_200_SMA)/Close_200_SMA,
+             Close_SD_50_Norm = (Close - Close_50_SMA)/Close_50_SD,
+             Close_PD_50_200_Norm = (Close_50_SMA - Close_200_SMA)/Close_200_SMA,
+             Close_Slope_Inst = (Close - lag(Close,1)),
+             Close_Slope_50 = rollapply(data = Close_Slope_Inst,
+                                        width = 50,
+                                        FUN = mean,
+                                        na.rm = T,
+                                        fill = NA,
+                                        align = "right"),
+             Close_Slope_50_Norm = Close_Slope_50/Close_50_SMA,
+             Close_Slope_200 = rollapply(data = Close_Slope_Inst,
+                                         width = 200,
+                                         FUN = mean,
+                                         na.rm = T,
+                                         fill = NA,
+                                         align = "right"),
+             Close_Slope_200_Norm = Close_Slope_200/Close_200_SMA,
+             Close_50_Positive = Close_PD_50_Norm >= 0,
+             Close_50_Time_Norm = sequence(rle(Close_50_Positive)$lengths)) %>%
+      mutate(Price_Range = High - Low,
+             Price_Range_15_SMA = rollapply(data = Price_Range,
+                                            width = 15,
+                                            FUN = mean,
+                                            na.rm = T,
+                                            fill = NA,
+                                            align = "right"),
+             Price_Range_15_SD = rollapply(data = Price_Range,
+                                           width = 15,
+                                           FUN = sd,
+                                           na.rm = T,
+                                           fill = NA,
+                                           align = "right"),
+             Price_Range_15_SD_Norm = Price_Range_15_SMA/Price_Range_15_SD) %>%
+      na.omit() %>%
+      select(Stock,Date,Open,High,Low,Close,Adjusted,Volume,contains("Norm")) %>%
+      as.data.frame()
     
-    if("try-error" %in% class(Spline)){
-      TMP = data.frame(Stock = paste(Stock_Loop,"Opt_Error"),
-                       Reward_Mean = NA,
-                       Reward_SD = NA,
-                       Risk_Mean = NA,
-                       Risk_SD = NA,
-                       Ratio = NA,
-                       Days_History = NA,
-                       Price_Growth = NA,
-                       Price_Mean = NA,
-                       Volume_Mean = NA,
-                       Volume_SD = NA,
-                       Volume_Norm = NA,
-                       Volume_Trajectory = NA,
-                       Last_Date = NA,
-                       stringsAsFactors = F)
-    }else{
-      DF$Fit = Spline$y
-      Risk_Reward = PR_Cost_Function(DF = DF,
-                                     Column = "Cumulative_Return")
-      Days_History = nrow(DF)
-      Last_Date = ymd(max(DF$Date))
-      ## Weighting Most Recent Dates
-      timeElapsed = as.numeric(max(ymd(DF$Date)) - ymd(DF$Date))
-      K_constant = 1
-      T_constant = 365
-      W=K_constant*exp(-timeElapsed/T_constant)
-      
-      mod.data = DF %>%
-        select(Adjusted,Date) %>%
-        mutate(Date = as.numeric(ymd(Date)))
-      mod = lm(Adjusted~.,
-               mod.data,
-               weights = W)
-      Price_Trajectory = as.numeric(coef(mod)["Date"])
-      Price_Mean = weighted.mean(mod.data$Adjusted,W)
-      Price_Growth = (((Price_Trajectory/Price_Mean)+1)^365 - 1)*100
-      
-      Volume_Mean <- round(wtd.mean(DF$Volume,W))
-      var <- wtd.var(DF$Volume,W)
-      Volume_SD <- sqrt(var)
-      Volume_Norm = Volume_Mean/Volume_SD
-      
-      mod.data = DF %>%
-        select(Volume,Date) %>%
-        mutate(Date = as.numeric(Date))
-      mod = lm(Volume~.,
-               mod.data,
-               weights = W)
-      Volume_Trajectory = as.numeric(coef(mod)["Date"])
-      
-      TMP = data.frame(Stock = Stock_Loop,
-                       Reward_Mean = Risk_Reward$PR_Reward_Mean,
-                       Reward_SD = Risk_Reward$PR_Reward_SD,
-                       Risk_Mean= Risk_Reward$PR_Risk_Mean,
-                       Risk_SD = Risk_Reward$PR_Risk_SD,
-                       Ratio = (Risk_Reward$PR_Reward_Mean + 2*Risk_Reward$PR_Reward_SD)/
-                         -(Risk_Reward$PR_Risk_Mean - 2*Risk_Reward$PR_Risk_SD),
-                       Days_History = Days_History,
-                       Price_Growth = Price_Growth,
-                       Price_Mean = Price_Mean,
-                       Volume_Mean = Volume_Mean,
-                       Volume_SD = Volume_SD,
-                       Volume_Norm = Volume_Norm,
-                       Volume_Trajectory = Volume_Trajectory,
-                       Last_Date = Last_Date,
-                       stringsAsFactors = F)
-    }
-    return(TMP)
+    return(DF)
   }
   
     ## Quick Reduction
@@ -112,10 +116,7 @@ PR_Appendage = function(Combined_Results = NULL,
                                .inorder = F,
                                .packages = c("tidyverse",
                                              "quantmod",
-                                             "lubridate"),
-                               .export = c("BS_Indicator_Function",
-                                           "PR_Cost_Function",
-                                           "Spline_Par_Optim")) %dopar% {
+                                             "lubridate")) %dopar% {
                                              # Ticker to Optimize
                                              Stock_Loop = Tickers[i]
                                              # Output to ForEach Loop
