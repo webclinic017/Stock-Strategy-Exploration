@@ -72,12 +72,12 @@ if(Google_Drive_L | Google_Drive_S){
 
 ```{r Initial Data Pull, include = F, eval = !TEST}
 if(Initial_Pull){
-  
   NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
   AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
   NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
-  Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI"),
-                              Name = c("S&P 500","NASDAQ","Dow Jones"),
+  Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI","^VIX","^VXN"),
+                              Name = c("S&P 500","NASDAQ","Dow Jones",
+                                       "S&P Volatility","NASDAQ Volatility"),
                               IPOyear = as.character(year(Sys.Date()) - 5),
                               LastSale = "1000")
   
@@ -188,7 +188,6 @@ Plot_DF$Market_Status = factor(Plot_DF$Market_Status, levels = c("Bull",
                                                                  "Bear"))
 
 
-
 ## Final_Indicator
 Market_Ind = Market_DF %>%
   select(Date,Stock,Market_Status) %>%
@@ -202,12 +201,18 @@ Market_Ind = Market_DF %>%
   select(Date,Market_Status)
 glimpse(arrange(Market_Ind,desc(Date)))
 
+## Segmenting Volatility Indexs
+Plot_DF_2 = Combined_Results %>%
+  filter(Stock %in% c("^VIX","^VXN")) %>%
+  left_join(Market_Ind,by = "Date")
+
+
 if(Local_S){
-save(Market_Ind,Plot_DF,
+save(Market_Ind,Plot_DF,Plot_DF_2,
      file = paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
 }
 if(Google_Drive_S){
-    save(Market_Ind,Plot_DF,
+    save(Market_Ind,Plot_DF,Plot_DF_2,
          file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
     Check = drive_find("Market_Ind.RDATA")
     if(nrow(Check) > 0){
@@ -439,14 +444,33 @@ if(Local_L){
 ## Segmenting Data
 Plot_Date = max(Plot_DF$Date) %m-% months(6)
 MIND_DF = Plot_DF %>%
+  mutate(SMA50 = rollapply(Adjusted,
+                    width = 50,
+                    FUN = mean,
+                    na.rm = T,
+                    align = "right",
+                    fill = NA)) %>%
   filter(Date >= Plot_Date)
 Current_Status = Market_Ind %>%
   arrange(desc(Date)) %>%
   head(1)
+VOLT_DF = Plot_DF_2 %>%
+  mutate(Stock = case_when(
+    Stock == "^VIX" ~ "S&P 500 Fear Index",
+    Stock == "^VXN" ~ "NASDAQ Fear Index"
+  ),
+  SMA50 = rollapply(Adjusted,
+                    width = 50,
+                    FUN = mean,
+                    na.rm = T,
+                    align = "right",
+                    fill = NA)) %>% 
+  filter(Date >= Plot_Date)
 
 ## Plot Examining Market Direction Designation
-p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted,color = Market_Status)) +
-  geom_point() +
+p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted)) +
+  geom_point(aes(color = Market_Status)) +
+  geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
   labs(x = "Date",
        y = "Adjusted",
        title = "Market Status of Past 6 Months",
@@ -454,6 +478,25 @@ p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted,color = Market_Status)) +
        color = "Market Status") +
   facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
 print(p1)
+
+
+
+## Plot Examining Fear Indexs
+VOLT_DF$Market_Status = factor(VOLT_DF$Market_Status,
+                               levels = c("Bull","Pullback","Correction","Bear"),
+                               ordered = F)
+p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
+  geom_point(aes(color = Market_Status)) +
+  geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+  labs(x = "Date",
+       y = "Adjusted",
+       title = "Market Fear of Past 6 Months",
+       subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Date = ",Current_Status$Date),
+       color = "Market Status") +
+  facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+print(p2)
+
+
 ```
 
 ### Stock Monitoring Table (Unfiltered)
