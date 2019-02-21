@@ -61,8 +61,8 @@ Local_S = T
 Local_L = T
 Google_Drive_S = F
 Google_Drive_L = F
-Initial_Pull = T
-TEST = T
+Initial_Pull = F
+TEST = F
 
 ## Google Drive Maintinance
 if(Google_Drive_L | Google_Drive_S){
