@@ -28,7 +28,7 @@ devtools::install_github("Emerson-Data-Science/EmersonDataScience",
 library(EmersonDataScience)
 
 ##########################################################################
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','plotly','knitr','xts')
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','plotly','knitr','xts','grid','gridExtra')
 load_or_install(Required_Packages)
 
 ## Checking for R updates
@@ -61,8 +61,8 @@ Local_S = T
 Local_L = T
 Google_Drive_S = F
 Google_Drive_L = F
-Initial_Pull = F
-TEST = F
+Initial_Pull = T
+TEST = T
 
 ## Google Drive Maintinance
 if(Google_Drive_L | Google_Drive_S){
@@ -75,19 +75,21 @@ if(Initial_Pull){
   NASDAQ_Stocks = read.csv(paste0(Root_Folder,"/Data/NASDAQ.csv"))
   AMEX_Stocks = read.csv(paste0(Root_Folder,"/Data/AMEX.csv"))
   NYSE_Stocks = read.csv(paste0(Root_Folder,"/Data/NYSE.csv"))
-  Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI","^VIX","^VXN"),
+  Market_Tickers = data.frame(Symbol = c("^GSPC","^IXIC","^DJI","^VIX","^VXN","MFST"),
                               Name = c("S&P 500","NASDAQ","Dow Jones",
-                                       "S&P Volatility","NASDAQ Volatility"),
+                                       "S&P Volatility","NASDAQ Volatility","Microsoft"),
                               IPOyear = as.character(year(Sys.Date()) - 5),
                               LastSale = "1000")
   
   Total_Stocks = bind_rows(Market_Tickers,NASDAQ_Stocks,NYSE_Stocks,AMEX_Stocks) %>%
+    filter(!Symbol %in% c("AGFSW","ARII","CORI","DWCH","TACOW","ECYT","ESRX","JTPY","LINDW","OXBRW","PBSK",
+                          "RSYS","SODA","SLNOW","SONC","BJZ","BPK","BLH","CTT","ECOM","ECC","ETX","EEQ","FEI",
+                          "FSIC","GFA","HTGX","LHO","LKM","NAP","SEP","EIA","MAB","MIW","EMI","NYH")) %>%
     mutate(IPOyear = as.numeric(as.character(IPOyear)),
            LastSale = as.numeric(as.character(LastSale))) %>%
     filter(!is.na(IPOyear),
            !is.na(LastSale)) %>%
-    filter(IPOyear <= year(Sys.Date()) - 5,
-           LastSale >= 10)
+    filter(IPOyear <= year(Sys.Date()) - 5)
   Dump = list()
   
   p = progress_estimated(n = nrow(Total_Stocks),min_time = 3)
@@ -116,7 +118,7 @@ if(Initial_Pull){
   
   Combined_Results = Combined_Results %>%
     group_by(Stock) %>%
-    na.approx() %>%
+    na.locf() %>%
     ungroup()
   
   
@@ -396,7 +398,8 @@ Pool_Results = PR_Red_1 %>%
             Earnings,SMA200,Target.Price,X52W.High,X52W.Low,X52W.Range,
             Rel.Volume,Avg.Volume,Volume.y,ATR,Volatility,Prev.Close,
             Price,Change,Open,High,Low,Adjusted,Volume,Date)) %>%
-  select(Stock,Close,Outlook.Growth,contains("Rank"),everything())
+  select(Stock,Close,Outlook.Growth,contains("Rank"),everything()) %>%
+  filter(Outlook.Growth > 0)
 
 ## Applying More Rigid Filters
 Pool_Results_Potential_Buys = Pool_Results %>%
@@ -412,8 +415,7 @@ Pool_Results_Potential_Buys = Pool_Results %>%
          EPS.past.5Y > 0,
          EPS.next.5Y > 0,
          EPS.next.Y.1 > 0,
-         Profit.Margin > 0,
-         Outlook.Growth > 0) %>%
+         Profit.Margin > 0) %>%
   filter(Close_PD_50_Norm >= 0,
          Close_Slope_50_Norm >= 0,
          Close_High_PD_Norm >= -0.15,
@@ -421,21 +423,13 @@ Pool_Results_Potential_Buys = Pool_Results %>%
          Close_Slope_200_Norm >=0) %>%
   filter(Pseudo_Beta_PD > 0)
 
-
-## Reducing Historical Data to Reduced Selections
-Tickers = unique(Pool_Results$Stock)
-Total_Results = Combined_Results %>%
-  filter(Stock %in% Tickers) %>%
-  left_join(Market_Ind) %>%
-  na.omit()
-
 # Saving Pool Results and Reduced Raw Data
 if(Local_S){
-  save(Pool_Results,Total_Results,Pool_Results_Potential_Buys,
+  save(Pool_Results,Pool_Results_Potential_Buys,PR_Stage_R2,
        file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
 }
 if(Google_Drive_S){
-    save(Pool_Results,Total_Results,Pool_Results_Potential_Buys,
+    save(Pool_Results,Pool_Results_Potential_Buys,PR_Stage_R2,
          file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
     Check = drive_find("Pool_Results.RDATA")
     if(nrow(Check) > 0){
@@ -471,7 +465,7 @@ if(Local_L){
 ### Current Market Status
 
 ```{r Market Status,echo = F}
-## Segmenting Data
+## Creating Market Type Data
 Plot_Date = max(Plot_DF$Date) %m-% months(6)
 MIND_DF = Plot_DF %>%
   mutate(SMA50 = rollapply(Adjusted,
@@ -481,12 +475,20 @@ MIND_DF = Plot_DF %>%
                     align = "right",
                     fill = NA)) %>%
   filter(Date >= Plot_Date)
+
+## Determining Current Market Status and Type  
 Current_Status = Market_Ind %>%
+  arrange(Date) %>%
+  mutate(Days = sequence(rle(Market_Status)$lengths)) %>%
   arrange(desc(Date)) %>%
   head(1)
 Current_Type = Market_Type %>%
+  arrange(Date) %>%
+   mutate(Days = sequence(rle(Market_Type)$lengths)) %>%
   arrange(desc(Date)) %>%
   head(1)
+
+## Creating Fear Index Data
 VOLT_DF = Plot_DF_2 %>%
   mutate(Stock = case_when(
     Stock == "^VIX" ~ "S&P 500 Fear Index",
@@ -505,15 +507,15 @@ VOLT_DF = Plot_DF_2 %>%
 p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted)) +
   geom_point(aes(color = Market_Status)) +
   geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+  scale_x_date(breaks = scales::pretty_breaks(9)) +
   labs(x = "Date",
        y = "Adjusted",
        title = "Market Status of Past 6 Months",
-       subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Date = ",Current_Status$Date),
+       subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Current Date = ",Current_Status$Date,
+                         " :: Status for Past ",Current_Status$Days," Days"),
        color = "Market Status") +
   facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
 print(p1)
-
-
 
 ## Plot Examining Fear Indexs
 VOLT_DF$Market_Status = factor(VOLT_DF$Market_Status,
@@ -522,16 +524,16 @@ VOLT_DF$Market_Status = factor(VOLT_DF$Market_Status,
 p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
   geom_point(aes(color = Market_Status)) +
   geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+  scale_x_date(breaks = scales::pretty_breaks(9)) +
   labs(x = "Date",
        y = "Adjusted",
        title = "Market Fear of Past 6 Months",
-       subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Date = ",Current_Type$Date),
+       subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Current Date = ",Current_Type$Date,
+                         " :: Type for Past ",Current_Type$Days," Days"),
        color = "Market Status") +
   facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
 print(p2)
 
-glimpse(arrange(Market_Ind,desc(Date)))
-glimpse(arrange(Market_Type,desc(Date)))
 ```
 
 ### Stock Monitoring Table (Unfiltered)
@@ -557,11 +559,70 @@ DT::datatable(data = Pool_Results_Potential_Buys,
 Tickers = unique(Pool_Results_Potential_Buys$Stock)
 for(i in 1:length(Tickers)){
   TMP = Combined_Results %>%
-    filter(Stock == Tickers[i])
-  x = as.xts(OHLCV(TMP),order.by = TMP$Date)
-  x = last(x,'6 months')
-  chartSeries(x,name = Tickers[i])
-  rm(x,TMP)
+    filter(Stock == Tickers[i]) %>%
+    mutate(Close_50 = rollapply(Close,
+                                width = 50,
+                                FUN = mean,
+                                na.rm = T,
+                                fill = NA,
+                                align = "right"),
+           Close_200 = rollapply(Close,
+                                width = 200,
+                                FUN = mean,
+                                na.rm = T,
+                                fill = NA,
+                                align = "right"),
+           middle = apply(X = cbind(High,Low,Open,Close),MARGIN = 1,FUN = quantile,0.50,na.rm = T),
+           lower = apply(X = cbind(High,Low,Open,Close),MARGIN = 1,FUN = quantile,0.25,na.rm = T),
+           upper = apply(X = cbind(High,Low,Open,Close),MARGIN = 1,FUN = quantile,0.75,na.rm = T),
+           ymin = Low,
+           ymax = High,
+           Color = ifelse(Close > Open,"Gain","Loss"),
+           Date = as_date(Date)) %>%
+    filter(Date >= Plot_Date - 100) %>%
+    mutate(Type = "Price")
+  Volume_TMP = TMP %>%
+    mutate(Volume = scales::rescale(Volume,to = c(min(Low),max(High)))) %>%
+    select(Date,contains("Volume"),Color) %>%
+    mutate(Type = "Volume",
+           Volume_50 = rollapply(Volume,
+                                width = 50,
+                                FUN = mean,
+                                na.rm = T,
+                                fill = NA,
+                                align = "right"))
+    
+  Total_TMP = bind_rows(TMP,Volume_TMP) %>%
+    filter(Date >= Plot_Date)
+ 
+  
+  p1 = ggplot(Total_TMP,aes(x = Date)) +
+    geom_boxplot(data = subset(Total_TMP,Type == "Price"),aes(lower = lower,
+                     middle = middle,
+                     upper = upper,
+                     ymin = ymin,
+                     ymax = ymax,
+                     color = Color),
+                 stat = "identity") +
+    geom_line(data = subset(Total_TMP,Type == "Price"),aes(x = Date,y = Close_50),size = 1) +
+    geom_line(data = subset(Total_TMP,Type == "Price"),aes(x = Date,y = Close_200),linetype = 2,size = 1) +
+    geom_bar(data = subset(Total_TMP,Type == "Volume"),
+             aes(y = Volume,fill = Color),stat = "identity") +
+    geom_line(data = subset(Total_TMP,Type == "Volume"),
+             aes(y = Volume_50),size = 1) +
+    scale_x_date(breaks = scales::pretty_breaks(9)) +
+    scale_color_manual(values = c("green","red")) +
+    scale_fill_manual(values = c("green","red")) +
+    coord_cartesian(ylim = c(min(TMP$Low)*0.9,max(TMP$High))) +
+    labs(title = paste0(unique(TMP$Stock)," 6 Month Performance (Green = Gain, Red = Loss)"),
+         subtitle = "Dashed Line = 200 Day SMA\nSolid Line = 50 Day SMA",
+         y = "Price",
+         x = "",
+         color = "") +
+    theme(legend.position = "none") +
+    facet_wrap(Type~.,nrow = 2,scales = "free_y")
+  print(p1)
+
 }
 ```
 ##
