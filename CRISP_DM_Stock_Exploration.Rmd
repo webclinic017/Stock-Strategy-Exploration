@@ -60,7 +60,7 @@ Local_L = T
 Google_Drive_S = F
 Google_Drive_L = F
 Initial_Pull = F
-Initial_History = T
+Initial_History = F
 TEST = T
 
 ## Google Drive Maintinance
@@ -84,7 +84,9 @@ if(Initial_Pull){
     filter(!Symbol %in% c("AGFSW","ARII","CORI","DWCH","TACOW","ECYT","ESRX","JTPY","LINDW","OXBRW","PBSK",
                           "RSYS","SODA","SLNOW","SONC","BJZ","BPK","BLH","CTT","ECOM","ECC","ETX","EEQ","FEI",
                           "FSIC","GFA","HTGX","LHO","LKM","NAP","SEP","EIA","MAB","MIW","EMI","NYH","CTT",
-                          "ECOM","ECC","ETX","FEI")) %>%
+                          "ECOM","ECC","ETX","FEI","ARDM","ATHN","GOV","GNBC","HDP","KANG","INTX","IPAS",
+                          "JASNW","LOXO","TSRO","AHL","CVRR","DM","FCB","KORS","NFX","PAH","SN","VLP",
+                          "MMV","EMJ","EVJ","EIO","EVO","EIP","EVP")) %>%
     mutate(IPOyear = as.numeric(as.character(IPOyear)),
            LastSale = as.numeric(as.character(LastSale))) %>%
     filter(!is.na(IPOyear),
@@ -471,6 +473,7 @@ if(Local_L){
 ## Creating Market Type Data
 Plot_Date = max(Plot_DF$Date) %m-% months(6)
 MIND_DF = Plot_DF %>%
+  group_by(Stock) %>%
   mutate(SMA50 = rollapply(Adjusted,
                     width = 50,
                     FUN = mean,
@@ -496,8 +499,9 @@ VOLT_DF = Plot_DF_2 %>%
   mutate(Stock = case_when(
     Stock == "^VIX" ~ "S&P 500 Fear Index",
     Stock == "^VXN" ~ "NASDAQ Fear Index"
-  ),
-  SMA50 = rollapply(Adjusted,
+  )) %>%
+  group_by(Stock) %>%
+  mutate(SMA50 = rollapply(Adjusted,
                     width = 50,
                     FUN = mean,
                     na.rm = T,
@@ -610,12 +614,13 @@ for(i in 1:length(Tickers)){
 
 ### Performance History
 
-```{r Perf History, echo = F}
+```{r Perf History, echo = F,message = F,warning=F}
 if(Initial_History){
   History_Table = Pool_Results_Potential_Buys %>%
     mutate(Market_Status = Current_Status$Market_Status,
            Market_Type = Current_Type$Market_Type,
            Buy.Price = Close,
+           Max.Price = Close,
            Buy.Date = max(PR_Stage_R2$Date),
            Stop.Loss = Buy.Price*0.95,
            Pcent.Gain = (Close - Buy.Price)/Buy.Price,
@@ -623,23 +628,39 @@ if(Initial_History){
            Sell.Date = NA) %>%
     select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
 }else{
-  
+  Checks = which(is.na(History_Table$Sell.Date))
+  Ticker_List = History_Table$Stock[Checks]
+  New_Buys = which(!Pool_Results_Potential_Buys$Stock %in% Ticker_List)
+  for(i in Checks){
+    Examine = History_Table[i,]
+    Current_Info = Combined_Results %>%
+      filter(Stock == Examine$Stock) %>%
+      filter(Date == max(Date))
+    Delta = Current_Info$Close > History_Table$Max.Price[i]
+    History_Table$Pcent.Gain[i] = (Current_Info$Close - History_Table$Buy.Price[i])/History_Table$Buy.Price[i]
+    History_Table$Time.Held[i] = difftime(Current_Info$Date,History_Table$Buy.Date[i],tz = "UTC",units = "days")
+    History_Table$Stop.Loss[i] = ifelse(all(History_Table$Pcent.Gain[i] >= 0.10,Delta),
+                                        Current_Info$Close*0.90,History_Table$Stop.Loss[i])
+    History_Table$Sell.Date[i] = ifelse(Current_Info$Close <= History_Table$Stop.Loss[i],Current_Info$Date,NA)
+  }
+  if(length(New_Buys) >= 1){
+    Additions = Pool_Results_Potential_Buys[New_Buys,] %>%
+      mutate(Market_Status = Current_Status$Market_Status,
+             Market_Type = Current_Type$Market_Type,
+             Buy.Price = Close,
+             Max.Price = Close,
+             Buy.Date = max(PR_Stage_R2$Date),
+             Stop.Loss = Buy.Price*0.95,
+             Pcent.Gain = (Close - Buy.Price)/Buy.Price,
+             Time.Held = NA,
+             Sell.Date = NA) %>%
+      select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
+    History_Table = bind_rows(History_Table,Additions)
+    }
 }
 
-# Time.Holding = difftime(Current.Date,Buy.Date,tz = "UTC", units = "days")
-# Pcent.Gain = (Close - Buy.Price)/Buy.Price
-# Stop.Loss = case_when(
-#   Pcent.Gain < 0.10 ~ Buy.Price*0.95,
-#   Pcent.Gain >= 0.10 ~ Local.Max*0.90
-# )
-# Sell.Date = case_when(
-#   Close <= Stop.Loss ~ Date,
-#   TRUE ~ NA)
-
-# Sell.Rows = which(is.na(History_Table$Sell.Date))
-# for(i in Sell.Rows){
-#   
-# }
+# Printing Historical Returns
+Historical_Return = scales::percent(sum(History_Table$Pcent.Gain))
 
 ## Interactive Table of Buy History
 DT::datatable(data = History_Table,
@@ -661,6 +682,8 @@ if(Google_Drive_S){
                    path = "History_Results.RDATA")
 }
 ```
+
+#### Historical Return `r Historical_Return`
 
 ### Stock Futures (Hierarchical Forecast)
 
