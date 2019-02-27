@@ -61,7 +61,7 @@ Google_Drive_S = F
 Google_Drive_L = F
 Initial_Pull = F
 Initial_History = F
-TEST = T
+TEST = F
 
 ## Google Drive Maintinance
 if(Google_Drive_L | Google_Drive_S){
@@ -641,7 +641,9 @@ if(Initial_History){
     History_Table$Time.Held[i] = difftime(Current_Info$Date,History_Table$Buy.Date[i],tz = "UTC",units = "days")
     History_Table$Stop.Loss[i] = ifelse(all(History_Table$Pcent.Gain[i] >= 0.10,Delta),
                                         Current_Info$Close*0.90,History_Table$Stop.Loss[i])
-    History_Table$Sell.Date[i] = ifelse(Current_Info$Close <= History_Table$Stop.Loss[i],Current_Info$Date,NA)
+    History_Table$Sell.Date[i] = ifelse(Current_Info$Close <= History_Table$Stop.Loss[i],
+                                        as.character(Current_Info$Date),
+                                        NA)
   }
   if(length(New_Buys) >= 1){
     Additions = Pool_Results_Potential_Buys[New_Buys,] %>%
