@@ -1,0 +1,53 @@
+---
+title: "Web Scraping Exploration"
+author: "Abram Yorde"
+date: "February 28, 2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+devtools::install_github("Emerson-Data-Science/EmersonDataScience",  
+                         auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",  
+                         INSTALL_opts = '--no-multiarch',  
+                         dependencies = TRUE,  
+                         quiet = FALSE,  
+                         upgrade = FALSE)
+library(EmersonDataScience)
+
+##########################################################################
+Required_Packages = c('tidyverse','installr','rvest','httr')
+load_or_install(Required_Packages)
+
+## Checking for R updates
+updateR(fast = F,
+        browse_news = F,
+        install_R = T,
+        copy_packages = F,
+        copy_Rprofile.site = T,
+        keep_old_packages = F,
+        update_packages = F,
+        start_new_R = F,
+        quit_R = T,
+        print_R_versions = T,
+        GUI = F,
+        to_checkMD5sums = T,
+        keep_install_file = F)
+
+## Loading Required Functions
+sourceDir(paste0(getwd(),'/Codes/Functions/'))
+
+## Root Data Folder
+Root_Folder = getwd()
+```
+
+```{r}
+url = "http://financials.morningstar.com/ratios/r.html?t=HEES"
+res = GET(url = url)
+Content = content(res)
+webpage = read_html(url)
+Financial_Data = html_node(webpage,'td')
+
+```
+
