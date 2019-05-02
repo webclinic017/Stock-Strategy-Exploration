@@ -33,7 +33,7 @@ require(TTR)
   
   # ## ADX Optimization
   # Welles Wilder's Directional Movement Index
-  ADX_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  ADX_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(2,100),
                          TTR_Name = "ADX",
@@ -60,7 +60,7 @@ require(TTR)
                          Column = Column)
   ## BBands Optimization
   # Compares volatility and Price Levels Over Time
-  BBANDS_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  BBANDS_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                             DF_Store = DF,
                             Range = c(2,100),
                             TTR_Name = "BBands",
@@ -71,7 +71,7 @@ require(TTR)
     select(BBands_Window,B_Pct)
   ## CCI Optimization
   # Commodity Channel Index attempts to find start/end trends
-  CCI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  CCI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(2,100),
                          TTR_Name = "CCI",
@@ -80,7 +80,7 @@ require(TTR)
                          Column = Column)
   ## chaikinVolatility Optimization
   # Measures the rate of change for the trading range
-  CHV_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  CHV_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(2,100),
                          TTR_Name = "chaikinVolatility",
@@ -89,7 +89,7 @@ require(TTR)
                          Column = Column)
   ## CMF Optimization
   # Chaikin Money Flow Looks at volume fluctionations
-  CMF_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  CMF_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          TTR_Name = "CMF",
                          Target = "V1",
@@ -148,7 +148,7 @@ require(TTR)
     
   ## MFI Optimization
   # Money Flow Index is a ratio of positive and negative money flow over time
-  MFI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  MFI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(2,100),
                          TTR_Name = "MFI",
@@ -158,7 +158,7 @@ require(TTR)
                          Column = Column)
   ## SMI Optimization
   # Stochastic Momentum Index
-  SMI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  SMI_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(2,100),
                          TTR_Name = "SMI",
@@ -212,16 +212,16 @@ require(TTR)
                          Column = Column)
   ## Volatility Optimization
   # Money Flow Index is a ratio of positive and negative money flow over time
-  # VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
-  #                         DF_Store = DF,
-  #                         Range = c(3,100),
-  #                         TTR_Name = "volatility",
-  #                         Target = "V1",
-  #                         Col_Names = "Volatility",
-  #                         Column = Column)
+  VOLT_DF = OPT_Window_TI(DF_Eval = DF_Orig,
+                          DF_Store = DF,
+                          Range = c(3,100),
+                          TTR_Name = "volatility",
+                          Target = "V1",
+                          Col_Names = "Volatility",
+                          Column = Column)
   ## WPR Optimization
   # William's %R
-  WPR_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig),
+  WPR_DF = OPT_Window_TI(DF_Eval = HLC(DF_Orig)[,c("High","Low","Close")],
                          DF_Store = DF,
                          Range = c(200,600),
                          TTR_Name = "WPR",
@@ -235,41 +235,41 @@ require(TTR)
   #################### TTR Non-Window Functions ######################
   # ## Chaikin AD
   # Measure of Money Flow
-  chaikinAD_DF = as.data.frame(chaikinAD(HLC(DF_Orig),DF_Orig$Volume))
+  chaikinAD_DF = as.data.frame(chaikinAD(HLC(DF_Orig)[,c("High","Low","Close")],DF_Orig$Volume))
   colnames(chaikinAD_DF) = "chaikin_AD"
   ## CLV
   # Close Location Value relates close value to trading range
-  CLV_DF = as.data.frame(CLV(HLC(DF_Orig)))
+  CLV_DF = as.data.frame(CLV(HLC(DF_Orig)[,c("High","Low","Close")]))
   colnames(CLV_DF) = "CLV"
   ## GMMA
   # Guppy Multiple Moving Averages
   GMMA_DF = as.data.frame(GMMA(DF_Orig$Column))
   ## KST
   # Know Sure Thing smooth summed rate of change indicator
-  # KST_DF = as.data.frame(KST(DF_Orig$Adjusted))
-  # colnames(KST_DF) = c("KST","KST_Signal")
+  KST_DF = as.data.frame(KST(DF_Orig$Adjusted))
+  colnames(KST_DF) = c("KST","KST_Signal")
   ## MACD
   # MACD Oscillator
   MACD_DF = as.data.frame(MACD(DF_Orig$Column))
   colnames(MACD_DF) = c("MACD","MACD_Signal")
   # ## OBV
   # # On Balance Volume
-  # OBV_DF = as.data.frame(OBV(DF_Orig$Adjusted,DF_Orig$Volume))
-  # colnames(OBV_DF) = "OBV"
+  OBV_DF = as.data.frame(OBV(DF_Orig$Adjusted,DF_Orig$Volume))
+  colnames(OBV_DF) = "OBV"
   ## SAR
   # # Parabolic Stop-and-Reverse
   SAR_DF = as.data.frame(SAR(DF_Orig[,c("High","Low")]))
   colnames(SAR_DF) = "SAR"
   ## stoch
   # Stochastic Oscillator
-  stoch_DF = as.data.frame(stoch(HLC(DF_Orig)))
+  stoch_DF = as.data.frame(stoch(HLC(DF_Orig)[,c("High","Low","Close")]))
   colnames(stoch_DF) = c("Fast_K","Slow_K","Slow_D")
   ## ultimateOscillator
   # Capture momentum across different time frames
-  UO_DF = as.data.frame(ultimateOscillator(HLC(DF_Orig)))
+  UO_DF = as.data.frame(ultimateOscillator(HLC(DF_Orig)[,c("High","Low","Close")]))
   colnames(UO_DF) = "Ultimate_Oscillator"
   # ## williamsAD
-  WAD_DF = as.data.frame(williamsAD(HLC(DF_Orig)))
+  WAD_DF = as.data.frame(williamsAD(HLC(DF_Orig)[,c("High","Low","Close")]))
   colnames(WAD_DF) = "WAD"
   ######################## End TTR Functions #################
   v1 <- ls(pattern='_DF$')

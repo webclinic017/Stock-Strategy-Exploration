@@ -1,0 +1,97 @@
+---
+title: "Analytics Project Template"
+author: "Emerson COMRES"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Setting RMD Project Directory
+Project_Folder = rprojroot::find_rstudio_root_file()
+knitr::opts_knit$set(root.dir = Project_Folder)
+
+## Loading / Updating COMRES Data Science Package
+devtools::install_github("Emerson-Data-Science/EmersonDataScience",  
+                         auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",  
+                         INSTALL_opts = c('--no-multiarch'),  
+                         quick = TRUE,
+                         dependencies = TRUE, 
+                         build = FALSE,
+                         quiet = FALSE,  
+                         upgrade = FALSE)
+library(EmersonDataScience)
+
+## Loading and Installing Packages if necessacary
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR")
+load_or_install(Required_Packages)
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+
+## Disabling API Warning
+options("getSymbols.yahoo.warning" = FALSE)
+options("getSymbols.warning4.0" = FALSE)
+
+## General RMD Options
+Re_Pull = T
+Initial_History = F
+TEST = F
+```
+
+
+```{r Raw Data Pull, include = F, eval = !TEST}
+if(Re_Pull){
+  Initial_Pull()
+}else{
+  Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),
+                       Google_Drive = F)
+}
+```
+
+```{r Market Direction, echo = F, eval = !TEST}
+load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+
+Market_Ind = Market_Direction(Combined_Results)
+Fear_Ind = Fear_Direction(Combined_Results,Market_Ind)
+```
+  
+```{r Normalizing OHLCV}
+## Normalizing OHLCV Values  
+Start = Sys.time()
+print("Initial Stat Calculation for Pool Selection")
+PR_Stage = PR_Appendage(Combined_Results,parallel = T)
+Sys.time() - Start
+
+## Compairing Performance to Major Indexs
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Index_Alpha_Slope = PR_Stage %>%
+  filter(Stock %in% Major_Indexs) %>%
+  select(Stock,Date,Close_Slope_50_Norm) %>%
+  spread(Stock,Close_Slope_50_Norm) %>%
+  mutate(Alpha_Slope = rowMeans(cbind(`^GSPC`,`^IXIC`,`^DJI`))) %>%
+  select(Date,Alpha_Slope)
+
+## Appending Results
+PR_Stage_R2 = PR_Stage %>%
+  left_join(Index_Alpha_Slope,by = "Date") %>%
+  na.omit() %>%
+  mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope)
+
+## Calculating Technical Indicators
+Stocks = unique(PR_Stage_R2$Stock)
+Results = list()
+for(i in Stocks){
+  TMP = PR_Stage_R2 %>%
+    filter(Stock == i)
+  Results[[i]] = Stat_Appendage_Function(DF = TMP)
+}
+
+save(PR_Stage_R2,
+     file = paste0(Project_Folder,"/Data/Normalized Historical.RDATA"))
+```
+
+
