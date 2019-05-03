@@ -59,7 +59,7 @@ Market_Ind = Market_Direction(Combined_Results)
 Fear_Ind = Fear_Direction(Combined_Results,Market_Ind)
 ```
   
-```{r Normalizing OHLCV}
+```{r Appending Stats and Indicators}
 ## Normalizing OHLCV Values  
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
@@ -83,12 +83,24 @@ PR_Stage_R2 = PR_Stage %>%
 
 ## Calculating Technical Indicators
 Stocks = unique(PR_Stage_R2$Stock)
-Results = list()
-for(i in Stocks){
+
+c1 = makeCluster(detectCores())
+registerDoParallel(c1)
+
+Results = foreach(i = 1:length(Stocks),
+                  .inorder = F,
+                  .packages = c("tidyverse",
+                                "quantmod",
+                                "lubridate",
+                                "TTR"),
+                  .verbose = T) %dopar% {
   TMP = PR_Stage_R2 %>%
-    filter(Stock == i)
-  Results[[i]] = Stat_Appendage_Function(DF = TMP)
-}
+    filter(Stock == Stocks[i])
+  
+  Stat_Appendage_Function(DF = TMP)
+}     
+stopCluster(c1)
+registerDoSEQ()
 
 save(PR_Stage_R2,
      file = paste0(Project_Folder,"/Data/Normalized Historical.RDATA"))
