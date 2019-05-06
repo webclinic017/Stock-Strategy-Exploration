@@ -209,7 +209,7 @@ Weights = scales::rescale(as.numeric(Train.PP$Date),to = c(0,1))
 Model = glm(Target~.,
             data = select(Train.PP,
                           -c(Stock,Date,Adjusted)),
-            family = "binomial",
+            family = "quasibinomial",
             weights = Weights)
 
 Pred_Train = predict(Model,type = "response")
@@ -234,8 +234,12 @@ Preds = predict(Model,TODAY.PP,type = "response")
 
 RESULT = TODAY %>%
   mutate(Prob = Preds) %>%
-  filter(Prob >= Cutoff) %>%
-  select(Stock,Date,Prob,Adjusted,Names$Var)
+  filter(Prob >= Cutoff,
+         !str_detect(Stock,"^\\^")) %>%
+  select(Stock,Date,Prob,Adjusted,Names$Var) %>%
+  mutate(Prob_Rank = dense_rank(-Prob)) %>%
+  arrange(Prob_Rank) %>%
+  filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test))
 
 save(PP,Model,Names,ID_DF,RESULT,Train.PP,Test.PP,
      file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
@@ -278,7 +282,7 @@ FU_DF = FU_DF %>%
          Date = RESULT$Date) %>%
   select(Stock,Date,Adjusted,Pred,Prob,Delta,everything()) %>%
   arrange(desc(Delta))%>%
-  filter(Delta > 0.025)
+  filter(Delta > 0)
 
 write_excel_csv(FU_DF,path = paste0(Project_Folder,"/Predictions.csv"))
 ```
