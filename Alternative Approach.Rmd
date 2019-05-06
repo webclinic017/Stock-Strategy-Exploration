@@ -37,26 +37,36 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = T
+Re_Pull = F
 Initial_History = F
 TEST = F
 ```
 
 
 ```{r Raw Data Pull, include = F, eval = !TEST}
+## Pulling Historical Data
 if(Re_Pull){
+  ## Fresh Historical Data Pull
   Initial_Pull()
 }else{
-  Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),
+  ## Historical Table Update
+  Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),
                        Google_Drive = F)
 }
 ```
 
 ```{r Market Direction, echo = F, eval = !TEST}
+## Loading Historical Stock Data
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 
+## Bear/Bull Calculations
 Market_Ind = Market_Direction(Combined_Results)
+## General Fear Calculations
 Fear_Ind = Fear_Direction(Combined_Results,Market_Ind)
+
+## Saving Market Indicators
+save(Market_Ind,Fear_Ind,
+     file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 ```
   
 ```{r Appending Stats and Indicators}
@@ -81,29 +91,196 @@ PR_Stage_R2 = PR_Stage %>%
   na.omit() %>%
   mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope)
 
-## Calculating Technical Indicators
-Stocks = unique(PR_Stage_R2$Stock)
+## Removing Dead Stocks Or Baby Stocks
+Time_Stop = max(PR_Stage_R2$Date)
+Time_Start = Time_Stop - 365*5
+Last_Time = PR_Stage_R2 %>% 
+  group_by(Stock) %>%
+  summarise(Max_Time = max(Date),
+            Min_Time = min(Date)) %>%
+  filter(Max_Time == Time_Stop,
+         Min_Time <= Time_Start)
 
+## Calculating Technical Indicators
+Stocks = unique(Last_Time$Stock)
+
+## Spinning Up Clusters
 c1 = makeCluster(detectCores())
 registerDoParallel(c1)
 
+## Parallel Execution
 Results = foreach(i = 1:length(Stocks),
                   .inorder = F,
                   .packages = c("tidyverse",
                                 "quantmod",
                                 "lubridate",
                                 "TTR"),
-                  .verbose = T) %dopar% {
-  TMP = PR_Stage_R2 %>%
-    filter(Stock == Stocks[i])
-  
-  Stat_Appendage_Function(DF = TMP)
-}     
+                  .verbose = F) %dopar% {
+                    ## Subsetting Data
+                    TMP = PR_Stage_R2 %>%
+                      filter(Stock == Stocks[i])
+                    
+                    ## Calculating Technical Indicators
+                    Stat_Appendage_Function(DF = TMP)
+                  }
+
+## Spinning Down Clusters
 stopCluster(c1)
 registerDoSEQ()
 
-save(PR_Stage_R2,
-     file = paste0(Project_Folder,"/Data/Normalized Historical.RDATA"))
+## Consolidating Results
+PR_Stage_R3 = plyr::ldply(Results,data.frame)
+
+## Saving Results
+save(PR_Stage_R3,
+     file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+```
+
+```{r Variable Importance Reduction}
+## Loading Indicator Data
+load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+## Initial Data
+ID_DF = PR_Stage_R3 %>%
+  left_join(Market_Ind) %>%
+  left_join(Fear_Ind)
+
+## Defining Target Variable
+PR_Stage_R4 = PR_Stage_R3 %>%
+  group_by(Stock) %>%
+  mutate(Adjusted_Lead = lead(Adjusted,30),
+         PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
+         Target = ifelse(PD_Lead > 0,1,0)) %>%
+  ungroup() %>%
+  select(-c(Adjusted_Lead,PD_Lead)) %>%
+  na.omit() %>%
+  filter(!str_detect(Stock,"^\\^"))
+
+## Reducing Variable Pool
+Sample = createDataPartition(PR_Stage_R4$Target,p = 0.05,list = F)
+Train = PR_Stage_R4[Sample,] %>%
+  select_if(is.numeric) %>%
+  select(-c(Open,High,Low,Close,Adjusted,Volume))
+Names = Variable_Importance_Reduction(DF = Train,
+                                      Type = 'C',
+                                      Target = "Target")
+
+## Reducing Data
+LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
+UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
+PR_Stage_R5 = PR_Stage_R4 %>%
+  select(Stock,Date,Adjusted,Names$Var,Target)
+
+## Defining Filter Columns
+Filter = PR_Stage_R5 %>%
+  select(Names$Var) %>% 
+  colnames()
+
+## Removing Outliers
+for(i in Filter){
+  Column = as_vector(PR_Stage_R5[,i])
+  Keep = Column <= UL(Column) & Column >= LL(Column)
+  PR_Stage_R5 = PR_Stage_R5[Keep,]
+}
+
+## Pre-Processing
+Split = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
+Train = PR_Stage_R5[Split,]
+Test = PR_Stage_R5[-Split,]
+PP = recipe(Target~.,
+            data = select(Train,
+                          -c(Date,Adjusted,Stock))) %>%
+  step_YeoJohnson(all_predictors()) %>%
+  step_center(all_predictors()) %>%
+  step_scale(all_predictors()) %>%
+  prep(Train)
+
+## Formatted Data
+Train.PP = bake(PP,Train) %>%
+  mutate(Stock = Train$Stock,
+         Date = Train$Date,
+         Adjusted = Train$Adjusted)
+Test.PP = bake(PP,Test) %>%
+  mutate(Stock = Test$Stock,
+         Date = Test$Date,
+         Adjusted = Test$Adjusted)
+
+Weights = scales::rescale(as.numeric(Train.PP$Date),to = c(0,1))
+## Initial Model
+Model = glm(Target~.,
+            data = select(Train.PP,
+                          -c(Stock,Date,Adjusted)),
+            family = "binomial",
+            weights = Weights)
+
+Pred_Train = predict(Model,type = "response")
+Pred_Test = predict(Model,Test.PP,type = "response")
+Cutoff = median(Pred_Test) + mad(Pred_Test)
+
+Pred_Train[Pred_Train >= Cutoff] = 1
+Pred_Train[Pred_Train < Cutoff] = 0
+Pred_Test[Pred_Test >= Cutoff] = 1
+Pred_Test[Pred_Test < Cutoff] = 0
+
+Specif_Train = MLmetrics::Specificity(Pred_Train,Train.PP$Target)
+Specif_Test = MLmetrics::Specificity(Pred_Test,Test.PP$Target)
+
+CHECK = Train[Pred_Train == 1,]
+
+TODAY = ID_DF %>%
+  filter(Date == max(Date))
+
+TODAY.PP = bake(PP,TODAY)
+Preds = predict(Model,TODAY.PP,type = "response")
+
+RESULT = TODAY %>%
+  mutate(Prob = Preds) %>%
+  filter(Prob >= Cutoff) %>%
+  select(Stock,Date,Prob,Adjusted,Names$Var)
+
+save(PP,Model,Names,ID_DF,RESULT,Train.PP,Test.PP,
+     file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
+```
+
+```{r Futures Model}
+Train.PP.2 = Train.PP %>%
+  group_by(Stock) %>%
+  mutate(Target = lead(Adjusted,30)) %>%
+  ungroup() %>%
+  na.omit()
+Test.PP.2 = Test.PP %>%
+  group_by(Stock) %>%
+  mutate(Target = lead(Adjusted,30)) %>%
+  ungroup() %>%
+  na.omit()
+Mod_DF = select(Train.PP.2,
+                     -c(Stock,Date))
+Weights = scales::rescale(as.numeric(Train.PP.2$Date),to = c(0,1))
+
+Futures_Mod = lm(Target~.,
+                 data = Mod_DF,
+                 weights = Weights)
+
+Futures_Train = predict(Futures_Mod)
+Futures_Test = predict(Futures_Mod,Test.PP.2)
+
+ACC_Train = MLmetrics::MAPE(Futures_Train,Train.PP.2$Target)
+ACC_Test = MLmetrics::MAPE(Futures_Test,Test.PP.2$Target)
+
+FU_DF = bake(PP,RESULT)
+FU_DF$Adjusted = RESULT$Adjusted
+
+Futures = predict(Futures_Mod,FU_DF)
+FU_DF = FU_DF %>%
+  mutate(Pred = Futures,
+         Delta = (Pred - Adjusted)/Adjusted,
+         Prob = RESULT$Prob,
+         Stock = RESULT$Stock,
+         Date = RESULT$Date) %>%
+  select(Stock,Date,Adjusted,Pred,Prob,Delta,everything()) %>%
+  arrange(desc(Delta))%>%
+  filter(Delta > 0.025)
+
+write_excel_csv(FU_DF,path = paste0(Project_Folder,"/Predictions.csv"))
 ```
 
 
