@@ -91,7 +91,16 @@ Initial_Pull = function() {
         "ECOM",
         "ECC",
         "ETX",
-        "FEI"
+        "FEI",
+        "BHBK",
+        "BLMT",
+        "IDTI",
+        "WTW",
+        "DSW",
+        "ELLI",
+        "SSWN",
+        "VZA",
+        "ORM"
       )
     ) %>%
     mutate(IPOyear = as.numeric(as.character(IPOyear)),
