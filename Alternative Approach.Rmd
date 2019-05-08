@@ -282,7 +282,11 @@ FU_DF = FU_DF %>%
          Date = RESULT$Date) %>%
   select(Stock,Date,Adjusted,Pred,Prob,Delta,everything()) %>%
   arrange(desc(Delta))%>%
-  filter(Delta > 0)
+  filter(Delta > 0,
+         Adjusted > 15,
+         Volume_SD_Norm > 0,
+         Close_PD_200_Norm > 0,
+         Close_PD_50_200_Norm > 0)
 
 write_excel_csv(FU_DF,path = paste0(Project_Folder,"/Predictions.csv"))
 ```
