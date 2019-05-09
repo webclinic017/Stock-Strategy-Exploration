@@ -246,6 +246,8 @@ save(PP,Model,Names,ID_DF,RESULT,Train.PP,Test.PP,
 ```
 
 ```{r Futures Model}
+load(file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
+
 Train.PP.2 = Train.PP %>%
   group_by(Stock) %>%
   mutate(Target = lead(Adjusted,30)) %>%
@@ -283,12 +285,19 @@ FU_DF = FU_DF %>%
   select(Stock,Date,Adjusted,Pred,Prob,Delta,everything()) %>%
   arrange(desc(Delta))%>%
   filter(Delta > 0,
-         Adjusted > 15,
-         Volume_SD_Norm > 0,
-         Close_PD_200_Norm > 0,
-         Close_PD_50_200_Norm > 0)
+         Adjusted > 15)
 
-write_excel_csv(FU_DF,path = paste0(Project_Folder,"/Predictions.csv"))
+Buy_Point = ID_DF %>%
+  filter(Stock %in% FU_DF$Stock,
+         Date == max(Date),
+         Close_PD_200_Norm > 0) %>%
+  mutate(Limit_Buy = Adjusted + ATR) %>%
+  left_join(FU_DF,by = c("Stock","Date","Adjusted")) %>%
+  filter(Limit_Buy < Pred) %>%
+  select(-contains(".x")) %>% 
+  select(Stock,Date,Adjusted,Pred,Prob,Delta,Limit_Buy,everything())
+
+write_excel_csv(Buy_Point,path = paste0(Project_Folder,"/Predictions.csv"))
 ```
 
 
