@@ -142,7 +142,12 @@ load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Ind
 ## Initial Data
 ID_DF = PR_Stage_R3 %>%
   left_join(Market_Ind) %>%
-  left_join(Fear_Ind)
+  left_join(Fear_Ind) %>%
+  mutate(WAD_Delta = WAD - lag(WAD,1),
+         Close_PD = (Close - lag(Close,1))/lag(Close,1),
+         SMI_Delta = (SMI - lag(SMI,1)),
+         SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
+         CCI_Delta = (CCI - lag(CCI,1)))
 
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
@@ -150,29 +155,37 @@ PR_Stage_R4 = PR_Stage_R3 %>%
   mutate(Adjusted_Lead = lead(Adjusted,30),
          PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
          Target = ifelse(PD_Lead > 0,1,0)) %>%
+   mutate(WAD_Delta = WAD - lag(WAD,1),
+         Close_PD = (Close - lag(Close,1))/lag(Close,1),
+         SMI_Delta = (SMI - lag(SMI,1)),
+         SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
+         CCI_Delta = (CCI - lag(CCI,1))) %>%
   ungroup() %>%
-  select(-c(Adjusted_Lead,PD_Lead)) %>%
+  select(-c(PD_Lead)) %>%
   na.omit() %>%
   filter(!str_detect(Stock,"^\\^"))
 
 ## Reducing Variable Pool
-Sample = createDataPartition(PR_Stage_R4$Target,p = 0.05,list = F)
-Train = PR_Stage_R4[Sample,] %>%
-  select_if(is.numeric) %>%
-  select(-c(Open,High,Low,Close,Adjusted,Volume))
-Names = Variable_Importance_Reduction(DF = Train,
-                                      Type = 'C',
-                                      Target = "Target")
+Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
+                                                         -c(Open,High,Low,Close,Adjusted,
+                                                            Volume,Adjusted_Lead)) %>%
+                                               sample_frac(0.05),
+                                             Type = 'C',
+                                             Target = "Target")
+Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target,Volume)) %>%
+                                               sample_frac(0.05),
+                                              Type = 'R',
+                                              Target = "Adjusted_Lead")
 
 ## Reducing Data
 LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
 UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
 PR_Stage_R5 = PR_Stage_R4 %>%
-  select(Stock,Date,Adjusted,Names$Var,Target)
+  select(Stock,Date,Adjusted,Names_Profit$Var,Names_Futures$Var,Target,Adjusted_Lead)
 
 ## Defining Filter Columns
 Filter = PR_Stage_R5 %>%
-  select(Names$Var) %>% 
+  select(Names_Profit$Var,Names_Futures$Var) %>% 
   colnames()
 
 ## Removing Outliers
@@ -182,38 +195,34 @@ for(i in Filter){
   PR_Stage_R5 = PR_Stage_R5[Keep,]
 }
 
-## Pre-Processing
-Split = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
-Train = PR_Stage_R5[Split,]
-Test = PR_Stage_R5[-Split,]
-PP = recipe(Target~.,
-            data = select(Train,
-                          -c(Date,Adjusted,Stock))) %>%
-  step_YeoJohnson(all_predictors()) %>%
-  step_center(all_predictors()) %>%
-  step_scale(all_predictors()) %>%
-  prep(Train)
+save(PR_Stage_R5,
+     file = paste0(Project_Folder,"/data/Importance.RDATA"))
+```
 
-## Formatted Data
-Train.PP = bake(PP,Train) %>%
-  mutate(Stock = Train$Stock,
-         Date = Train$Date,
-         Adjusted = Train$Adjusted)
-Test.PP = bake(PP,Test) %>%
-  mutate(Stock = Test$Stock,
-         Date = Test$Date,
-         Adjusted = Test$Adjusted)
+```{r Modeling}
+Split_Profit = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
+Split_Futures = createDataPartition(y = PR_Stage_R5$Adjusted_Lead,p = 0.70,list = F)
 
-Weights = scales::rescale(as.numeric(Train.PP$Date),to = c(0,1))
-## Initial Model
-Model = glm(Target~.,
-            data = select(Train.PP,
-                          -c(Stock,Date,Adjusted)),
-            family = "quasibinomial",
-            weights = Weights)
+Train_Profit = PR_Stage_R5[Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
+Test_Profit = PR_Stage_R5[-Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
+Train_Futures = PR_Stage_R5[Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
+Test_Futures = PR_Stage_R5[-Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
 
-Pred_Train = predict(Model,type = "response")
-Pred_Test = predict(Model,Test.PP,type = "response")
+Weights_Profit = scales::rescale(as.numeric(Train_Profit$Date),to = c(0,1))
+Weights_Futures = scales::rescale(as.numeric(Train_Futures$Date),to = c(0,1))
+
+Model_Profit = glm(Target~.,
+                   data = select(Train_Profit,
+                                 -c(Stock,Date,Adjusted)),
+                   family = "quasibinomial",
+                   weights = Weights_Profit)
+Model_Futures = lm(Adjusted_Lead~.,
+                   data = select(Train_Futures,
+                                 -c(Stock,Date,Adjusted)),
+                   weights = Weights_Futures)
+
+Pred_Train = predict(Model_Profit,type = "response")
+Pred_Test = predict(Model_Profit,Test_Profit,type = "response")
 Cutoff = median(Pred_Test) + mad(Pred_Test)
 
 Pred_Train[Pred_Train >= Cutoff] = 1
@@ -221,25 +230,34 @@ Pred_Train[Pred_Train < Cutoff] = 0
 Pred_Test[Pred_Test >= Cutoff] = 1
 Pred_Test[Pred_Test < Cutoff] = 0
 
-Specif_Train = MLmetrics::Specificity(Pred_Train,Train.PP$Target)
-Specif_Test = MLmetrics::Specificity(Pred_Test,Test.PP$Target)
+Specif_Train = MLmetrics::Specificity(Pred_Train,Train_Profit$Target)
+Specif_Test = MLmetrics::Specificity(Pred_Test,Test_Profit$Target)
 
-CHECK = Train[Pred_Train == 1,]
+Pred_Futures_Train = predict(Model_Futures)
+Pred_Futures_Test = predict(Model_Futures,Test_Futures)
+
+ACC_Train = MLmetrics::MAPE(Pred_Futures_Train,Train_Futures$Adjusted_Lead)
+ACC_Test = MLmetrics::MAPE(Pred_Futures_Test,Test_Futures$Adjusted_Lead)
+
 
 TODAY = ID_DF %>%
   filter(Date == max(Date))
 
-TODAY.PP = bake(PP,TODAY)
-Preds = predict(Model,TODAY.PP,type = "response")
+Preds = predict(Model_Profit,TODAY,type = "response")
+Futures = predict(Model_Futures,TODAY)
 
 RESULT = TODAY %>%
-  mutate(Prob = Preds) %>%
+  mutate(Prob = Preds,
+         Future = Futures,
+         Delta = (Future - Adjusted)/Adjusted) %>%
   filter(Prob >= Cutoff,
          !str_detect(Stock,"^\\^")) %>%
-  select(Stock,Date,Prob,Adjusted,Names$Var) %>%
+  select(Stock,Date,Prob,Delta,Future,Adjusted,Names_Profit$Var,Names_Futures$Var) %>%
   mutate(Prob_Rank = dense_rank(-Prob)) %>%
   arrange(Prob_Rank) %>%
-  filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test))
+  filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test),
+         Future > Adjusted,
+         Close_PD_200_Norm > 0)
 
 save(PP,Model,Names,ID_DF,RESULT,Train.PP,Test.PP,
      file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
@@ -294,8 +312,11 @@ Buy_Point = ID_DF %>%
   mutate(Limit_Buy = Adjusted + ATR) %>%
   left_join(FU_DF,by = c("Stock","Date","Adjusted")) %>%
   filter(Limit_Buy < Pred) %>%
-  select(-contains(".x")) %>% 
-  select(Stock,Date,Adjusted,Pred,Prob,Delta,Limit_Buy,everything())
+  select(-contains(".y")) %>% 
+  select(Stock,Date,Adjusted,Pred,ATR,Prob,Delta,Limit_Buy,everything())
+colnames(Buy_Point) = str_replace_all(colnames(Buy_Point),".x","")
+Examine = Buy_Point %>%
+  select(Stock,Date,Adjusted,Pred,ATR,Prob,Delta,Limit_Buy,colnames(Train.PP.2)[!colnames(Train.PP.2) %in% "Target"])
 
 write_excel_csv(Buy_Point,path = paste0(Project_Folder,"/Predictions.csv"))
 ```
