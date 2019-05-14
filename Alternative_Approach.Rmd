@@ -58,7 +58,7 @@ if(Re_Pull){
 
 #### Market Status
 
-```{r Market Direction, echo = F}
+```{r Market Direction, echo = F, message = F, warning = F}
 ## Loading Historical Stock Data
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 
@@ -364,7 +364,7 @@ History_Table = History_Table %>%
   ))
 
 # Printing Historical Returns
-Historical_Return = scales::percent((sum(History_Table$Buy.Price) + sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price))
+Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price))
 
 ## Interactive Table of Buy History
 DT::datatable(data = History_Table,
