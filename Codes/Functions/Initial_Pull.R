@@ -3,14 +3,15 @@ Initial_Pull = function() {
   AMEX_Stocks = read.csv(paste0(Project_Folder, "/Data/AMEX.csv"))
   NYSE_Stocks = read.csv(paste0(Project_Folder, "/Data/NYSE.csv"))
   Market_Tickers = data.frame(
-    Symbol = c("^GSPC", "^IXIC", "^DJI", "^VIX", "^VXN", "MFST"),
+    Symbol = c("^GSPC", "^IXIC", "^DJI", "^VIX", "^VXN", "MFST","DIS"),
     Name = c(
       "S&P 500",
       "NASDAQ",
       "Dow Jones",
       "S&P Volatility",
       "NASDAQ Volatility",
-      "Microsoft"
+      "Microsoft",
+      "Disney"
     ),
     IPOyear = as.character(year(Sys.Date()) - 5),
     LastSale = "1000"
