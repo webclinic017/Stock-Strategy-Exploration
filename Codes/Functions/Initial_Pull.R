@@ -100,7 +100,11 @@ Initial_Pull = function() {
         "ELLI",
         "SSWN",
         "VZA",
-        "ORM"
+        "ORM",
+        "NXTM",
+        "ECC",
+        "ETX",
+        "FBR"
       )
     ) %>%
     mutate(IPOyear = as.numeric(as.character(IPOyear)),

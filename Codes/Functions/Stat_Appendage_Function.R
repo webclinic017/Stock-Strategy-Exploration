@@ -120,10 +120,24 @@ require(TTR)
     setNames(.,"VHF")
   
   ## Volatility Optimization
-  # Money Flow Index is a ratio of positive and negative money flow over time
-  VOLT_DF = volatility(DF_Orig[,c("Open","High","Low","Close")]) %>%
+  VOLT1_DF = volatility(DF_Orig[,c("Open","High","Low","Close")]) %>%
     as.data.frame() %>%
-    setNames(.,"Volatility")
+    setNames(.,"Volatility_Close")
+  VOLT2_DF = volatility(DF_Orig[,c("Open","High","Low","Close")],calc = "garman.klass") %>%
+    as.data.frame() %>%
+    setNames(.,"Volatility_Klass")
+  VOLT3_DF = volatility(DF_Orig[,c("Open","High","Low","Close")],calc = "parkinson") %>%
+    as.data.frame() %>%
+    setNames(.,"Volatility_Parkinson")
+  VOLT4_DF = volatility(DF_Orig[,c("Open","High","Low","Close")],calc = "rogers.satchell") %>%
+    as.data.frame() %>%
+    setNames(.,"Volatility_Satchell")
+  VOLT5_DF = volatility(DF_Orig[,c("Open","High","Low","Close")], calc = "gk.yz") %>%
+    as.data.frame() %>%
+    setNames(.,"Volatility_Garman")
+  VOLT6_DF = volatility(DF_Orig[,c("Open","High","Low","Close")],calc = "yang.zhang") %>%
+    as.data.frame() %>%
+    setNames(.,"Volatility_Zhang")
   
   ## WPR Optimization
   # William's %R

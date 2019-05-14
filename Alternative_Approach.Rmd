@@ -37,7 +37,7 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = F
+Re_Pull = T
 Initial_History = F
 TEST = F
 ```
@@ -249,76 +249,35 @@ Futures = predict(Model_Futures,TODAY)
 RESULT = TODAY %>%
   mutate(Prob = Preds,
          Future = Futures,
-         Delta = (Future - Adjusted)/Adjusted) %>%
+         Delta = (Future - Adjusted)/Adjusted,
+         Decider = Prob + Delta,
+         Stop_Loss = Adjusted - 2*ATR) %>%
   filter(Prob >= Cutoff,
          !str_detect(Stock,"^\\^")) %>%
-  select(Stock,Date,Prob,Delta,Future,Adjusted,Names_Profit$Var,Names_Futures$Var) %>%
-  mutate(Prob_Rank = dense_rank(-Prob)) %>%
+  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Names_Profit$Var,Names_Futures$Var) %>%
+  mutate(Prob_Rank = dense_rank(-Decider)) %>%
   arrange(Prob_Rank) %>%
   filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test),
          Future > Adjusted,
-         Close_PD_200_Norm > 0)
+         Close_PD_200_Norm > 0,
+         Close_PD_50_Norm > 0)
 
-save(PP,Model,Names,ID_DF,RESULT,Train.PP,Test.PP,
-     file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
-```
+FUTURES = TODAY %>%
+  mutate(Prob = Preds,
+         Future = Futures,
+         Delta = (Future - Adjusted)/Adjusted,
+         Decider = Prob + Delta,
+         Stop_Loss = Adjusted - 2*ATR) %>%
+  filter(!str_detect(Stock,"^\\^")) %>%
+  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Names_Profit$Var,Names_Futures$Var) %>%
+  mutate(Prob_Rank = dense_rank(-Decider)) %>%
+  arrange(Prob_Rank) %>%
+  filter(Future > Adjusted,
+         Close_PD_200_Norm > 0,
+         Close_PD_50_Norm > 0)
 
-```{r Futures Model}
-load(file = paste0(Project_Folder,"/data/Selection Model and Results.RDATA"))
-
-Train.PP.2 = Train.PP %>%
-  group_by(Stock) %>%
-  mutate(Target = lead(Adjusted,30)) %>%
-  ungroup() %>%
-  na.omit()
-Test.PP.2 = Test.PP %>%
-  group_by(Stock) %>%
-  mutate(Target = lead(Adjusted,30)) %>%
-  ungroup() %>%
-  na.omit()
-Mod_DF = select(Train.PP.2,
-                     -c(Stock,Date))
-Weights = scales::rescale(as.numeric(Train.PP.2$Date),to = c(0,1))
-
-Futures_Mod = lm(Target~.,
-                 data = Mod_DF,
-                 weights = Weights)
-
-Futures_Train = predict(Futures_Mod)
-Futures_Test = predict(Futures_Mod,Test.PP.2)
-
-ACC_Train = MLmetrics::MAPE(Futures_Train,Train.PP.2$Target)
-ACC_Test = MLmetrics::MAPE(Futures_Test,Test.PP.2$Target)
-
-FU_DF = bake(PP,RESULT)
-FU_DF$Adjusted = RESULT$Adjusted
-
-Futures = predict(Futures_Mod,FU_DF)
-FU_DF = FU_DF %>%
-  mutate(Pred = Futures,
-         Delta = (Pred - Adjusted)/Adjusted,
-         Prob = RESULT$Prob,
-         Stock = RESULT$Stock,
-         Date = RESULT$Date) %>%
-  select(Stock,Date,Adjusted,Pred,Prob,Delta,everything()) %>%
-  arrange(desc(Delta))%>%
-  filter(Delta > 0,
-         Adjusted > 15)
-
-Buy_Point = ID_DF %>%
-  filter(Stock %in% FU_DF$Stock,
-         Date == max(Date),
-         Close_PD_200_Norm > 0) %>%
-  mutate(Limit_Buy = Adjusted + ATR) %>%
-  left_join(FU_DF,by = c("Stock","Date","Adjusted")) %>%
-  filter(Limit_Buy < Pred) %>%
-  select(-contains(".y")) %>% 
-  select(Stock,Date,Adjusted,Pred,ATR,Prob,Delta,Limit_Buy,everything())
-colnames(Buy_Point) = str_replace_all(colnames(Buy_Point),".x","")
-Examine = Buy_Point %>%
-  select(Stock,Date,Adjusted,Pred,ATR,Prob,Delta,Limit_Buy,colnames(Train.PP.2)[!colnames(Train.PP.2) %in% "Target"])
-
-write_excel_csv(Buy_Point,path = paste0(Project_Folder,"/Predictions.csv"))
+write_excel_csv(RESULT,path = paste0(Project_Folder,"/Predictions.csv"))
+write_excel_csv(FUTURES,path = paste0(Project_Folder,"/Futures.csv"))
 ```
 
 
