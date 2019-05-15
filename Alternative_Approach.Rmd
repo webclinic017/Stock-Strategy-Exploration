@@ -14,15 +14,6 @@ editor_options:
 Project_Folder = rprojroot::find_rstudio_root_file()
 knitr::opts_knit$set(root.dir = Project_Folder)
 
-## Loading / Updating COMRES Data Science Package
-devtools::install_github("Emerson-Data-Science/EmersonDataScience",  
-                         auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",  
-                         INSTALL_opts = c('--no-multiarch'),  
-                         quick = TRUE,
-                         dependencies = TRUE, 
-                         build = FALSE,
-                         quiet = FALSE,  
-                         upgrade = FALSE)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
@@ -37,9 +28,9 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = T
+Re_Pull = F
 Initial_History = F
-TEST = T
+TEST = F
 ```
 
 ### {.tabset}
@@ -72,7 +63,7 @@ save(Market_Ind,Fear_Ind,
      file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 ```
   
-```{r Appending Stats and Indicators,include = F}
+```{r Appending Stats and Indicators,include = F,eval = !TEST}
 ## Normalizing OHLCV Values  
 Start = Sys.time()
 print("Initial Stat Calculation for Pool Selection")
@@ -139,9 +130,11 @@ save(PR_Stage_R3,
      file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 ```
 
-```{r Variable Importance Reduction, include = F}
+```{r Variable Importance Reduction, include = F,eval = !TEST}
 ## Loading Indicator Data
+load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+
 ## Initial Data
 ID_DF = PR_Stage_R3 %>%
   left_join(Market_Ind) %>%
@@ -198,11 +191,12 @@ for(i in Filter){
   PR_Stage_R5 = PR_Stage_R5[Keep,]
 }
 
-save(PR_Stage_R5,
+save(PR_Stage_R5,Names_Profit,Names_Futures,
      file = paste0(Project_Folder,"/data/Importance.RDATA"))
 ```
 
-```{r Modeling,echo = F,include = F}
+```{r Modeling,echo = F,include = F,eval = !TEST}
+load(file = paste0(Project_Folder,"/data/Importance.RDATA"))
 Split_Profit = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
 Split_Futures = createDataPartition(y = PR_Stage_R5$Adjusted_Lead,p = 0.70,list = F)
 
@@ -264,6 +258,86 @@ RESULT = TODAY %>%
          Future > Adjusted,
          Close_PD_200_Norm > 0,
          Close_PD_50_Norm > 0)
+# Appending FinViz Stats
+## Takes About 2 Minutes
+Start = Sys.time()
+storage = list()
+print("Beginning Pool Selection FinViz Stat Pull")
+p = progress_estimated(nrow(RESULT))
+for(i in 1:nrow(RESULT)){
+  Ticker = RESULT$Stock[i]
+  TMP = try(FinViz_Metric_Pull(Ticker),
+            silent = T)
+  storage[[i]] = TMP
+  p$pause(0.5)$tick()$print()
+}
+Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
+Sys.time() - Start
+
+Pool_Results = RESULT %>%
+  left_join(Metrics,by = "Stock") %>%
+  mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
+         Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
+         Change = as.numeric(str_remove(Change,"%"))/100,
+         Price = as.numeric(as.character(Price)),
+         Prev.Close = as.numeric(as.character(Prev.Close)),
+         Beta = as.numeric(as.character(Beta)),
+         Perf.YTD = as.numeric(str_remove(Perf.YTD,"%"))/100,
+         Perf.Year = as.numeric(str_remove(Perf.Year,"%"))/100,
+         Perf.Half.Y = as.numeric(str_remove(Perf.Half.Y,"%"))/100,
+         Perf.Quarter = as.numeric(str_remove(Perf.Quarter,"%"))/100,
+         Perf.Month = as.numeric(str_remove(Perf.Month,"%"))/100,
+         Perf.Week = as.numeric(str_remove(Perf.Week,"%"))/100,
+         RSI..14. = as.numeric(as.character(RSI..14.)),
+         EPS..ttm. = as.numeric(str_remove(EPS..ttm.,"%"))/100,
+         EPS.next.Y = as.numeric(str_remove(EPS.next.Y,"%"))/100,
+         EPS.next.Q = as.numeric(str_remove(EPS.next.Q,"%"))/100,
+         EPS.this.Y = as.numeric(str_remove(EPS.this.Y,"%"))/100,
+         EPS.next.Y.1 = as.numeric(str_remove(EPS.next.Y.1,"%"))/100,
+         EPS.next.5Y = as.numeric(str_remove(EPS.next.5Y,"%"))/100,
+         EPS.past.5Y = as.numeric(str_remove(EPS.past.5Y,"%"))/100,
+         Sales.past.5Y = as.numeric(str_remove(Sales.past.5Y,"%"))/100,
+         Sales.Q.Q = as.numeric(str_remove(Sales.Q.Q,"%"))/100,
+         EPS.Q.Q = as.numeric(str_remove(EPS.Q.Q,"%"))/100,
+         ROA = as.numeric(str_remove(ROA,"%"))/100,
+         ROE = as.numeric(str_remove(ROE,"%"))/100,
+         ROI = as.numeric(str_remove(ROI,"%"))/100,
+         X52W.High = as.numeric(str_remove(X52W.High,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         Target.Price = as.numeric(as.character(Target.Price)),
+         Short.Ratio = as.numeric(as.character(Short.Ratio)),
+         Short.Float = as.numeric(str_remove(Short.Float,"%"))/100,
+         Payout = as.numeric(str_remove(Payout,"%"))/100,
+         Gross.Margin = as.numeric(str_remove(Gross.Margin,"%"))/100,
+         Inst.Trans = as.numeric(str_remove(Inst.Trans,"%"))/100,
+         Inst.Own = as.numeric(str_remove(Inst.Own,"%"))/100,
+         Insider.Trans = as.numeric(str_remove(Insider.Trans,"%"))/100,
+         Insider.Own = as.numeric(str_remove(Insider.Own,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         LT.Debt.Eq = as.numeric(as.character(LT.Debt.Eq)),
+         Debt.Eq = as.numeric(as.character(Debt.Eq)),
+         Current.Ratio = as.numeric(as.character(Current.Ratio)),
+         Quick.Ratio = as.numeric(as.character(Quick.Ratio)),
+         P.FCF = as.numeric(as.character(P.FCF)),
+         P.C = as.numeric(as.character(P.C)),
+         P.B = as.numeric(as.character(P.B)),
+         P.S = as.numeric(as.character(P.S)),
+         PEG = as.numeric(as.character(PEG)),
+         Forward.P.E = as.numeric(as.character(Forward.P.E)),
+         P.E = as.numeric(as.character(P.E)),
+         Recom = as.numeric(as.character(Recom)),
+         Employees = as.numeric(as.character(Employees)),
+         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
+         Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - 
+                                  as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
+  distinct() %>%
+  select(-contains("Perf")) %>%
+   filter(ROE > 0,
+         Sales.Q.Q > 0,
+         EPS.Q.Q > 0,
+         EPS.next.Y > 0)
+RESULT = Pool_Results
+
 
 FUTURES = TODAY %>%
   mutate(Prob = Preds,
@@ -279,20 +353,95 @@ FUTURES = TODAY %>%
          Close_PD_200_Norm > 0,
          Close_PD_50_Norm > 0)
 
+SHORTS = TODAY %>%
+  mutate(Prob = Preds,
+         Future = Futures,
+         Delta = (Future - Adjusted)/Adjusted,
+         Decider = Prob + Delta,
+         Stop_Loss = Adjusted - 2*ATR) %>%
+  filter(!str_detect(Stock,"^\\^")) %>%
+  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
+  mutate(Prob_Rank = dense_rank(-Decider)) %>%
+  arrange(Prob_Rank) %>%
+  filter(Future < Adjusted)
+
 write_excel_csv(RESULT,path = paste0(Project_Folder,"/Predictions.csv"))
 write_excel_csv(FUTURES,path = paste0(Project_Folder,"/Futures.csv"))
+write_excel_csv(SHORTS,path = paste0(Project_Folder,"/Shorts.csv"))
+save(RESULT,FUTURES,SHORTS,
+     file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
 #### Potential Buy Position
 
 ```{r,echo = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 DT::datatable(RESULT)
+```
+
+#### Monitoring Charts
+
+```{r Charts,echo = F}
+## Plotting last 6 Months of Stock Data
+Tickers = unique(RESULT$Stock)
+Plot_Date = max(Combined_Results$Date) - 30*3
+for(i in 1:length(Tickers)){
+  TMP = Combined_Results %>%
+    filter(Stock == Tickers[i]) %>%
+    mutate(Color = ifelse(Close > Open,"Gain","Loss"),
+           Date = as_date(Date)) %>%
+    melt(id.vars = c("Date","Stock","Color")) %>%
+    group_by(variable) %>%
+    mutate(SMA_50 = rollapply(value,
+                              width = 50,
+                              FUN = mean,
+                              na.rm = T,
+                              fill = NA,
+                              align = "right"),
+           SMA_200 = rollapply(value,
+                              width = 200,
+                              FUN = mean,
+                              na.rm = T,
+                              fill = NA,
+                              align = "right")) %>%
+    ungroup() %>%
+    na.omit() %>%
+    filter(Date >= Plot_Date,
+           variable %in% c("Close","Volume"))
+  Current_Price = TMP %>%
+    filter(variable == "Close",
+           Date == max(Date))
+ 
+  
+  p1 = ggplot(TMP,aes(x = Date,y = value)) +
+    geom_line() +
+    geom_line(aes(y = SMA_50),linetype = 3,size = 1) +
+    geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
+    scale_x_date(breaks = scales::pretty_breaks(9)) +
+    scale_color_manual(values = c("green","red")) +
+    labs(title = paste0(unique(TMP$Stock)," 6 Month Performance :: Current Price = ",round(Current_Price$value,2)),
+         subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
+         y = "",
+         x = "",
+         color = "") +
+    theme(legend.position = "none",
+          axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
+    facet_wrap(variable~.,nrow = 2,scales = "free_y")
+  print(p1)
+}
 ```
 
 #### Stock's With Positive Futures
 
 ```{r,echo = F}
 DT::datatable(FUTURES)
+```
+
+#### Stock's With Negative Futures
+
+```{r,echo = F}
+DT::datatable(SHORTS)
 ```
 
 #### Performance History
