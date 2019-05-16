@@ -28,9 +28,9 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = F
+Re_Pull = T
 Initial_History = F
-TEST = F
+TEST = T
 ```
 
 ### {.tabset}
@@ -52,6 +52,8 @@ if(Re_Pull){
 ```{r Market Direction, echo = F, message = F, warning = F}
 ## Loading Historical Stock Data
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+Combined_Results = Combined_Results %>%
+  filter(Date != Sys.Date())
 
 ## Bear/Bull Calculations
 Market_Ind = Market_Direction(Combined_Results)
@@ -191,7 +193,7 @@ for(i in Filter){
   PR_Stage_R5 = PR_Stage_R5[Keep,]
 }
 
-save(PR_Stage_R5,Names_Profit,Names_Futures,
+save(PR_Stage_R5,Names_Profit,Names_Futures,ID_DF,
      file = paste0(Project_Folder,"/data/Importance.RDATA"))
 ```
 
@@ -255,9 +257,7 @@ RESULT = TODAY %>%
   mutate(Prob_Rank = dense_rank(-Decider)) %>%
   arrange(Prob_Rank) %>%
   filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test),
-         Future > Adjusted,
-         Close_PD_200_Norm > 0,
-         Close_PD_50_Norm > 0)
+         Future > Adjusted)
 # Appending FinViz Stats
 ## Takes About 2 Minutes
 Start = Sys.time()
@@ -331,12 +331,9 @@ Pool_Results = RESULT %>%
          Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - 
                                   as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
   distinct() %>%
-  select(-contains("Perf")) %>%
-   filter(ROE > 0,
-         Sales.Q.Q > 0,
-         EPS.Q.Q > 0,
-         EPS.next.Y > 0)
-RESULT = Pool_Results
+  select(-contains("Perf"))
+RESULT = Pool_Results %>%
+  head(10)
 
 
 FUTURES = TODAY %>%
@@ -349,9 +346,7 @@ FUTURES = TODAY %>%
   select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
   mutate(Prob_Rank = dense_rank(-Decider)) %>%
   arrange(Prob_Rank) %>%
-  filter(Future > Adjusted,
-         Close_PD_200_Norm > 0,
-         Close_PD_50_Norm > 0)
+  filter(Future > Adjusted)
 
 SHORTS = TODAY %>%
   mutate(Prob = Preds,
@@ -377,6 +372,7 @@ save(RESULT,FUTURES,SHORTS,
 ```{r,echo = F}
 load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 DT::datatable(RESULT)
 ```
 
@@ -501,7 +497,8 @@ if(Initial_History){
            Time.Held = NA,
            Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
-    History_Table = bind_rows(History_Table,Additions)
+    History_Table = bind_rows(select(History_Table,Stock:Adjusted),
+                              Additions[,colnames(select(History_Table,Stock:Adjusted))])
     }
 }
 
