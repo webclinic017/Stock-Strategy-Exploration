@@ -49,7 +49,7 @@ if(Re_Pull){
 
 #### Market Status
 
-```{r Market Direction, echo = F, message = F, warning = F}
+```{r Market Direction, echo = F,message = F, warning = F,fig.align='center',fig.asp = 0.5625,fig.width = 10}
 ## Loading Historical Stock Data
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 Combined_Results = Combined_Results %>%
@@ -373,12 +373,15 @@ save(RESULT,FUTURES,SHORTS,
 load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
-DT::datatable(RESULT)
+
+DT::datatable(mutate_if(RESULT,is.numeric,round,3),
+              rownames = F,
+              options = list(autoWidth = T))
 ```
 
 #### Monitoring Charts
 
-```{r Charts,echo = F}
+```{r Charts,echo = F,fig.align='center',fig.asp = 0.5625,fig.width = 10}
 ## Plotting last 6 Months of Stock Data
 Tickers = unique(RESULT$Stock)
 Plot_Date = max(Combined_Results$Date) - 30*3
@@ -416,7 +419,7 @@ for(i in 1:length(Tickers)){
     geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
     scale_x_date(breaks = scales::pretty_breaks(9)) +
     scale_color_manual(values = c("green","red")) +
-    labs(title = paste0(unique(TMP$Stock)," 6 Month Performance :: Current Price = ",round(Current_Price$value,2)),
+    labs(title = paste0(unique(TMP$Stock)," 3 Month Performance :: Current Price = ",round(Current_Price$value,2)),
          subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
          y = "",
          x = "",
@@ -431,19 +434,24 @@ for(i in 1:length(Tickers)){
 #### Stock's With Positive Futures
 
 ```{r,echo = F}
-DT::datatable(FUTURES)
+DT::datatable(mutate_if(FUTURES,is.numeric,round,3),
+              options = list(autoWidth = T),
+              rownames = F)
 ```
 
 #### Stock's With Negative Futures
 
 ```{r,echo = F}
-DT::datatable(SHORTS)
+DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
+              options = list(autoWidth = T),
+              rownames = F)
 ```
 
 #### Performance History
 
 ```{r Perf History, echo = F,message = F,warning=F}
 if(Initial_History){
+  ## Setting up initial history tracking
   History_Table = RESULT %>%
     mutate(Market_Status = Market_Ind$Market_Status[Market_Ind$Date == max(Market_Ind$Date)],
            Market_Type = Fear_Ind$Market_Type[Fear_Ind$Date == max(Fear_Ind$Date)],
@@ -456,34 +464,55 @@ if(Initial_History){
            Sell.Date = NA) %>%
     select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
 }else{
+  ## Loading historical performacne
   load(file = paste0(Project_Folder,"/Data//History_Results.RDATA"))
+  
+  ## Subsetting Currently Held Stocks
   Checks = which(is.na(History_Table$Sell.Date))
   Ticker_List = History_Table$Stock[Checks]
+  
+  ## Subsetting New Purchase Positions
   New_Buys = which(!RESULT$Stock %in% Ticker_List)
+  
+  ## Performing Holding Checks and Adjustments
   for(i in Checks){
+    ## Current Stock Performance
     Examine = History_Table[i,]
     Current_Info = Combined_Results %>%
       filter(Stock == Examine$Stock) %>%
       arrange(desc(Date)) %>%
       head(1)
-    Delta = Current_Info$Adjusted > History_Table$Max.Price[i]
-    History_Table$Pcent.Gain[i] = (Current_Info$Adjusted - History_Table$Buy.Price[i])/History_Table$Buy.Price[i]
-    History_Table$Time.Held[i] = difftime(Current_Info$Date,History_Table$Buy.Date[i],tz = "UTC",units = "days")
     
-    History_Table$Stop.Loss[i] = ifelse(all(History_Table$Pcent.Gain[i] >= 0.10,
-                                            Delta,
-                                            Current_Info$Adjusted - 
-                                              2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                                                  PR_Stage_R3$Date == max(PR_Stage_R3$Date)] > 
-                                          History_Table$Stop.Loss[i])
-                                        ,
-                                        Current_Info$Adjusted - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                                                                    PR_Stage_R3$Date == max(PR_Stage_R3$Date)],
-                                        History_Table$Stop.Loss[i])
+    ## Confirming Positive Future
+    Positive = Examine$Stock %in% FUTURES$Stock
     
+    ## Calculating Percent Gain / Loss
+    History_Table$Pcent.Gain[i] = (Current_Info$Adjusted - 
+                                     History_Table$Buy.Price[i])/History_Table$Buy.Price[i]
+    ## Updating Hold Time
+    History_Table$Time.Held[i] = difftime(Current_Info$Date,
+                                          History_Table$Buy.Date[i],
+                                          tz = "UTC",
+                                          units = "days")
+    ## Updating Stop Loss
+    History_Table$Stop.Loss[i] = 
+      ifelse(Current_Info$Adjusted - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
+                                       PR_Stage_R3$Date == max(PR_Stage_R3$Date)] > 
+                   History_Table$Stop.Loss[i]
+             ,
+             Current_Info$Adjusted - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
+                                                         PR_Stage_R3$Date == max(PR_Stage_R3$Date)],
+             History_Table$Stop.Loss[i])
+    
+    ## Running Stop Loss Sell Criteria
     History_Table$Sell.Date[i] = ifelse(Current_Info$Adjusted <= History_Table$Stop.Loss[i],
                                         as.character(Current_Info$Date),
                                         NA)
+    
+    ## Running Positive Future Sell Criteria
+    if(!Positive & is.na(History_Table$Sell.Date[i])){
+      History_Table$Sell.Date[i] = as.character(Current_Info$Date)
+    }
   }
   if(length(New_Buys) >= 1){
     Additions = RESULT[New_Buys,] %>%
@@ -497,24 +526,19 @@ if(Initial_History){
            Time.Held = NA,
            Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
-    History_Table = bind_rows(select(History_Table,Stock:Adjusted),
-                              Additions[,colnames(select(History_Table,Stock:Adjusted))])
+    History_Table = bind_rows(select(History_Table,Stock:Future),
+                              Additions[,colnames(select(History_Table,Stock:Future))])
     }
 }
-
-# Fixing Pcent Gain for Met Stop Loss
-History_Table = History_Table %>%
-  mutate(Pcent.Gain = case_when(
-    !is.na(Sell.Date) ~ (Stop.Loss-Buy.Price)/Buy.Price,
-    TRUE ~ Pcent.Gain
-  ))
 
 # Printing Historical Returns
 Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price))
 
 ## Interactive Table of Buy History
-DT::datatable(data = History_Table,
-              filter = list(position = 'top'))
+DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
+              filter = list(position = 'top',
+                            autoWidth = T),
+              rownames = F)
 
 # Saving Pool Results and Reduced Raw Data
 save(History_Table,
