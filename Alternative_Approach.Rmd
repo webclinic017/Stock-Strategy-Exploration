@@ -256,8 +256,8 @@ RESULT = TODAY %>%
   select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
   mutate(Prob_Rank = dense_rank(-Decider)) %>%
   arrange(Prob_Rank) %>%
-  filter(Prob_Rank <= quantile(Prob_Rank,Specif_Test),
-         Future > Adjusted)
+  filter(Future > Adjusted)
+
 # Appending FinViz Stats
 ## Takes About 2 Minutes
 Start = Sys.time()
@@ -333,6 +333,9 @@ Pool_Results = RESULT %>%
   distinct() %>%
   select(-contains("Perf"))
 RESULT = Pool_Results %>%
+  filter(EPS.Q.Q > 0,
+         Sales.Q.Q > 0,
+         Close_PD_200_Norm > 0) %>%
   head(10)
 
 
