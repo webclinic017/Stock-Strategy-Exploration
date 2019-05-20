@@ -53,24 +53,8 @@ Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
                                    -c(Stock,Date,Adjusted)),
                      weights = Weights_Futures)
   
-  Pred_Train = predict(Model_Profit,type = "response")
-  Pred_Test = predict(Model_Profit,Test_Profit,type = "response")
-  Cutoff = median(Pred_Test) + mad(Pred_Test)
-  
-  Pred_Train[Pred_Train >= Cutoff] = 1
-  Pred_Train[Pred_Train < Cutoff] = 0
-  Pred_Test[Pred_Test >= Cutoff] = 1
-  Pred_Test[Pred_Test < Cutoff] = 0
-  
-  Specif_Train = MLmetrics::Specificity(Pred_Train,Train_Profit$Target)
-  Specif_Test = MLmetrics::Specificity(Pred_Test,Test_Profit$Target)
-  
-  Pred_Futures_Train = predict(Model_Futures)
-  Pred_Futures_Test = predict(Model_Futures,Test_Futures)
-  
-  ACC_Train = MLmetrics::MAPE(Pred_Futures_Train,Train_Futures$Adjusted_Lead)
-  ACC_Test = MLmetrics::MAPE(Pred_Futures_Test,Test_Futures$Adjusted_Lead)
-  
   return(list(Model_Futures = Model_Futures,
-              Model_Profit = Model_Profit))
+              Model_Profit = Model_Profit,
+              Names_Profit = Names_Profit,
+              Names_Futures = Names_Futures))
 }

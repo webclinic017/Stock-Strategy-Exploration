@@ -4,6 +4,8 @@ Prediction_Function = function(Models,
   
   Preds = predict(Models$Model_Profit,TODAY,type = "response")
   Futures = predict(Models$Model_Futures,TODAY)
+  Names_Profit = Models$Names_Profit
+  Names_Futures = Models$Names_Futures
   
   RESULT = TODAY %>%
     mutate(Prob = Preds,
@@ -19,7 +21,6 @@ Prediction_Function = function(Models,
     arrange(Prob_Rank) %>%
     filter(Delta > 0,
            Close_PD_200_Norm > 0,
-           Close_PD_50_200_Norm > 0,
            abs((Stop_Loss - Adjusted)/Adjusted) < 1.5*Delta,
            abs((Stop_Loss - Adjusted)/Adjusted) < 0.05)
   
@@ -108,8 +109,8 @@ Prediction_Function = function(Models,
   
   FUTURES = TODAY %>%
     mutate(Prob = Preds,
-           Future = Futures,
-           Delta = (Future - Adjusted)/Adjusted,
+           Delta = Futures,
+           Future = (Adjusted*Delta) + Adjusted,
            Decider = Prob + Delta,
            Stop_Loss = Adjusted - 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
@@ -120,8 +121,8 @@ Prediction_Function = function(Models,
   
   SHORTS = TODAY %>%
     mutate(Prob = Preds,
-           Future = Futures,
-           Delta = (Future - Adjusted)/Adjusted,
+           Delta = Futures,
+           Future = (Adjusted*Delta) + Adjusted,
            Decider = Prob + Delta,
            Stop_Loss = Adjusted - 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^")) %>%

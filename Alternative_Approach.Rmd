@@ -173,12 +173,11 @@ TODAY = ID_DF %>%
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = T)
-
 RESULT = PREDS$RESULT
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
-save(RESULT,FUTURES,SHORTS,
+save(RESULT,FUTURES,SHORTS,TODAY,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
@@ -200,55 +199,58 @@ DT::datatable(mutate_if(RESULT,is.numeric,round,3),
 ## Plotting last 6 Months of Stock Data
 Tickers = unique(RESULT$Stock)
 Plot_Date = max(Combined_Results$Date) - 30*3
-for(i in 1:length(Tickers)){
-  TMP = Combined_Results %>%
-    filter(Stock == Tickers[i]) %>%
-    mutate(Color = ifelse(Close > Open,"Gain","Loss"),
-           Date = as_date(Date)) %>%
-    melt(id.vars = c("Date","Stock","Color")) %>%
-    group_by(variable) %>%
-    mutate(SMA_50 = rollapply(value,
-                              width = 50,
-                              FUN = mean,
-                              na.rm = T,
-                              fill = NA,
-                              align = "right"),
-           SMA_200 = rollapply(value,
-                              width = 200,
-                              FUN = mean,
-                              na.rm = T,
-                              fill = NA,
-                              align = "right")) %>%
-    ungroup() %>%
-    na.omit() %>%
-    filter(Date >= Plot_Date,
-           variable %in% c("Close","Volume"))
-  Current_Price = TMP %>%
-    filter(variable == "Close",
-           Date == max(Date))
- 
-  
-  p1 = ggplot(TMP,aes(x = Date,y = value)) +
-    geom_line() +
-    geom_line(aes(y = SMA_50),linetype = 3,size = 1) +
-    geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
-    scale_x_date(breaks = scales::pretty_breaks(9)) +
-    scale_color_manual(values = c("green","red")) +
-    labs(title = paste0(unique(TMP$Stock)," 3 Month Performance :: Current Price = ",round(Current_Price$value,2)),
-         subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
-         y = "",
-         x = "",
-         color = "") +
-    theme(legend.position = "none",
-          axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
-    facet_wrap(variable~.,nrow = 2,scales = "free_y")
-  print(p1)
+if(nrow(RESULT) > 0){
+  for(i in 1:length(Tickers)){
+    TMP = Combined_Results %>%
+      filter(Stock == Tickers[i]) %>%
+      mutate(Color = ifelse(Close > Open,"Gain","Loss"),
+             Date = as_date(Date)) %>%
+      melt(id.vars = c("Date","Stock","Color")) %>%
+      group_by(variable) %>%
+      mutate(SMA_50 = rollapply(value,
+                                width = 50,
+                                FUN = mean,
+                                na.rm = T,
+                                fill = NA,
+                                align = "right"),
+             SMA_200 = rollapply(value,
+                                 width = 200,
+                                 FUN = mean,
+                                 na.rm = T,
+                                 fill = NA,
+                                 align = "right")) %>%
+      ungroup() %>%
+      na.omit() %>%
+      filter(Date >= Plot_Date,
+             variable %in% c("Close","Volume"))
+    Current_Price = TMP %>%
+      filter(variable == "Close",
+             Date == max(Date))
+    
+    
+    p1 = ggplot(TMP,aes(x = Date,y = value)) +
+      geom_line() +
+      geom_line(aes(y = SMA_50),linetype = 3,size = 1) +
+      geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
+      scale_x_date(breaks = scales::pretty_breaks(9)) +
+      scale_color_manual(values = c("green","red")) +
+      labs(title = paste0(unique(TMP$Stock)," 3 Month Performance :: Current Price = ",round(Current_Price$value,2)),
+           subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
+           y = "",
+           x = "",
+           color = "") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
+      facet_wrap(variable~.,nrow = 2,scales = "free_y")
+    print(p1)
+  }
 }
 ```
 
 #### Stock's With Positive Futures
 
 ```{r,echo = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 DT::datatable(mutate_if(FUTURES,is.numeric,round,3),
               options = list(autoWidth = T),
               rownames = F)
@@ -257,6 +259,7 @@ DT::datatable(mutate_if(FUTURES,is.numeric,round,3),
 #### Stock's With Negative Futures
 
 ```{r,echo = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
               options = list(autoWidth = T),
               rownames = F)
@@ -292,15 +295,24 @@ for(i in (length(Dates)-2000):(length(Dates)-90)){
 }
 
 (Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price)))
+
+History_Table = History_Table %>%
+  na.omit()
+
+write.csv(History_Table,
+          file = "C://users//aayorde//desktop//Backtest.csv")
 ```
 
 
 #### Performance History
 
 ```{r Perf History, echo = F,message = F,warning=F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                      RESULT = RESULT,
                                      FUTURES = FUTURES,
+                                     Current_Date = getmode(TODAY$Date),
+                                     Fear_Marker = getmode(TODAY$Fear_Extent),
                                      Initial_History = Initial_History)
 
 # Printing Historical Returns
