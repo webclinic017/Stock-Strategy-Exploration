@@ -152,7 +152,8 @@ PR_Stage_R4 = PR_Stage_R3 %>%
   group_by(Stock) %>%
   mutate(Adjusted_Lead = lead(Adjusted,30),
          PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
-         Target = ifelse(PD_Lead > 0,1,0)) %>%
+         Target = ifelse(PD_Lead > 0,1,0),
+         Adjusted_Lead = PD_Lead) %>%
    mutate(WAD_Delta = WAD - lag(WAD,1),
          Close_PD = (Close - lag(Close,1))/lag(Close,1),
          SMI_Delta = (SMI - lag(SMI,1)),
@@ -163,209 +164,20 @@ PR_Stage_R4 = PR_Stage_R3 %>%
   na.omit() %>%
   filter(!str_detect(Stock,"^\\^"))
 
-## Reducing Variable Pool
-Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
-                                                         -c(Open,High,Low,Close,Adjusted,
-                                                            Volume,Adjusted_Lead)) %>%
-                                               sample_frac(0.05),
-                                             Type = 'C',
-                                             Target = "Target")
-Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target,Volume)) %>%
-                                               sample_frac(0.05),
-                                              Type = 'R',
-                                              Target = "Adjusted_Lead")
-
-## Reducing Data
-LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
-UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
-PR_Stage_R5 = PR_Stage_R4 %>%
-  select(Stock,Date,Adjusted,Names_Profit$Var,Names_Futures$Var,Target,Adjusted_Lead)
-
-## Defining Filter Columns
-Filter = PR_Stage_R5 %>%
-  select(Names_Profit$Var,Names_Futures$Var) %>% 
-  colnames()
-
-## Removing Outliers
-for(i in Filter){
-  Column = as_vector(PR_Stage_R5[,i])
-  Keep = Column <= UL(Column) & Column >= LL(Column)
-  PR_Stage_R5 = PR_Stage_R5[Keep,]
-}
-
-save(PR_Stage_R5,Names_Profit,Names_Futures,ID_DF,
-     file = paste0(Project_Folder,"/data/Importance.RDATA"))
-```
-
-```{r Modeling,echo = F,include = F,eval = !TEST}
-load(file = paste0(Project_Folder,"/data/Importance.RDATA"))
-Split_Profit = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
-Split_Futures = createDataPartition(y = PR_Stage_R5$Adjusted_Lead,p = 0.70,list = F)
-
-Train_Profit = PR_Stage_R5[Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
-Test_Profit = PR_Stage_R5[-Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
-Train_Futures = PR_Stage_R5[Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
-Test_Futures = PR_Stage_R5[-Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
-
-Weights_Profit = scales::rescale(as.numeric(Train_Profit$Date),to = c(0,1))
-Weights_Futures = scales::rescale(as.numeric(Train_Futures$Date),to = c(0,1))
-
-Model_Profit = glm(Target~.,
-                   data = select(Train_Profit,
-                                 -c(Stock,Date,Adjusted)),
-                   family = "quasibinomial",
-                   weights = Weights_Profit)
-Model_Futures = lm(Adjusted_Lead~.,
-                   data = select(Train_Futures,
-                                 -c(Stock,Date,Adjusted)),
-                   weights = Weights_Futures)
-
-Pred_Train = predict(Model_Profit,type = "response")
-Pred_Test = predict(Model_Profit,Test_Profit,type = "response")
-Cutoff = median(Pred_Test) + mad(Pred_Test)
-
-Pred_Train[Pred_Train >= Cutoff] = 1
-Pred_Train[Pred_Train < Cutoff] = 0
-Pred_Test[Pred_Test >= Cutoff] = 1
-Pred_Test[Pred_Test < Cutoff] = 0
-
-Specif_Train = MLmetrics::Specificity(Pred_Train,Train_Profit$Target)
-Specif_Test = MLmetrics::Specificity(Pred_Test,Test_Profit$Target)
-
-Pred_Futures_Train = predict(Model_Futures)
-Pred_Futures_Test = predict(Model_Futures,Test_Futures)
-
-ACC_Train = MLmetrics::MAPE(Pred_Futures_Train,Train_Futures$Adjusted_Lead)
-ACC_Test = MLmetrics::MAPE(Pred_Futures_Test,Test_Futures$Adjusted_Lead)
-
+Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
+                           Max_Date = max(PR_Stage_R4$Date))
 
 TODAY = ID_DF %>%
   filter(Date == max(Date))
 
-Preds = predict(Model_Profit,TODAY,type = "response")
-Futures = predict(Model_Futures,TODAY)
+PREDS = Prediction_Function(Models = Models,
+                            TODAY = TODAY,
+                            FinViz = T)
 
-RESULT = TODAY %>%
-  mutate(Prob = Preds,
-         Future = Futures,
-         Delta = (Future - Adjusted)/Adjusted,
-         Decider = Prob + Delta,
-         Stop_Loss = Adjusted - 2*ATR) %>%
-  filter(Prob >= Cutoff,
-         !str_detect(Stock,"^\\^")) %>%
-  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
-  mutate(Prob_Rank = dense_rank(-Decider)) %>%
-  arrange(Prob_Rank) %>%
-  filter(Future > Adjusted)
+RESULT = PREDS$RESULT
+FUTURES = PREDS$FUTURES
+SHORTS = PREDS$SHORTS
 
-# Appending FinViz Stats
-## Takes About 2 Minutes
-Start = Sys.time()
-storage = list()
-print("Beginning Pool Selection FinViz Stat Pull")
-p = progress_estimated(nrow(RESULT))
-for(i in 1:nrow(RESULT)){
-  Ticker = RESULT$Stock[i]
-  TMP = try(FinViz_Metric_Pull(Ticker),
-            silent = T)
-  storage[[i]] = TMP
-  p$pause(0.5)$tick()$print()
-}
-Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
-Sys.time() - Start
-
-Pool_Results = RESULT %>%
-  left_join(Metrics,by = "Stock") %>%
-  mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
-         Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
-         Change = as.numeric(str_remove(Change,"%"))/100,
-         Price = as.numeric(as.character(Price)),
-         Prev.Close = as.numeric(as.character(Prev.Close)),
-         Beta = as.numeric(as.character(Beta)),
-         Perf.YTD = as.numeric(str_remove(Perf.YTD,"%"))/100,
-         Perf.Year = as.numeric(str_remove(Perf.Year,"%"))/100,
-         Perf.Half.Y = as.numeric(str_remove(Perf.Half.Y,"%"))/100,
-         Perf.Quarter = as.numeric(str_remove(Perf.Quarter,"%"))/100,
-         Perf.Month = as.numeric(str_remove(Perf.Month,"%"))/100,
-         Perf.Week = as.numeric(str_remove(Perf.Week,"%"))/100,
-         RSI..14. = as.numeric(as.character(RSI..14.)),
-         EPS..ttm. = as.numeric(str_remove(EPS..ttm.,"%"))/100,
-         EPS.next.Y = as.numeric(str_remove(EPS.next.Y,"%"))/100,
-         EPS.next.Q = as.numeric(str_remove(EPS.next.Q,"%"))/100,
-         EPS.this.Y = as.numeric(str_remove(EPS.this.Y,"%"))/100,
-         EPS.next.Y.1 = as.numeric(str_remove(EPS.next.Y.1,"%"))/100,
-         EPS.next.5Y = as.numeric(str_remove(EPS.next.5Y,"%"))/100,
-         EPS.past.5Y = as.numeric(str_remove(EPS.past.5Y,"%"))/100,
-         Sales.past.5Y = as.numeric(str_remove(Sales.past.5Y,"%"))/100,
-         Sales.Q.Q = as.numeric(str_remove(Sales.Q.Q,"%"))/100,
-         EPS.Q.Q = as.numeric(str_remove(EPS.Q.Q,"%"))/100,
-         ROA = as.numeric(str_remove(ROA,"%"))/100,
-         ROE = as.numeric(str_remove(ROE,"%"))/100,
-         ROI = as.numeric(str_remove(ROI,"%"))/100,
-         X52W.High = as.numeric(str_remove(X52W.High,"%"))/100,
-         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
-         Target.Price = as.numeric(as.character(Target.Price)),
-         Short.Ratio = as.numeric(as.character(Short.Ratio)),
-         Short.Float = as.numeric(str_remove(Short.Float,"%"))/100,
-         Payout = as.numeric(str_remove(Payout,"%"))/100,
-         Gross.Margin = as.numeric(str_remove(Gross.Margin,"%"))/100,
-         Inst.Trans = as.numeric(str_remove(Inst.Trans,"%"))/100,
-         Inst.Own = as.numeric(str_remove(Inst.Own,"%"))/100,
-         Insider.Trans = as.numeric(str_remove(Insider.Trans,"%"))/100,
-         Insider.Own = as.numeric(str_remove(Insider.Own,"%"))/100,
-         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
-         LT.Debt.Eq = as.numeric(as.character(LT.Debt.Eq)),
-         Debt.Eq = as.numeric(as.character(Debt.Eq)),
-         Current.Ratio = as.numeric(as.character(Current.Ratio)),
-         Quick.Ratio = as.numeric(as.character(Quick.Ratio)),
-         P.FCF = as.numeric(as.character(P.FCF)),
-         P.C = as.numeric(as.character(P.C)),
-         P.B = as.numeric(as.character(P.B)),
-         P.S = as.numeric(as.character(P.S)),
-         PEG = as.numeric(as.character(PEG)),
-         Forward.P.E = as.numeric(as.character(Forward.P.E)),
-         P.E = as.numeric(as.character(P.E)),
-         Recom = as.numeric(as.character(Recom)),
-         Employees = as.numeric(as.character(Employees)),
-         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
-         Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - 
-                                  as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
-  distinct() %>%
-  select(-contains("Perf"))
-RESULT = Pool_Results %>%
-  filter(EPS.Q.Q > 0,
-         Sales.Q.Q > 0,
-         Close_PD_200_Norm > 0) %>%
-  head(10)
-
-
-FUTURES = TODAY %>%
-  mutate(Prob = Preds,
-         Future = Futures,
-         Delta = (Future - Adjusted)/Adjusted,
-         Decider = Prob + Delta,
-         Stop_Loss = Adjusted - 2*ATR) %>%
-  filter(!str_detect(Stock,"^\\^")) %>%
-  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
-  mutate(Prob_Rank = dense_rank(-Decider)) %>%
-  arrange(Prob_Rank) %>%
-  filter(Future > Adjusted)
-
-SHORTS = TODAY %>%
-  mutate(Prob = Preds,
-         Future = Futures,
-         Delta = (Future - Adjusted)/Adjusted,
-         Decider = Prob + Delta,
-         Stop_Loss = Adjusted - 2*ATR) %>%
-  filter(!str_detect(Stock,"^\\^")) %>%
-  select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
-  mutate(Prob_Rank = dense_rank(-Decider)) %>%
-  arrange(Prob_Rank) %>%
-  filter(Future < Adjusted)
-
-write_excel_csv(RESULT,path = paste0(Project_Folder,"/Predictions.csv"))
-write_excel_csv(FUTURES,path = paste0(Project_Folder,"/Futures.csv"))
-write_excel_csv(SHORTS,path = paste0(Project_Folder,"/Shorts.csv"))
 save(RESULT,FUTURES,SHORTS,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
@@ -450,89 +262,46 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
               rownames = F)
 ```
 
+#### Historical Back Test
+
+```{r Historical Back Test, echo = F, message=F,warning=F,eval = F}
+Dates = unique(PR_Stage_R4$Date)
+
+for(i in (length(Dates)-2000):(length(Dates)-90)){
+  TODAY = ID_DF %>%
+    filter(Date == as.character(Dates[i+60]),
+           Adjusted >= 10,
+           MACD > 0)
+  
+  ## PEriodically Updating Models
+  if(i %% 30 == 0 | i == (length(Dates)-2000)){
+    Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
+                               Max_Date = ymd(as.character(Dates[i])))
+  }
+  
+  Preds = Prediction_Function(Models,
+                              TODAY = TODAY,
+                              FinViz = F)
+  History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                                       RESULT = Preds$RESULT,
+                                       FUTURES = Preds$FUTURES,
+                                       Current_Date = getmode(TODAY$Date),
+                                       Fear_Marker = getmode(TODAY$Fear_Extent),
+                                       Initial_History = ifelse(i == (length(Dates)-2000),T,F),
+                                       History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
+}
+
+(Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price)))
+```
+
+
 #### Performance History
 
 ```{r Perf History, echo = F,message = F,warning=F}
-if(Initial_History){
-  ## Setting up initial history tracking
-  History_Table = RESULT %>%
-    mutate(Market_Status = Market_Ind$Market_Status[Market_Ind$Date == max(Market_Ind$Date)],
-           Market_Type = Fear_Ind$Market_Type[Fear_Ind$Date == max(Fear_Ind$Date)],
-           Buy.Price = Adjusted,
-           Max.Price = Adjusted,
-           Buy.Date = Date,
-           Stop.Loss = Stop_Loss,
-           Pcent.Gain = (Adjusted - Buy.Price)/Buy.Price,
-           Time.Held = NA,
-           Sell.Date = NA) %>%
-    select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
-}else{
-  ## Loading historical performacne
-  load(file = paste0(Project_Folder,"/Data//History_Results.RDATA"))
-  
-  ## Subsetting Currently Held Stocks
-  Checks = which(is.na(History_Table$Sell.Date))
-  Ticker_List = History_Table$Stock[Checks]
-  
-  ## Subsetting New Purchase Positions
-  New_Buys = which(!RESULT$Stock %in% Ticker_List)
-  
-  ## Performing Holding Checks and Adjustments
-  for(i in Checks){
-    ## Current Stock Performance
-    Examine = History_Table[i,]
-    Current_Info = Combined_Results %>%
-      filter(Stock == Examine$Stock) %>%
-      arrange(desc(Date)) %>%
-      head(1)
-    
-    ## Confirming Positive Future
-    Positive = Examine$Stock %in% FUTURES$Stock
-    
-    ## Calculating Percent Gain / Loss
-    History_Table$Pcent.Gain[i] = (Current_Info$Adjusted - 
-                                     History_Table$Buy.Price[i])/History_Table$Buy.Price[i]
-    ## Updating Hold Time
-    History_Table$Time.Held[i] = difftime(Current_Info$Date,
-                                          History_Table$Buy.Date[i],
-                                          tz = "UTC",
-                                          units = "days")
-    ## Updating Stop Loss
-    History_Table$Stop.Loss[i] = 
-      ifelse(Current_Info$Adjusted - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                       PR_Stage_R3$Date == max(PR_Stage_R3$Date)] > 
-                   History_Table$Stop.Loss[i]
-             ,
-             Current_Info$Adjusted - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                                         PR_Stage_R3$Date == max(PR_Stage_R3$Date)],
-             History_Table$Stop.Loss[i])
-    
-    ## Running Stop Loss Sell Criteria
-    History_Table$Sell.Date[i] = ifelse(Current_Info$Adjusted <= History_Table$Stop.Loss[i],
-                                        as.character(Current_Info$Date),
-                                        NA)
-    
-    ## Running Positive Future Sell Criteria
-    if(!Positive & is.na(History_Table$Sell.Date[i])){
-      History_Table$Sell.Date[i] = as.character(Current_Info$Date)
-    }
-  }
-  if(length(New_Buys) >= 1){
-    Additions = RESULT[New_Buys,] %>%
-       mutate(Market_Status = Market_Ind$Market_Status[Market_Ind$Date == max(Market_Ind$Date)],
-           Market_Type = Fear_Ind$Market_Type[Fear_Ind$Date == max(Fear_Ind$Date)],
-           Buy.Price = Adjusted,
-           Max.Price = Adjusted,
-           Buy.Date = Date,
-           Stop.Loss = Stop_Loss,
-           Pcent.Gain = (Adjusted - Buy.Price)/Buy.Price,
-           Time.Held = NA,
-           Sell.Date = NA) %>%
-      select(Stock,Market_Status,Market_Type,Buy.Price,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
-    History_Table = bind_rows(select(History_Table,Stock:Future),
-                              Additions[,colnames(select(History_Table,Stock:Future))])
-    }
-}
+History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                                     RESULT = RESULT,
+                                     FUTURES = FUTURES,
+                                     Initial_History = Initial_History)
 
 # Printing Historical Returns
 Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price))
@@ -542,10 +311,6 @@ DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
               filter = list(position = 'top',
                             autoWidth = T),
               rownames = F)
-
-# Saving Pool Results and Reduced Raw Data
-save(History_Table,
-       file = paste0(Project_Folder,"/Data//History_Results.RDATA"))
 ```
 
 ##### Historical Return `r Historical_Return`
