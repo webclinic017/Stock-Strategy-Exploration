@@ -171,7 +171,8 @@ Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
 TODAY = ID_DF %>%
   filter(Date == max(Date),
          Close_High_PD_Norm < 0,
-         Volatility_Close > 0.055)
+         Volatility_Close > 0.055,
+         Adjusted > 1)
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
@@ -295,7 +296,8 @@ if(Back_Test){
     TODAY = ID_DF %>%
       filter(Date == as.character(Dates[i+Delta+5]),
              Close_High_PD_Norm < 0,
-             Volatility_Close > 0.055)
+             Volatility_Close > 0.055,
+             Adjusted > 1)
     
     if(nrow(TODAY) > 0 | i == 1){
       ## Periodically Updating Models
@@ -327,22 +329,19 @@ if(Back_Test){
     p$pause(0.1)$tick()$print()
   }
   
-  
-  
-  ## Adding Additional Technical Indicators
-  Explore = History_Table %>%
+}
+## Loading Previously Stored Back Test
+load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
+
+## Adding Additional Technical Indicators
+Explore = History_Table %>%
     filter(Pcent.Gain != 0) %>%
     left_join(PR_Stage_R3) %>%
     left_join(Market_Ind) %>%
     left_join(Fear_Ind) %>%
-    mutate(Positive = ifelse(Pcent.Gain > 0,1,0)) %>%
-    select_if(is.numeric) %>%
-    select(Positive,WAD,everything()) %>%
-    arrange(WAD)
-  COR = cor(Explore)
-}
-## Loading Previously Stored Back Test
-load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
+    mutate(Positive = ifelse(Pcent.Gain > 0,1,0))
+write_excel_csv(Explore,
+                path = "C://users//aayorde//desktop//BackTest.CSV")
 
 ## Calculating Historical Return
 Historical_Return = scales::percent(sum(History_Table$Pcent.Gain))

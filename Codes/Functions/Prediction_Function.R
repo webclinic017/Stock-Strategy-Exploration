@@ -15,7 +15,7 @@ Prediction_Function = function(Models,
            Stop_Loss = case_when(
              Adjusted - 2*ATR > Adjusted * 0.95 ~ Adjusted - 2*ATR ,
              T ~ Adjusted * 0.95),
-           Risk = (-2*ATR)/Adjusted + Delta) %>%
+           Risk = (- 2*ATR)/Adjusted + Delta) %>%
     filter(!str_detect(Stock,"^\\^"),
            Prob > 0.50,
            Risk >= median(Risk) + 3*mad(Risk)) %>%
