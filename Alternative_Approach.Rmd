@@ -17,7 +17,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR")
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -31,6 +31,7 @@ options("getSymbols.warning4.0" = FALSE)
 Re_Pull = T
 Initial_History = F
 TEST = T
+Back_Test = F
 ```
 
 ### {.tabset}
@@ -168,7 +169,9 @@ Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
                            Max_Date = max(PR_Stage_R4$Date))
 
 TODAY = ID_DF %>%
-  filter(Date == max(Date))
+  filter(Date == max(Date),
+         Close_High_PD_Norm < 0,
+         Volatility_Close > 0.055)
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
@@ -177,7 +180,7 @@ RESULT = PREDS$RESULT
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
-save(RESULT,FUTURES,SHORTS,TODAY,
+save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
@@ -187,6 +190,7 @@ save(RESULT,FUTURES,SHORTS,TODAY,
 load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 
 DT::datatable(mutate_if(RESULT,is.numeric,round,3),
               rownames = F,
@@ -267,42 +271,90 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 #### Historical Back Test
 
-```{r Historical Back Test, echo = F, message=F,warning=F,eval = F}
-Dates = unique(PR_Stage_R4$Date)
+* Run for most recent years worth of data
+* Models Updated Every 30 Days
+    + Futures model predicts 6wk percentage delta
+        - Regression model
+    + Profit model predicts probabiltiy of a 6wk positive return
+        - Logistic regression model
+    + Training observations weighted decaying with time
+* Selection Criteria
+    + Stock did not just reach a new high
+    + Volatility > 0.055
+    + Risk < median(Risk) - 3*mad(Risk)
+        - Risk being the delta between predicted 6wk future and stop loss percentage
+        - Stop loss is adjusted - 2*ATR and updated daily if above previous
 
-for(i in (length(Dates)-2000):(length(Dates)-90)){
-  TODAY = ID_DF %>%
-    filter(Date == as.character(Dates[i+60]),
-           Adjusted >= 10,
-           MACD > 0)
-  
-  ## PEriodically Updating Models
-  if(i %% 30 == 0 | i == (length(Dates)-2000)){
-    Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
-                               Max_Date = ymd(as.character(Dates[i])))
+```{r Historical Back Test, echo = F, message=F,warning=F}
+if(Back_Test){
+  Dates = unique(PR_Stage_R4$Date)[(length(unique(PR_Stage_R4$Date)) - 365):length(unique(PR_Stage_R4$Date))]
+  counter = 0
+  p = progress_estimated(length(Dates))
+  Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
+  for(i in 1:length(Dates)){
+    TODAY = ID_DF %>%
+      filter(Date == as.character(Dates[i+Delta+5]),
+             Close_High_PD_Norm < 0,
+             Volatility_Close > 0.055)
+    
+    if(nrow(TODAY) > 0 | i == 1){
+      ## Periodically Updating Models
+      if(i %% 30 == 0 | i == 1){
+        Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
+                                   Max_Date = ymd(as.character(Dates[i])))
+      }
+    }
+    ## Periodically Checking Positions
+    if(i %% 1 == 0){
+      counter = counter + 1
+      Preds = Prediction_Function(Models,
+                                  TODAY = TODAY,
+                                  FinViz = F)
+      
+      History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                                           RESULT = Preds$RESULT,
+                                           FUTURES = Preds$FUTURES,
+                                           Current_Date = getmode(TODAY$Date),
+                                           Initial_History = ifelse(counter == 1,T,F),
+                                           History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
+      
+    }
+    ## Periodically Printing Historical Return
+    if(i %% 15 == 0){
+      ## Calculating Historical Return
+      print(scales::percent(sum(History_Table$Pcent.Gain)))
+    }
+    p$pause(0.1)$tick()$print()
   }
   
-  Preds = Prediction_Function(Models,
-                              TODAY = TODAY,
-                              FinViz = F)
-  History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                                       RESULT = Preds$RESULT,
-                                       FUTURES = Preds$FUTURES,
-                                       Current_Date = getmode(TODAY$Date),
-                                       Fear_Marker = getmode(TODAY$Fear_Extent),
-                                       Initial_History = ifelse(i == (length(Dates)-2000),T,F),
-                                       History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
+  
+  
+  ## Adding Additional Technical Indicators
+  Explore = History_Table %>%
+    filter(Pcent.Gain != 0) %>%
+    left_join(PR_Stage_R3) %>%
+    left_join(Market_Ind) %>%
+    left_join(Fear_Ind) %>%
+    mutate(Positive = ifelse(Pcent.Gain > 0,1,0)) %>%
+    select_if(is.numeric) %>%
+    select(Positive,WAD,everything()) %>%
+    arrange(WAD)
+  COR = cor(Explore)
 }
+## Loading Previously Stored Back Test
+load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
 
-(Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price)))
-
-History_Table = History_Table %>%
-  na.omit()
-
-write.csv(History_Table,
-          file = "C://users//aayorde//desktop//Backtest.csv")
+## Calculating Historical Return
+Historical_Return = scales::percent(sum(History_Table$Pcent.Gain))
+                                                       
+## Interactive Table of Buy History
+DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
+              filter = list(position = 'top',
+                            autoWidth = T),
+              rownames = F)
 ```
 
+##### Historical Return `r Historical_Return`
 
 #### Performance History
 
@@ -316,7 +368,9 @@ History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                      Initial_History = Initial_History)
 
 # Printing Historical Returns
-Historical_Return = scales::percent((sum(History_Table$Pcent.Gain * History_Table$Buy.Price))/sum(History_Table$Buy.Price))
+Historical_Return = scales::percent((sum(History_Table$Pcent.Gain) * (365 /
+                             (as.numeric(max(History_Table$Buy.Date) - 
+                                           min(History_Table$Buy.Date))))))
 
 ## Interactive Table of Buy History
 DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
@@ -326,3 +380,4 @@ DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
 ```
 
 ##### Historical Return `r Historical_Return`
+

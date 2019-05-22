@@ -12,17 +12,17 @@ Prediction_Function = function(Models,
            Delta = Futures,
            Future = (Adjusted*Delta) + Adjusted,
            Decider = Prob + Delta,
-           Stop_Loss = Adjusted - 2*ATR) %>%
+           Stop_Loss = case_when(
+             Adjusted - 2*ATR > Adjusted * 0.95 ~ Adjusted - 2*ATR ,
+             T ~ Adjusted * 0.95),
+           Risk = (-2*ATR)/Adjusted + Delta) %>%
     filter(!str_detect(Stock,"^\\^"),
-           Prob > 0.65) %>%
-    select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Close_PD_200_Norm,Close_PD_50_200_Norm,
+           Prob > 0.50,
+           Risk >= median(Risk) + 3*mad(Risk)) %>%
+    select(Stock,Date,Prob,Delta,Risk,Decider,Future,Adjusted,Stop_Loss,Close_PD_200_Norm,Close_PD_50_200_Norm,
            Names_Profit$Var,Names_Futures$Var) %>%
-    mutate(Prob_Rank = dense_rank(-Decider)) %>%
-    arrange(Prob_Rank) %>%
-    filter(Delta > 0,
-           Close_PD_200_Norm > 0,
-           abs((Stop_Loss - Adjusted)/Adjusted) < 1.5*Delta,
-           abs((Stop_Loss - Adjusted)/Adjusted) < 0.05)
+    mutate(Prob_Rank = dense_rank(-Risk)) %>%
+    arrange(Prob_Rank)
   
   if(FinViz){
     # Appending FinViz Stats

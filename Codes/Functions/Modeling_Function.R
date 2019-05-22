@@ -1,16 +1,17 @@
-Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
+  Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
   PR_Stage_R4 = PR_Stage_R4 %>%
-    filter(Date <= Max_Date)
+    filter(Date <= Max_Date,
+           Date >= Max_Date-(365))
   
   ## Reducing Variable Pool
   Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
                                                            -c(Open,High,Low,Close,Adjusted,
                                                               Volume,Adjusted_Lead)) %>%
-                                                 sample_frac(0.05),
+                                                 sample_frac(0.25),
                                                Type = 'C',
                                                Target = "Target")
   Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target,Volume)) %>%
-                                                  sample_frac(0.05),
+                                                  sample_frac(0.25),
                                                 Type = 'R',
                                                 Target = "Adjusted_Lead")
   
