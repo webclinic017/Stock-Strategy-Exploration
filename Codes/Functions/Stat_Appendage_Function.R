@@ -29,12 +29,16 @@ require(TTR)
   
   # ## ADX Optimization
   # Welles Wilder's Directional Movement Index
+  # ADX < 20 Indicates Weak Trend (Ranging)
+  # ADX > 50 Indicates Strong Trend (Trending)
   ADX_DF = ADX(DF_Orig[,c("High","Low","Close")]) %>%
     as.data.frame() %>%
     setNames(.,c("DIP","DIL","DX","ADX"))
 
   ## Aroon Optimization
   # Indicator attempts to idnetify starting trends
+  # AROON_Osc > 0 Indicates Bullish Move
+  # AROON_Osc < 0 Indicates Bearish Move
   AROON_DF = aroon( DF_Orig[,c("High","Low")]) %>%
     as.data.frame() %>%
     setNames(.,c("AROON_Up","AROON_Down","AROON_Osc"))
@@ -47,10 +51,11 @@ require(TTR)
   
   ## BBands Optimization
   # Compares volatility and Price Levels Over Time
+  # Price Close to B_Down Indicates Upward Movement
+  # Price Close to B_Up Idicates Downward Movement
   BBANDS_DF = BBands(DF_Orig[,c("High","Low","Close")]) %>%
     as.data.frame() %>%
-    setNames(.,c("B_Down","B_MAVG","B_Up","B_Pct"))%>%
-    select(B_Pct)
+    setNames(.,c("B_Down","B_MAVG","B_Up","B_Pct"))
   
   ## CCI Optimization
   # Commodity Channel Index attempts to find start/end trends
@@ -103,6 +108,9 @@ require(TTR)
   
   ## TDI Optimization
   # Trend Detection Index
+  # +- TDI Indicates +- Trend
+  # Buy if TDI and DI are Positive
+  # Sell if TDI is positive while DI is negative
   TDI_DF = TDI(DF_Orig$Adjusted) %>%
     as.data.frame() %>%
     setNames(.,c("TDI","DI"))

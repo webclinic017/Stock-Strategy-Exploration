@@ -30,7 +30,7 @@ options("getSymbols.warning4.0" = FALSE)
 ## General RMD Options
 Re_Pull = T
 Initial_History = F
-TEST = T
+TEST = F
 Back_Test = F
 ```
 
@@ -151,7 +151,7 @@ ID_DF = PR_Stage_R3 %>%
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
   group_by(Stock) %>%
-  mutate(Adjusted_Lead = lead(Adjusted,30),
+  mutate(Adjusted_Lead = lead(Adjusted,15),
          PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
          Target = ifelse(PD_Lead > 0,1,0),
          Adjusted_Lead = PD_Lead) %>%
@@ -170,14 +170,16 @@ Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
 
 TODAY = ID_DF %>%
   filter(Date == max(Date),
-         Close_High_PD_Norm < 0,
-         Volatility_Close > 0.055,
-         Adjusted > 1)
+         ADX > 20,
+         AROON_Osc > 0,
+         B_Pct < 0.33,
+         Adjusted > 15)
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = T)
-RESULT = PREDS$RESULT
+RESULT = PREDS$RESULT %>%
+  filter(Delta > 0)
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
@@ -288,48 +290,52 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
-  Dates = unique(PR_Stage_R4$Date)[(length(unique(PR_Stage_R4$Date)) - 365):length(unique(PR_Stage_R4$Date))]
+  Starting_Money = 10000
+  Max_Holding = 0.10
+  Max_Stocks = 10
+  Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
+  Dates = unique(PR_Stage_R4$Date)[Start:(Start+260)]
   counter = 0
   p = progress_estimated(length(Dates))
   Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
   for(i in 1:length(Dates)){
     TODAY = ID_DF %>%
-      filter(Date == as.character(Dates[i+Delta+5]),
-             Close_High_PD_Norm < 0,
-             Volatility_Close > 0.055,
-             Adjusted > 1)
+      filter(Date == (Dates[i] + Delta + 6))
     
     if(nrow(TODAY) > 0 | i == 1){
       ## Periodically Updating Models
-      if(i %% 30 == 0 | i == 1){
+      if(i %% 22 == 0 | i == 1){
         Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
                                    Max_Date = ymd(as.character(Dates[i])))
       }
     }
     ## Periodically Checking Positions
-    if(i %% 1 == 0){
-      counter = counter + 1
+    if(nrow(TODAY) > 0){
       Preds = Prediction_Function(Models,
                                   TODAY = TODAY,
                                   FinViz = F)
+      RESULT = Preds$RESULT %>%
+        filter() %>%
+        head(Max_Stocks)
+      FUTURES = Preds$FUTURES
       
-      History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                                           RESULT = Preds$RESULT,
-                                           FUTURES = Preds$FUTURES,
-                                           Current_Date = getmode(TODAY$Date),
-                                           Initial_History = ifelse(counter == 1,T,F),
-                                           History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
-      
-    }
-    ## Periodically Printing Historical Return
-    if(i %% 15 == 0){
-      ## Calculating Historical Return
-      print(scales::percent(sum(History_Table$Pcent.Gain)))
+      if(nrow(RESULT) > 0){
+        counter = counter + 1
+        History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                                             RESULT = RESULT,
+                                             FUTURES = FUTURES,
+                                             Starting_Money = Starting_Money,
+                                             Max_Holding = Max_Holding,
+                                             Max_Stocks = Max_Stocks,
+                                             Current_Date = as.character(Dates[i+Delta+5]),
+                                             Initial_History = ifelse(counter == 1,T,F),
+                                             History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
+      }
     }
     p$pause(0.1)$tick()$print()
   }
-  
 }
+
 ## Loading Previously Stored Back Test
 load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
 
@@ -339,12 +345,27 @@ Explore = History_Table %>%
     left_join(PR_Stage_R3) %>%
     left_join(Market_Ind) %>%
     left_join(Fear_Ind) %>%
-    mutate(Positive = ifelse(Pcent.Gain > 0,1,0))
+    mutate(Positive = ifelse(Pcent.Gain > 0,1,0),
+           Pcent_Adj = Pcent.Gain/Time.Held) %>%
+  select_if(is.numeric) %>%
+  arrange(Volatility_Parkinson) %>%
+  select(Positive,everything())
+
+Method_Refine = rpart(Pcent_Adj~.,
+                      data = select(Explore,
+                                -c(Positive,Profit,Number,Buy.Price,
+                                   Max.Price,Stop.Loss,Time.Held,Pcent.Gain,
+                                   chaikin_AD)),
+                      method = "anova",
+                      control = rpart.control(maxdepth = 3),
+                      model = T)
+rpart.plot(Method_Refine)
+
 write_excel_csv(Explore,
                 path = "C://users//aayorde//desktop//BackTest.CSV")
 
 ## Calculating Historical Return
-Historical_Return = scales::percent(sum(History_Table$Pcent.Gain))
+Historical_Return = scales::percent(sum(History_Table$Pcent.Gain*History_Table$Buy.Price)/sum(History_Table$Buy.Price))
                                                        
 ## Interactive Table of Buy History
 DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
@@ -367,9 +388,11 @@ History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                      Initial_History = Initial_History)
 
 # Printing Historical Returns
-Historical_Return = scales::percent((sum(History_Table$Pcent.Gain) * (365 /
-                             (as.numeric(max(History_Table$Buy.Date) - 
-                                           min(History_Table$Buy.Date))))))
+Historical_Return = scales::percent(sum(History_Table$Pcent.Gain*History_Table$Buy.Price)/
+                                      sum(History_Table$Buy.Price) * 
+                                      (365 /
+                                         (as.numeric(max(History_Table$Buy.Date) - 
+                                                       min(History_Table$Buy.Date)))))
 
 ## Interactive Table of Buy History
 DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),

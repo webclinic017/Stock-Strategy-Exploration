@@ -1,6 +1,7 @@
 Prediction_Function = function(Models,
                                TODAY,
-                               FinViz = T){
+                               FinViz = T,
+                               Max_Risk = 0.95){
   
   Preds = predict(Models$Model_Profit,TODAY,type = "response")
   Futures = predict(Models$Model_Futures,TODAY)
@@ -12,16 +13,12 @@ Prediction_Function = function(Models,
            Delta = Futures,
            Future = (Adjusted*Delta) + Adjusted,
            Decider = Prob + Delta,
-           Stop_Loss = case_when(
-             Adjusted - 2*ATR > Adjusted * 0.95 ~ Adjusted - 2*ATR ,
-             T ~ Adjusted * 0.95),
+           Stop_Loss = Adjusted - 2*ATR,
            Risk = (- 2*ATR)/Adjusted + Delta) %>%
-    filter(!str_detect(Stock,"^\\^"),
-           Prob > 0.50,
-           Risk >= median(Risk) + 3*mad(Risk)) %>%
+    filter(!str_detect(Stock,"^\\^")) %>%
     select(Stock,Date,Prob,Delta,Risk,Decider,Future,Adjusted,Stop_Loss,Close_PD_200_Norm,Close_PD_50_200_Norm,
            Names_Profit$Var,Names_Futures$Var) %>%
-    mutate(Prob_Rank = dense_rank(-Risk)) %>%
+    mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank)
   
   if(FinViz){
@@ -99,12 +96,10 @@ Prediction_Function = function(Models,
                                       as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
       distinct() %>%
       select(-contains("Perf"))
+    
     RESULT = Pool_Results %>%
       filter(EPS.Q.Q > 0,
-             Sales.Q.Q > 0) %>%
-      head(10)
-  }else{
-    RESULT = head(RESULT,10)
+             Sales.Q.Q > 0)
   }
   
   FUTURES = TODAY %>%
@@ -112,7 +107,10 @@ Prediction_Function = function(Models,
            Delta = Futures,
            Future = (Adjusted*Delta) + Adjusted,
            Decider = Prob + Delta,
-           Stop_Loss = Adjusted - 2*ATR) %>%
+           Stop_Loss = case_when(
+              (Adjusted - 2*ATR)/Adjusted < Max_Risk ~ Adjusted*Max_Risk,
+              T ~ (Adjusted - 2*ATR))
+           ) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
     select(Stock,Date,Prob,Delta,Decider,Future,Adjusted,Stop_Loss,Names_Profit$Var,Names_Futures$Var) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
