@@ -300,7 +300,11 @@ if(Back_Test){
   Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
   for(i in 1:length(Dates)){
     TODAY = ID_DF %>%
-      filter(Date == (Dates[i] + Delta + 6))
+      filter(Date == (Dates[i] + Delta + 6),
+             Fear_Extent < 0.35,
+             VHF > 0.35,
+             SMI < 60,
+             Volatility_Satchell < 1.1)
     
     if(nrow(TODAY) > 0 | i == 1){
       ## Periodically Updating Models
@@ -357,7 +361,7 @@ Method_Refine = rpart(Pcent_Adj~.,
                                    Max.Price,Stop.Loss,Time.Held,Pcent.Gain,
                                    chaikin_AD)),
                       method = "anova",
-                      control = rpart.control(maxdepth = 3),
+                      control = rpart.control(maxdepth = 2),
                       model = T)
 rpart.plot(Method_Refine)
 

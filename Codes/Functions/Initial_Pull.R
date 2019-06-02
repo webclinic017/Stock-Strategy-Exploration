@@ -1,7 +1,29 @@
 Initial_Pull = function() {
-  NASDAQ_Stocks = read.csv(paste0(Project_Folder, "/Data/NASDAQ.csv"))
-  AMEX_Stocks = read.csv(paste0(Project_Folder, "/Data/AMEX.csv"))
-  NYSE_Stocks = read.csv(paste0(Project_Folder, "/Data/NYSE.csv"))
+  NASDAQ_Stocks = read.csv(paste0(Project_Folder, "/Data/NASDAQ.csv")) %>%
+    mutate(LastSale = as.numeric(as.character(LastSale)),
+           IPOyear = as.numeric(as.character(IPOyear))) %>%
+    filter(!is.na(LastSale),
+           !is.na(IPOyear),
+           LastSale >= 15,
+           IPOyear <= as.numeric(year(Sys.Date()) - 5))
+  AMEX_Stocks = read.csv(paste0(Project_Folder, "/Data/AMEX.csv")) %>%
+    mutate(LastSale = as.numeric(as.character(LastSale)),
+           IPOyear = as.numeric(as.character(IPOyear))) %>%
+    filter(!is.na(LastSale),
+           !is.na(IPOyear),
+           LastSale >= 15,
+           IPOyear <= as.numeric(year(Sys.Date()) - 5))
+  NYSE_Stocks = read.csv(paste0(Project_Folder, "/Data/NYSE.csv")) %>%
+    mutate(LastSale = as.numeric(as.character(LastSale)),
+           IPOyear = as.numeric(as.character(IPOyear))) %>%
+    filter(!is.na(LastSale),
+           !is.na(IPOyear),
+           LastSale >= 15,
+           IPOyear <= as.numeric(year(Sys.Date()) - 5))
+  ETFS = read.csv(paste0(Project_Folder,"/Data/ETFList.csv")) %>%
+    mutate(IPOyear = as.numeric(year(Sys.Date()) - 5)) %>%
+    filter(LastSale >= 15)
+  
   Market_Tickers = data.frame(
     Symbol = c("^GSPC", "^IXIC", "^DJI", "^VIX", "^VXN", "MFST","DIS"),
     Name = c(
@@ -13,11 +35,11 @@ Initial_Pull = function() {
       "Microsoft",
       "Disney"
     ),
-    IPOyear = as.character(year(Sys.Date()) - 5),
-    LastSale = "1000"
+    IPOyear = as.numeric(year(Sys.Date()) - 5),
+    LastSale = 1000
   )
   
-  Total_Stocks = bind_rows(Market_Tickers, NASDAQ_Stocks, NYSE_Stocks, AMEX_Stocks) %>%
+  Total_Stocks = bind_rows(Market_Tickers, NASDAQ_Stocks, NYSE_Stocks, AMEX_Stocks, ETFS) %>%
     filter(
       !Symbol %in% c(
         "AGFSW",
@@ -107,12 +129,7 @@ Initial_Pull = function() {
         "ETX",
         "FBR"
       )
-    ) %>%
-    mutate(IPOyear = as.numeric(as.character(IPOyear)),
-           LastSale = as.numeric(as.character(LastSale))) %>%
-    filter(!is.na(IPOyear),!is.na(LastSale),
-           LastSale >= 15) %>%
-    filter(IPOyear <= year(Sys.Date()) - 5)
+    )
   Dump = list()
   
   p = progress_estimated(n = nrow(Total_Stocks), min_time = 3)
