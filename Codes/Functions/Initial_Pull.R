@@ -140,6 +140,7 @@ Initial_Pull = function() {
     
     stockData = try(getSymbols(ticker,
                                src = "yahoo",
+                               from = Sys.Date() - 365*5,
                                auto.assign = FALSE) %>%
                       as.data.frame() %>%
                       mutate(Date = ymd(rownames(.))))
