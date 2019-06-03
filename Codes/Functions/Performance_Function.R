@@ -4,6 +4,7 @@ Performance_Function = function(PR_Stage_R3,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
                                 Max_Stocks = 10,
+                                Projection = 15,
                                 Current_Date,
                                 Fear_Marker,
                                 Initial_History = F,
@@ -48,7 +49,9 @@ Performance_Function = function(PR_Stage_R3,
     RESULT = RESULT[New_Buys,]
     Current_Holding = sum(is.na(History_Table$Sell.Date) & History_Table$Number > 0)
     KEEP = ifelse(Current_Holding >= Max_Stocks,0,Max_Stocks- Current_Holding)
-    RESULT = head(RESULT,KEEP)
+    RESULT = RESULT %>%
+      filter(Adjusted < Remaining_Money*0.10) %>%
+      head(KEEP)
     
     Weights = RESULT$Decider/sum(RESULT$Decider)
     Weights[Weights > Max_Holding] = Max_Holding
@@ -91,10 +94,10 @@ Performance_Function = function(PR_Stage_R3,
                                             as.character(Current_Info$Date),
                                             NA)
         
-        ## Selling if Profit Is not Exceeding Projection After Two Weeks
-        if(History_Table$Time.Held[i] >= 10){
-          History_Table$Sell.Date[i] = ifelse(((History_Table$Pcent.Gain[i]/10)*History_Table$Time.Held[i]) > 
-                                                ((History_Table$Delta[i]/10)*History_Table$Time.Held[i]),
+        ## Selling if Profit Is not Exceeding Projection After A Week
+        if(History_Table$Time.Held[i] >= 5){
+          History_Table$Sell.Date[i] = ifelse(((History_Table$Pcent.Gain[i]/Projection)*History_Table$Time.Held[i]) > 
+                                                ((History_Table$Delta[i]/Projection)*History_Table$Time.Held[i]),
                                               NA,
                                               as.character(Current_Info$Date))
         }

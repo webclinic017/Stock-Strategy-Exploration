@@ -86,11 +86,30 @@ Index_Alpha_Slope = PR_Stage %>%
 PR_Stage_R2 = PR_Stage %>%
   left_join(Index_Alpha_Slope,by = "Date") %>%
   na.omit() %>%
-  mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope)
+  mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
+  filter_all(all_vars(!is.infinite(.)))
+CHECK = PR_Stage_R2 %>%
+  group_by(Stock) %>%
+  summarise(O = sum(Open == 0),
+            H = sum(High == 0),
+            L = sum(Low == 0),
+            C = sum(Close == 0),
+            V = sum(Volume < 100),
+            A = sum(Adjusted == 0),
+            V_AVG = median(Volume)) %>%
+  filter(O == 0,
+         H == 0,
+         L == 0,
+         C == 0,
+         V == 0,
+         A == 0,
+         V_AVG >= 400000)
+PR_Stage_R2 = PR_Stage_R2 %>%
+  filter(Stock %in% CHECK$Stock)
 
 ## Removing Dead Stocks Or Baby Stocks
 Time_Stop = max(PR_Stage_R2$Date)
-Time_Start = Time_Stop - 365*5
+Time_Start = Time_Stop - 365*3
 Last_Time = PR_Stage_R2 %>% 
   group_by(Stock) %>%
   summarise(Max_Time = max(Date),
@@ -102,8 +121,12 @@ Last_Time = PR_Stage_R2 %>%
 Stocks = unique(Last_Time$Stock)
 
 ## Spinning Up Clusters
-c1 = makeCluster(detectCores())
-registerDoParallel(c1)
+pb <- txtProgressBar(max = length(Stocks), style = 3)
+progress <- function(n) setTxtProgressBar(pb, n)
+opts <- list(progress = progress)
+library(doSNOW)
+c1 = makeCluster(10,outfile = "")
+registerDoSNOW(c1)
 
 ## Parallel Execution
 Results = foreach(i = 1:length(Stocks),
@@ -112,7 +135,8 @@ Results = foreach(i = 1:length(Stocks),
                                 "quantmod",
                                 "lubridate",
                                 "TTR"),
-                  .verbose = F) %dopar% {
+                  .verbose = F,
+                  .options.snow = opts) %dopar% {
                     ## Subsetting Data
                     TMP = PR_Stage_R2 %>%
                       filter(Stock == Stocks[i])
@@ -170,14 +194,11 @@ Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
 
 TODAY = ID_DF %>%
   filter(Date == max(Date),
-         ADX > 20,
-         AROON_Osc > 0,
-         B_Pct < 0.33,
          Adjusted > 15)
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
-                            FinViz = T)
+                            FinViz = F)
 RESULT = PREDS$RESULT %>%
   filter(Delta > 0)
 FUTURES = PREDS$FUTURES
@@ -299,17 +320,16 @@ if(Back_Test){
   p = progress_estimated(length(Dates))
   Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
   for(i in 1:length(Dates)){
+    Current_Date = as.character(Dates[i]+Delta+6)
     TODAY = ID_DF %>%
-      filter(Date == (Dates[i] + Delta + 6),
-             Fear_Extent < 0.35,
-             VHF > 0.35,
-             SMI < 60,
-             Volatility_Satchell < 1.1)
+      filter(Date == Current_Date)
     
     if(nrow(TODAY) > 0 | i == 1){
       ## Periodically Updating Models
       if(i %% 22 == 0 | i == 1){
-        Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
+        Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
+                                                        Adjusted > 15,
+                                                        Close_50_Time_Norm > 2),
                                    Max_Date = ymd(as.character(Dates[i])))
       }
     }
@@ -319,7 +339,8 @@ if(Back_Test){
                                   TODAY = TODAY,
                                   FinViz = F)
       RESULT = Preds$RESULT %>%
-        filter() %>%
+        filter(Adjusted > 15,
+               Close_50_Time_Norm > 2) %>%
         head(Max_Stocks)
       FUTURES = Preds$FUTURES
       
@@ -331,7 +352,8 @@ if(Back_Test){
                                              Starting_Money = Starting_Money,
                                              Max_Holding = Max_Holding,
                                              Max_Stocks = Max_Stocks,
-                                             Current_Date = as.character(Dates[i+Delta+5]),
+                                             Current_Date = Current_Date,
+                                             Projection = 15,
                                              Initial_History = ifelse(counter == 1,T,F),
                                              History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
       }
@@ -361,7 +383,7 @@ Method_Refine = rpart(Pcent_Adj~.,
                                    Max.Price,Stop.Loss,Time.Held,Pcent.Gain,
                                    chaikin_AD)),
                       method = "anova",
-                      control = rpart.control(maxdepth = 2),
+                      control = rpart.control(maxdepth = 3),
                       model = T)
 rpart.plot(Method_Refine)
 
