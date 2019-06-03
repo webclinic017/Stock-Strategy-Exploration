@@ -11,10 +11,10 @@ Prediction_Function = function(Models,
   RESULT = TODAY %>%
     mutate(Prob = Preds,
            Delta = Futures,
-           Future = (Adjusted*Delta) + Adjusted,
+           Future = (Close*Delta) + Close,
            Decider = Prob + Delta,
-           Stop_Loss = Adjusted - 2*ATR,
-           Risk = (- 2*ATR)/Adjusted + Delta) %>%
+           Stop_Loss = Close - 2*ATR,
+           Risk = (- 2*ATR)/Close + Delta) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank)
@@ -103,25 +103,25 @@ Prediction_Function = function(Models,
   FUTURES = TODAY %>%
     mutate(Prob = Preds,
            Delta = Futures,
-           Future = (Adjusted*Delta) + Adjusted,
+           Future = (Close*Delta) + Close,
            Decider = Prob + Delta,
-           Stop_Loss = Adjusted - 2*ATR
+           Stop_Loss = Close - 2*ATR
            ) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank) %>%
-    filter(Future > Adjusted)
+    filter(Future > Close)
   
   SHORTS = TODAY %>%
     mutate(Prob = Preds,
            Delta = Futures,
-           Future = (Adjusted*Delta) + Adjusted,
+           Future = (Close*Delta) + Close,
            Decider = Prob + Delta,
-           Stop_Loss = Adjusted - 2*ATR) %>%
+           Stop_Loss = Close - 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank) %>%
-    filter(Future < Adjusted)
+    filter(Future < Close)
   
   return(list(RESULT = RESULT,
               FUTURES = FUTURES,

@@ -88,6 +88,11 @@ PR_Stage_R2 = PR_Stage %>%
   na.omit() %>%
   mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
   filter_all(all_vars(!is.infinite(.)))
+
+## Removing Junk Stocks
+# Periods of Bad Data (OHLCV == 0)
+# Decent Liquidity (median Volume >= 40k)
+# Decent Value (median Close * median Volume >= 20mil)
 CHECK = PR_Stage_R2 %>%
   group_by(Stock) %>%
   summarise(O = sum(Open == 0),
@@ -95,15 +100,16 @@ CHECK = PR_Stage_R2 %>%
             L = sum(Low == 0),
             C = sum(Close == 0),
             V = sum(Volume < 100),
-            A = sum(Adjusted == 0),
-            V_AVG = median(Volume)) %>%
+            V_AVG = median(Volume),
+            C_AVG = median(Close),
+            DV = V_AVG * C_AVG) %>%
   filter(O == 0,
          H == 0,
          L == 0,
          C == 0,
          V == 0,
-         A == 0,
-         V_AVG >= 400000)
+         V_AVG >= 400000,
+         DF >= 20000000)
 PR_Stage_R2 = PR_Stage_R2 %>%
   filter(Stock %in% CHECK$Stock)
 
@@ -175,7 +181,7 @@ ID_DF = PR_Stage_R3 %>%
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
   group_by(Stock) %>%
-  mutate(Adjusted_Lead = lead(Adjusted,15),
+  mutate(Adjusted_Lead = lead(Close,15),
          PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
          Target = ifelse(PD_Lead > 0,1,0),
          Adjusted_Lead = PD_Lead) %>%
@@ -199,8 +205,7 @@ TODAY = ID_DF %>%
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = F)
-RESULT = PREDS$RESULT %>%
-  filter(Delta > 0)
+RESULT = PREDS$RESULT
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
@@ -314,6 +319,7 @@ if(Back_Test){
   Starting_Money = 10000
   Max_Holding = 0.10
   Max_Stocks = 10
+  Max_Loss = 0.05
   Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
   Dates = unique(PR_Stage_R4$Date)[Start:(Start+260)]
   counter = 0
@@ -328,7 +334,7 @@ if(Back_Test){
       ## Periodically Updating Models
       if(i %% 22 == 0 | i == 1){
         Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                        Adjusted > 15,
+                                                        Close > 15,
                                                         Close_50_Time_Norm > 2),
                                    Max_Date = ymd(as.character(Dates[i])))
       }
@@ -339,19 +345,22 @@ if(Back_Test){
                                   TODAY = TODAY,
                                   FinViz = F)
       RESULT = Preds$RESULT %>%
-        filter(Adjusted > 15,
+        filter(Close > 15,
                Close_50_Time_Norm > 2) %>%
         head(Max_Stocks)
       FUTURES = Preds$FUTURES
+      SHORTS = Preds$SHORTS
       
       if(nrow(RESULT) > 0){
         counter = counter + 1
         History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                              RESULT = RESULT,
                                              FUTURES = FUTURES,
+                                             SHORTS = SHORTS,
                                              Starting_Money = Starting_Money,
                                              Max_Holding = Max_Holding,
                                              Max_Stocks = Max_Stocks,
+                                             Max_Loss = Max_Loss,
                                              Current_Date = Current_Date,
                                              Projection = 15,
                                              Initial_History = ifelse(counter == 1,T,F),
@@ -365,6 +374,9 @@ if(Back_Test){
 ## Loading Previously Stored Back Test
 load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
 
+History_Table = History_Table %>%
+  select(Prob,Delta,everything())
+
 ## Adding Additional Technical Indicators
 Explore = History_Table %>%
     filter(Pcent.Gain != 0) %>%
@@ -375,7 +387,8 @@ Explore = History_Table %>%
            Pcent_Adj = Pcent.Gain/Time.Held) %>%
   select_if(is.numeric) %>%
   arrange(Volatility_Parkinson) %>%
-  select(Positive,everything())
+  select(Positive,WAD,WAD_Delta,everything())
+COR = cor(Explore)
 
 Method_Refine = rpart(Pcent_Adj~.,
                       data = select(Explore,

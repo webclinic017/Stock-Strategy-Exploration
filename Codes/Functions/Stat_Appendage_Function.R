@@ -72,7 +72,7 @@ require(TTR)
   
   ## CMO Optimization
   # Chande Momentum Oscillator (Modifed Relative Strength Index)
-  CMO_DF = CMO(DF_Orig$Adjusted) %>%
+  CMO_DF = CMO(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,"CMO")
 
@@ -84,7 +84,7 @@ require(TTR)
   
   ## DVI Optimization
   # Very Smooth Price Oscillator
-  DVI_DF = DVI(DF_Orig$Adjusted) %>%
+  DVI_DF = DVI(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,c("DVI_MAG","DVI_STR","DVI"))
   
@@ -96,13 +96,13 @@ require(TTR)
   
   ## PBands Optimization
   # Compares volatility and Price Levels Over Time
-  PBANDS_DF = PBands(DF_Orig$Adjusted) %>%
+  PBANDS_DF = PBands(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,c("P_Down","P_Center","P_Up"))
   
   ## RSI Optimization
   # Relative Strength Index
-  RSI_DF = RSI(DF_Orig$Adjusted) %>%
+  RSI_DF = RSI(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,"RSI")
   
@@ -111,19 +111,19 @@ require(TTR)
   # +- TDI Indicates +- Trend
   # Buy if TDI and DI are Positive
   # Sell if TDI is positive while DI is negative
-  TDI_DF = TDI(DF_Orig$Adjusted) %>%
+  TDI_DF = TDI(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,c("TDI","DI"))
   
   ## TRIX Optimization
   # Triple Smoothed Exponential Oscillator
-  TRIX_DF = TRIX(DF_Orig$Adjusted) %>%
+  TRIX_DF = TRIX(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,c("TRIX","TRIX_Signal"))
   
   ## VHF Optimization
   # Vertical Horizontal Filter
-  VHF_DF = VHF(DF_Orig$Adjusted) %>%
+  VHF_DF = VHF(DF_Orig$Close) %>%
     as.data.frame() %>%
     setNames(.,"VHF")
   
@@ -169,10 +169,10 @@ require(TTR)
   colnames(CLV_DF) = "CLV"
   ## GMMA
   # Guppy Multiple Moving Averages
-  GMMA_DF = as.data.frame(GMMA(DF_Orig$Adjusted))
+  GMMA_DF = as.data.frame(GMMA(DF_Orig$Close))
   ## MACD
   # MACD Oscillator
-  MACD_DF = as.data.frame(MACD(DF_Orig$Adjusted))
+  MACD_DF = as.data.frame(MACD(DF_Orig$Close))
   colnames(MACD_DF) = c("MACD","MACD_Signal")
   ## SAR
   # # Parabolic Stop-and-Reverse
@@ -195,30 +195,30 @@ require(TTR)
   rm(list = v1)
   ################ Additional Technical Indicators ###########
   Standard_TI = DF %>%
-  dplyr::mutate(EMA50 = EMA(Adjusted,50),
-         EMA100 = EMA(Adjusted,100),
-         EMA200 = EMA(Adjusted,200),
-         MA50 = SMA(Adjusted,50),
-         MA100 = SMA(Adjusted,100),
-         MA200 = SMA(Adjusted,200),
-         DEMA50 = DEMA(Adjusted,50),
-         DEMA100 = DEMA(Adjusted,100),
-         DEMA200 = DEMA(Adjusted,200),
-         WMA50 = WMA(Adjusted,50),
-         WMA100 = WMA(Adjusted,100),
-         WMA200 = WMA(Adjusted,200),
-         EVWMA50 = EVWMA(Adjusted,Volume,50),
-         EVWMA100 = EVWMA(Adjusted,Volume,100),
-         EVWMA200 = EVWMA(Adjusted,Volume,200),
-         ZLEMA50 = ZLEMA(Adjusted,50),
-         ZLEMA100 = ZLEMA(Adjusted,100),
-         ZLEMA200 = ZLEMA(Adjusted,200),
-         VWAP50 = VWAP(Adjusted,Volume,50),
-         VWAP100 = VWAP(Adjusted,Volume,100),
-         VWAP200 = VWAP(Adjusted,Volume,200),
-         HMA50 = HMA(Adjusted,50),
-         HMA100 = HMA(Adjusted,100),
-         HMA200 = HMA(Adjusted,200))
+  dplyr::mutate(EMA50 = EMA(Close,50),
+         EMA100 = EMA(Close,100),
+         EMA200 = EMA(Close,200),
+         MA50 = SMA(Close,50),
+         MA100 = SMA(Close,100),
+         MA200 = SMA(Close,200),
+         DEMA50 = DEMA(Close,50),
+         DEMA100 = DEMA(Close,100),
+         DEMA200 = DEMA(Close,200),
+         WMA50 = WMA(Close,50),
+         WMA100 = WMA(Close,100),
+         WMA200 = WMA(Close,200),
+         EVWMA50 = EVWMA(Close,Volume,50),
+         EVWMA100 = EVWMA(Close,Volume,100),
+         EVWMA200 = EVWMA(Close,Volume,200),
+         ZLEMA50 = ZLEMA(Close,50),
+         ZLEMA100 = ZLEMA(Close,100),
+         ZLEMA200 = ZLEMA(Close,200),
+         VWAP50 = VWAP(Close,Volume,50),
+         VWAP100 = VWAP(Close,Volume,100),
+         VWAP200 = VWAP(Close,Volume,200),
+         HMA50 = HMA(Close,50),
+         HMA100 = HMA(Close,100),
+         HMA200 = HMA(Close,200))
   
   Combined_Indicators = bind_cols(Standard_TI,
                            Window_TTR,
