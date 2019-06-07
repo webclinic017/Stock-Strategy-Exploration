@@ -317,41 +317,67 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
   Starting_Money = 10000
-  Max_Holding = 0.10
-  Max_Stocks = 10
+  Max_Holding = 0.05
+  Max_Stocks = floor(1/Max_Holding)
   Max_Loss = 0.05
   Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
-  Dates = unique(PR_Stage_R4$Date)[Start:(Start+260)]
+  Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
+  Dates = unique(PR_Stage_R4$Date)[Start:(Start+252)]
+  
+  ## Building Initial Models
+  Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
+                                                  Volatility_Parkinson < 0.75,
+                                                  Volatility_Close > 0.075,
+                                                  TDI > -25,
+                                                  WAD > -30,
+                                                  WAD_Delta > 0.05,
+                                                  Alpha_Slope < 0.0014,
+                                                  CCI_Delta < 100,
+                                                  SMI_Delta < 3.25,
+                                                  Volume_PD_Norm < 2,
+                                                  AROON_Osc < 70,
+                                                  Ultimate_Oscillator < 45,
+                                                  Close_PD > 0.0025,
+                                                  CMO < 70,
+                                                  CLV < 0.70,
+                                                  Close_Slope_200_Norm > 0),
+                             Max_Date = ymd(as.character(Dates[1])))
+
   counter = 0
   p = progress_estimated(length(Dates))
-  Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
   for(i in 1:length(Dates)){
-    Current_Date = as.character(Dates[i]+Delta+6)
+    Current_Date = as.character(Dates[i]+Delta)
     TODAY = ID_DF %>%
       filter(Date == Current_Date)
     
-    if(nrow(TODAY) > 0 | i == 1){
-      ## Periodically Updating Models
-      if(i %% 22 == 0 | i == 1){
-        Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                        Close > 15,
-                                                        Close_50_Time_Norm > 2),
-                                   Max_Date = ymd(as.character(Dates[i])))
-      }
-    }
     ## Periodically Checking Positions
     if(nrow(TODAY) > 0){
       Preds = Prediction_Function(Models,
                                   TODAY = TODAY,
                                   FinViz = F)
       RESULT = Preds$RESULT %>%
-        filter(Close > 15,
-               Close_50_Time_Norm > 2) %>%
-        head(Max_Stocks)
+        filter(Volatility_Parkinson < 0.75,
+               Volatility_Close > 0.075,
+               CMO < 70,
+               TDI > -25,
+               WAD > -30,
+               WAD_Delta > 0.05,
+               CCI_Delta < 100,
+               SMI_Delta < 3.25,
+               AROON_Osc < 70,
+               Ultimate_Oscillator < 45,
+               CLV < 0.70,
+               Market_Delta_50 > -0.065,
+               Market_Delta_50 < -0.0125,
+               Alpha_Slope < 0.0014,
+               Close_PD > 0.0025,
+               Volume_PD_Norm < 2,
+               Close_Slope_200_Norm > 0)
       FUTURES = Preds$FUTURES
       SHORTS = Preds$SHORTS
+    }
       
-      if(nrow(RESULT) > 0){
+      if(nrow(RESULT) > 0 & counter == 0){
         counter = counter + 1
         History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                              RESULT = RESULT,
@@ -365,8 +391,33 @@ if(Back_Test){
                                              Projection = 15,
                                              Initial_History = ifelse(counter == 1,T,F),
                                              History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
+      }else{
+         counter = counter + 1
+         Result =  tryCatch({
+           History_Table = 
+             Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                                  RESULT = RESULT,
+                                  FUTURES = FUTURES,
+                                  SHORTS = SHORTS,
+                                  Starting_Money = Starting_Money,
+                                  Max_Holding = Max_Holding,
+                                  Max_Stocks = Max_Stocks,
+                                  Max_Loss = Max_Loss,
+                                  Current_Date = Current_Date,
+                                  Projection = 15,
+                                  Initial_History = ifelse(counter == 1,T,F),
+                                  History_Location = paste0(Project_Folder,
+                                                            "/data/Back Test.RDATA"))
+         }, warning = function(w){
+           print(w)
+         }, error = function(e){
+           print("Encountered a Non-Trading Day")
+         }, finally = {
+         })
+         if(all(class(Result) == "data.frame")){
+           History_Table = Result
+         }
       }
-    }
     p$pause(0.1)$tick()$print()
   }
 }
@@ -379,23 +430,30 @@ History_Table = History_Table %>%
 
 ## Adding Additional Technical Indicators
 Explore = History_Table %>%
-    filter(Pcent.Gain != 0) %>%
-    left_join(PR_Stage_R3) %>%
+    filter(Pcent.Gain != 0,
+           !is.na(Sell.Date)) %>%
     left_join(Market_Ind) %>%
     left_join(Fear_Ind) %>%
     mutate(Positive = ifelse(Pcent.Gain > 0,1,0),
-           Pcent_Adj = Pcent.Gain/Time.Held) %>%
+           Pcent_Adj = Pcent.Gain/Time.Held,
+           Good = case_when(
+             Max.Price > Buy.Price ~ 1,
+             T ~ 0
+           )) %>%
   select_if(is.numeric) %>%
+  select(-contains("MAX_")) %>%
+  filter(!is.infinite(Pcent_Adj)) %>%
   arrange(Volatility_Parkinson) %>%
-  select(Positive,WAD,WAD_Delta,everything())
+  select(Good,Pcent_Adj,Positive,Ultimate_Oscillator,everything())
+
 COR = cor(Explore)
 
-Method_Refine = rpart(Pcent_Adj~.,
+Method_Refine = rpart(Good~.,
                       data = select(Explore,
                                 -c(Positive,Profit,Number,Buy.Price,
                                    Max.Price,Stop.Loss,Time.Held,Pcent.Gain,
-                                   chaikin_AD)),
-                      method = "anova",
+                                   chaikin_AD,Pcent_Adj)),
+                      method = "class",
                       control = rpart.control(maxdepth = 3),
                       model = T)
 rpart.plot(Method_Refine)
