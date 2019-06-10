@@ -90,6 +90,7 @@ require(TTR)
   
   ## SMI Optimization
   # Stochastic Momentum Index
+  # > 40 Bullish, < -40 Bearish
   SMI_DF = SMI(DF_Orig[,c("High","Low","Close")]) %>%
     as.data.frame() %>%
     setNames(.,c("SMI","SMI_Signal"))

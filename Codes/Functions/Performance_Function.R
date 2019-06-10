@@ -98,7 +98,8 @@ Performance_Function = function(PR_Stage_R3,
                Close_PD = (Close - lag(Close,1))/lag(Close,1),
                SMI_Delta = (SMI - lag(SMI,1)),
                SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-               CCI_Delta = (CCI - lag(CCI,1))) %>%
+               CCI_Delta = (CCI - lag(CCI,1)),
+               VHF_Delta = (VHF - lag(VHF,1))) %>%
         filter(Date == Current_Date)
         
       
@@ -160,14 +161,17 @@ Performance_Function = function(PR_Stage_R3,
           History_Table$Sell.Date[i] = ifelse(History_Table$Pcent.Gain[i] > 0,
                                               NA,
                                               as.character(Current_Date))
+          ## Selling if Return < Median After Projection Timeline
+          if(History_Table$Pcent.Gain[i]/History_Table$Time.Held[i] <
+             median(History_Table$Pcent.Gain/History_Table$Time.Held,na.rm = T)){
+            History_Table$Sell.Date[i] = as.character(Current_Date)
+          }
         }
         
-        ## Selling if Projection Is to Lose Money
-        if(History_Table$Delta[i] + History_Table$Pcent.Gain[i] <= 0){
+        ## Selling if Projection Is to Lose More Than 1/2 of Gains
+        if(History_Table$Delta[i] + History_Table$Pcent.Gain[i] <= History_Table$Pcent.Gain[i]*0.5){
           History_Table$Sell.Date[i] = as.character(Current_Date)
         }
-        
-     
         
       }
       

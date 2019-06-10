@@ -1,5 +1,30 @@
   Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
     
+    stripGlmLR = function(cm) {
+      cm$y = c()
+      cm$model = c()
+      
+      cm$residuals = c()
+      cm$fitted.values = c()
+      cm$effects = c()
+      cm$qr$qr = c()
+      cm$linear.predictors = c()
+      cm$weights = c()
+      cm$prior.weights = c()
+      cm$data = c()
+      
+      
+      cm$family$variance = c()
+      cm$family$dev.resids = c()
+      cm$family$aic = c()
+      cm$family$validmu = c()
+      cm$family$simulate = c()
+      attr(cm$terms,".Environment") = c()
+      attr(cm$formula,".Environment") = c()
+      
+      cm
+    }
+    
     
     PR_Stage_R4 = PR_Stage_R4 %>%
       filter(Date <= Max_Date)
@@ -43,13 +68,13 @@
     Test_Futures = PR_Stage_R5[-Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
     
     
-    Model_Profit = glm(Target~.,
+    Model_Profit = stripGlmLR(glm(Target~.,
                        data = select(Train_Profit,
                                      -c(Stock,Date,Adjusted)),
-                       family = "quasibinomial")
-    Model_Futures = lm(Adjusted_Lead~.,
+                       family = "quasibinomial"))
+    Model_Futures = stripGlmLR(glm(Adjusted_Lead~.,
                        data = select(Train_Futures,
-                                     -c(Stock,Date,Adjusted)))
+                                     -c(Stock,Date,Adjusted))))
     
     return(list(Model_Futures = Model_Futures,
                 Model_Profit = Model_Profit,

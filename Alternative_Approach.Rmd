@@ -17,7 +17,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot")
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -89,33 +89,10 @@ PR_Stage_R2 = PR_Stage %>%
   mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
   filter_all(all_vars(!is.infinite(.)))
 
-## Removing Junk Stocks
-# Periods of Bad Data (OHLCV == 0)
-# Decent Liquidity (median Volume >= 40k)
-# Decent Value (median Close * median Volume >= 20mil)
-CHECK = PR_Stage_R2 %>%
-  group_by(Stock) %>%
-  summarise(O = sum(Open == 0),
-            H = sum(High == 0),
-            L = sum(Low == 0),
-            C = sum(Close == 0),
-            V = sum(Volume < 100),
-            V_AVG = median(Volume),
-            C_AVG = median(Close),
-            DV = V_AVG * C_AVG) %>%
-  filter(O == 0,
-         H == 0,
-         L == 0,
-         C == 0,
-         V == 0,
-         V_AVG >= 400000,
-         DF >= 20000000)
-PR_Stage_R2 = PR_Stage_R2 %>%
-  filter(Stock %in% CHECK$Stock)
 
 ## Removing Dead Stocks Or Baby Stocks
 Time_Stop = max(PR_Stage_R2$Date)
-Time_Start = Time_Stop - 365*3
+Time_Start = Time_Stop - 365*5
 Last_Time = PR_Stage_R2 %>% 
   group_by(Stock) %>%
   summarise(Max_Time = max(Date),
@@ -176,7 +153,8 @@ ID_DF = PR_Stage_R3 %>%
          Close_PD = (Close - lag(Close,1))/lag(Close,1),
          SMI_Delta = (SMI - lag(SMI,1)),
          SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-         CCI_Delta = (CCI - lag(CCI,1)))
+         CCI_Delta = (CCI - lag(CCI,1)),
+         VHF_Delta = (VHF - lag(VHF,1)))
 
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
@@ -189,7 +167,8 @@ PR_Stage_R4 = PR_Stage_R3 %>%
          Close_PD = (Close - lag(Close,1))/lag(Close,1),
          SMI_Delta = (SMI - lag(SMI,1)),
          SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-         CCI_Delta = (CCI - lag(CCI,1))) %>%
+         CCI_Delta = (CCI - lag(CCI,1)),
+         VHF_Delta = (VHF - lag(VHF,1))) %>%
   ungroup() %>%
   select(-c(PD_Lead)) %>%
   na.omit() %>%
@@ -199,17 +178,17 @@ Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
                            Max_Date = max(PR_Stage_R4$Date))
 
 TODAY = ID_DF %>%
-  filter(Date == max(Date),
-         Adjusted > 15)
+  filter(Date == max(Date))
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = F)
-RESULT = PREDS$RESULT
+RESULT = PREDS$RESULT %>%
+  head(10)
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
-save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,
+save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
@@ -322,25 +301,23 @@ if(Back_Test){
   Max_Loss = 0.05
   Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
   Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
-  Dates = unique(PR_Stage_R4$Date)[Start:(Start+252)]
+  Dates = sort(unique(PR_Stage_R4$Date))[Start:(Start+252)]
+  IP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
+                                    Combined_Results$Date == Dates[1]+ Delta + 6]
+  FP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
+                                    Combined_Results$Date == Dates[length(Dates)] + Delta + 6]
+  (MR = scales::percent((FP-IP)/IP))
   
   ## Building Initial Models
   Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                  Volatility_Parkinson < 0.75,
-                                                  Volatility_Close > 0.075,
-                                                  TDI > -25,
-                                                  WAD > -30,
-                                                  WAD_Delta > 0.05,
-                                                  Alpha_Slope < 0.0014,
-                                                  CCI_Delta < 100,
-                                                  SMI_Delta < 3.25,
-                                                  Volume_PD_Norm < 2,
-                                                  AROON_Osc < 70,
-                                                  Ultimate_Oscillator < 45,
-                                                  Close_PD > 0.0025,
-                                                  CMO < 70,
-                                                  CLV < 0.70,
-                                                  Close_Slope_200_Norm > 0),
+                                                  Volatility_Satchell > 0.10,
+                                                  Volatility_Satchell < 0.50,
+                                                  DIL > 15,
+                                                  DIL < 60,
+                                                  SMI_Signal > -50,
+                                                  SMI_Signal < 50,
+                                                  DI > -875,
+                                                  DI < 275),
                              Max_Date = ymd(as.character(Dates[1])))
 
   counter = 0
@@ -356,23 +333,14 @@ if(Back_Test){
                                   TODAY = TODAY,
                                   FinViz = F)
       RESULT = Preds$RESULT %>%
-        filter(Volatility_Parkinson < 0.75,
-               Volatility_Close > 0.075,
-               CMO < 70,
-               TDI > -25,
-               WAD > -30,
-               WAD_Delta > 0.05,
-               CCI_Delta < 100,
-               SMI_Delta < 3.25,
-               AROON_Osc < 70,
-               Ultimate_Oscillator < 45,
-               CLV < 0.70,
-               Market_Delta_50 > -0.065,
-               Market_Delta_50 < -0.0125,
-               Alpha_Slope < 0.0014,
-               Close_PD > 0.0025,
-               Volume_PD_Norm < 2,
-               Close_Slope_200_Norm > 0)
+        filter(Volatility_Satchell > 0.10,
+               Volatility_Satchell < 0.50,
+               DIL > 15,
+               DIL < 60,
+               SMI_Signal > -50,
+               SMI_Signal < 50,
+               DI > -875,
+               DI < 275)
       FUTURES = Preds$FUTURES
       SHORTS = Preds$SHORTS
     }
@@ -421,6 +389,8 @@ if(Back_Test){
     p$pause(0.1)$tick()$print()
   }
 }
+print("S&P Market Return")
+(MR = scales::percent((FP-IP)/IP))
 
 ## Loading Previously Stored Back Test
 load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
@@ -443,18 +413,55 @@ Explore = History_Table %>%
   select_if(is.numeric) %>%
   select(-contains("MAX_")) %>%
   filter(!is.infinite(Pcent_Adj)) %>%
-  arrange(Volatility_Parkinson) %>%
-  select(Good,Pcent_Adj,Positive,Ultimate_Oscillator,everything())
+  select(Good,Pcent_Adj,Positive,Volatility_Satchell,everything())
 
+Var = "DI"
+counter = 0
+for(i in seq(min(Explore[,Var]),max(Explore[,Var]),length.out = 100)){
+  counter = counter + 1
+  Keep_Low = which(Explore[,Var] < i)
+  Keep_High = which(Explore[,Var] > i)
+  TMP_Low = History_Table[Keep_Low,]
+  P_TL = sum(TMP_Low$Profit) + 
+    sum(TMP_Low$Buy.Price[is.na(TMP_Low$Sell.Date)] *
+          TMP_Low$Pcent.Gain[is.na(TMP_Low$Sell.Date)] *
+          TMP_Low$Number[is.na(TMP_Low$Sell.Date)])
+  TMP_High = History_Table[Keep_High,]
+  P_TH = sum(TMP_High$Profit) + 
+    sum(TMP_High$Buy.Price[is.na(TMP_High$Sell.Date)] *
+          TMP_High$Pcent.Gain[is.na(TMP_High$Sell.Date)] *
+          TMP_High$Number[is.na(TMP_High$Sell.Date)])
+  if(counter == 1){
+    PL = P_TL
+    VL = i
+    PH = P_TH
+    VH = i
+  }else{
+    if(P_TL > PL){
+      PL = P_TL
+      VL = i
+    }
+    if(P_TH > PH){
+      PH = P_TH
+      VH = i
+    }
+  }
+}
+print(Var)
+print(paste0("Low Side Value < ",round(VL,4),
+             " Profit = ",round(PL,4)))
+
+print(paste0("High Side Value > ",round(VH,4),
+             " Profit = ",round(PH,4)))
 COR = cor(Explore)
 
-Method_Refine = rpart(Good~.,
+Method_Refine = rpart(Positive~.,
                       data = select(Explore,
-                                -c(Positive,Profit,Number,Buy.Price,
+                                -c(Good,Profit,Number,Buy.Price,
                                    Max.Price,Stop.Loss,Time.Held,Pcent.Gain,
                                    chaikin_AD,Pcent_Adj)),
                       method = "class",
-                      control = rpart.control(maxdepth = 3),
+                      control = rpart.control(maxdepth = 2),
                       model = T)
 rpart.plot(Method_Refine)
 

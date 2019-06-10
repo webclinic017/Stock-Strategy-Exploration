@@ -39,135 +39,73 @@ Initial_Pull = function() {
     LastSale = 1000
   )
   
-  Total_Stocks = bind_rows(Market_Tickers, NASDAQ_Stocks, NYSE_Stocks, AMEX_Stocks, ETFS) %>%
-    filter(
-      !Symbol %in% c(
-        "AGFSW",
-        "ARII",
-        "CORI",
-        "DWCH",
-        "TACOW",
-        "ECYT",
-        "ESRX",
-        "JTPY",
-        "LINDW",
-        "OXBRW",
-        "PBSK",
-        "RSYS",
-        "SODA",
-        "SLNOW",
-        "SONC",
-        "BJZ",
-        "BPK",
-        "BLH",
-        "CTT",
-        "ECOM",
-        "ECC",
-        "ETX",
-        "EEQ",
-        "FEI",
-        "FSIC",
-        "GFA",
-        "HTGX",
-        "LHO",
-        "LKM",
-        "NAP",
-        "SEP",
-        "EIA",
-        "MAB",
-        "MIW",
-        "EMI",
-        "NYH",
-        "CTT",
-        "ECOM",
-        "ECC",
-        "ETX",
-        "FEI",
-        "ARDM",
-        "ATHN",
-        "GOV",
-        "GNBC",
-        "HDP",
-        "KANG",
-        "INTX",
-        "IPAS",
-        "JASNW",
-        "LOXO",
-        "TSRO",
-        "AHL",
-        "CVRR",
-        "DM",
-        "FCB",
-        "KORS",
-        "NFX",
-        "PAH",
-        "SN",
-        "VLP",
-        "MMV",
-        "EMJ",
-        "EVJ",
-        "EIO",
-        "EVO",
-        "EIP",
-        "EVP",
-        "CTT",
-        "ECOM",
-        "ECC",
-        "ETX",
-        "FEI",
-        "BHBK",
-        "BLMT",
-        "IDTI",
-        "WTW",
-        "DSW",
-        "ELLI",
-        "SSWN",
-        "VZA",
-        "ORM",
-        "NXTM",
-        "ECC",
-        "ETX",
-        "FBR"
-      )
-    )
-  Dump = list()
-  
-  p = progress_estimated(n = nrow(Total_Stocks), min_time = 3)
-  for (i in 1:nrow(Total_Stocks)) {
-    p$pause(0.1)$tick()$print()
-    ticker = as.character(Total_Stocks$Symbol[i])
-    
-    
-    stockData = try(getSymbols(ticker,
-                               src = "yahoo",
-                               from = Sys.Date() - 365*5,
-                               auto.assign = FALSE) %>%
-                      as.data.frame() %>%
-                      mutate(Date = ymd(rownames(.))))
-    if ("try-error" %in% class(stockData)) {
-      Dump[[i]] = stockData
-    } else{
-      colnames(stockData) = c("Open",
-                              "High",
-                              "Low",
-                              "Close",
-                              "Volume",
-                              "Adjusted",
-                              "Date")
-      stockData$Stock = ticker
-      Dump[[i]] = stockData
+  Total_Stocks = bind_rows(Market_Tickers, NASDAQ_Stocks, NYSE_Stocks, AMEX_Stocks, ETFS)
+ 
+  for (j in 1:2){
+    Dump = list()
+    p = progress_estimated(n = nrow(Total_Stocks), min_time = 3)
+    for (i in 1:nrow(Total_Stocks)) {
+      p$pause(0.1)$tick()$print()
+      ticker = as.character(Total_Stocks$Symbol[i])
+      
+      if(j == 1){
+      stockData = try(getSymbols(ticker,
+                                 src = "yahoo",
+                                 from = ifelse(j == 1,
+                                               Sys.Date() - 10),
+                                 auto.assign = FALSE) %>%
+                        as.data.frame() %>%
+                        mutate(Date = ymd(rownames(.))))
+      }else{
+        
+        stockData = try(getSymbols(ticker,
+                                   src = "yahoo",
+                                   auto.assign = FALSE) %>%
+                          as.data.frame() %>%
+                          mutate(Date = ymd(rownames(.))))
+      }
+      if ("try-error" %in% class(stockData)) {
+        Dump[[i]] = stockData
+      } else{
+        colnames(stockData) = c("Open",
+                                "High",
+                                "Low",
+                                "Close",
+                                "Volume",
+                                "Adjusted",
+                                "Date")
+        stockData$Stock = ticker
+        Dump[[i]] = stockData
+      }
     }
+    list.condition <-
+      sapply(Dump, function(x)
+        class(x) == "data.frame")
+    output.list  <- Dump[list.condition]
+    Combined_Results = plyr::ldply(output.list, data.frame)
+    
+    CHECK = Combined_Results %>%
+      group_by(Stock) %>%
+      na.locf() %>%
+      na.omit() %>%
+      summarise(O = sum(Open == 0),
+                H = sum(High == 0),
+                L = sum(Low == 0),
+                C = sum(Close == 0),
+                V = sum(Volume < 100),
+                V_AVG = median(Volume),
+                C_AVG = median(Close),
+                DV = V_AVG * C_AVG) %>%
+      filter(O == 0,
+             H == 0,
+             L == 0,
+             C == 0,
+             V == 0,
+             V_AVG >= 400000,
+             DV >= 20000000)
+    Total_Stocks = Total_Stocks %>%
+      filter(Symbol %in% c(CHECK$Stock,"^VIX","^VXN"))
   }
-  list.condition <-
-    sapply(Dump, function(x)
-      class(x) == "data.frame")
-  output.list  <- Dump[list.condition]
-  Combined_Results = plyr::ldply(output.list, data.frame)
-  
-  Combined_Results = Combined_Results %>%
-    group_by(Stock) %>%
-    na.locf() %>%
-    ungroup()
   
   save(Combined_Results,
        file = paste0(Project_Folder, "/Data//NASDAQ Historical.RDATA"))
