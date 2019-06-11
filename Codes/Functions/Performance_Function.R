@@ -99,7 +99,8 @@ Performance_Function = function(PR_Stage_R3,
                SMI_Delta = (SMI - lag(SMI,1)),
                SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
                CCI_Delta = (CCI - lag(CCI,1)),
-               VHF_Delta = (VHF - lag(VHF,1))) %>%
+               VHF_Delta = (VHF - lag(VHF,1)),
+               RSI_Delta = (RSI - lag(RSI,1))) %>%
         filter(Date == Current_Date)
         
       

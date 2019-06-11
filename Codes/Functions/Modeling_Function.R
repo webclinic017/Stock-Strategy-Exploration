@@ -27,17 +27,17 @@
     
     
     PR_Stage_R4 = PR_Stage_R4 %>%
-      filter(Date <= Max_Date)
+      filter(Date <= Max_Date,
+             Date >= Max_Date-365)
+    
+   
     
     ## Reducing Variable Pool
     Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
-                                                             -c(Open,High,Low,Close,Adjusted,
-                                                                Volume,Adjusted_Lead)) %>%
-                                                   sample_frac(0.25),
+                                                             -c(Adjusted_Lead)),
                                                  Type = 'C',
                                                  Target = "Target")
-    Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target,Volume)) %>%
-                                                    sample_frac(0.25),
+    Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target)),
                                                   Type = 'R',
                                                   Target = "Adjusted_Lead")
     
@@ -45,7 +45,13 @@
     LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
     UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
     PR_Stage_R5 = PR_Stage_R4 %>%
-      select(Stock,Date,Adjusted,Names_Profit$Var,Names_Futures$Var,Target,Adjusted_Lead)
+      select(Stock,
+             Date,
+             Adjusted,
+             Names_Profit$Var,
+             Names_Futures$Var,
+             Target,
+             Adjusted_Lead)
     
     ## Defining Filter Columns
     Filter = PR_Stage_R5 %>%
@@ -59,22 +65,15 @@
       PR_Stage_R5 = PR_Stage_R5[Keep,]
     }
     
-    Split_Profit = createDataPartition(y = PR_Stage_R5$Target,p = 0.70,list = F)
-    Split_Futures = createDataPartition(y = PR_Stage_R5$Adjusted_Lead,p = 0.70,list = F)
+    Train_Profit = PR_Stage_R5[,c(Names_Profit$Var,"Target")]
+    Train_Futures = PR_Stage_R5[,c(Names_Futures$Var,"Adjusted_Lead")]
+
     
-    Train_Profit = PR_Stage_R5[Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
-    Test_Profit = PR_Stage_R5[-Split_Profit,c(Names_Profit$Var,"Target","Date","Adjusted","Stock")]
-    Train_Futures = PR_Stage_R5[Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
-    Test_Futures = PR_Stage_R5[-Split_Futures,c(Names_Futures$Var,"Adjusted_Lead","Date","Adjusted","Stock")]
-    
-    
-    Model_Profit = stripGlmLR(glm(Target~.,
-                       data = select(Train_Profit,
-                                     -c(Stock,Date,Adjusted)),
+    Model_Profit = stripGlmLR(glm(Target~.^2,
+                       data = Train_Profit,
                        family = "quasibinomial"))
-    Model_Futures = stripGlmLR(glm(Adjusted_Lead~.,
-                       data = select(Train_Futures,
-                                     -c(Stock,Date,Adjusted))))
+    Model_Futures = stripGlmLR(glm(Adjusted_Lead~.^2,
+                       data = Train_Futures))
     
     return(list(Model_Futures = Model_Futures,
                 Model_Profit = Model_Profit,

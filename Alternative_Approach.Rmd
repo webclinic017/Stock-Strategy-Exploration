@@ -154,7 +154,8 @@ ID_DF = PR_Stage_R3 %>%
          SMI_Delta = (SMI - lag(SMI,1)),
          SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
          CCI_Delta = (CCI - lag(CCI,1)),
-         VHF_Delta = (VHF - lag(VHF,1)))
+         VHF_Delta = (VHF - lag(VHF,1)),
+         RSI_Delta = (RSI - lag(RSI,1)))
 
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
@@ -168,7 +169,8 @@ PR_Stage_R4 = PR_Stage_R3 %>%
          SMI_Delta = (SMI - lag(SMI,1)),
          SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
          CCI_Delta = (CCI - lag(CCI,1)),
-         VHF_Delta = (VHF - lag(VHF,1))) %>%
+         VHF_Delta = (VHF - lag(VHF,1)),
+         RSI_Delta = (RSI - lag(RSI,1))) %>%
   ungroup() %>%
   select(-c(PD_Lead)) %>%
   na.omit() %>%
@@ -295,36 +297,71 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
+  ## Perfromance Function Parameters
   Starting_Money = 10000
   Max_Holding = 0.05
   Max_Stocks = floor(1/Max_Holding)
   Max_Loss = 0.05
+  
+  ## Loop To Ensure Good Start / End Dates
+  MR = character(0)
+  while(length(MR) == 0){
   Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
   Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
   Dates = sort(unique(PR_Stage_R4$Date))[Start:(Start+252)]
   IP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                    Combined_Results$Date == Dates[1]+ Delta + 6]
+                                    Combined_Results$Date == Dates[1]+ Delta]
   FP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                    Combined_Results$Date == Dates[length(Dates)] + Delta + 6]
+                                    Combined_Results$Date == Dates[length(Dates)] + Delta]
   (MR = scales::percent((FP-IP)/IP))
+  }
+  (MR)
+  
+  ## Copy for Liquidity Check
+  ID_DF_2 = ID_DF %>%
+    filter(Date <= Dates[1] + Delta,
+           Date >= Dates[1]+Delta-365)
+  
+  ## Removing Junk / Baby Stocks
+  CHECK = ID_DF_2 %>%
+    group_by(Stock) %>%
+    na.locf() %>%
+    na.omit() %>%
+    summarise(O = sum(Open == 0),
+              H = sum(High == 0),
+              L = sum(Low == 0),
+              C = sum(Close == 0),
+              V = sum(Volume < 100),
+              V_AVG = median(Volume),
+              C_AVG = median(Close),
+              DV = V_AVG * C_AVG) %>%
+    filter(O == 0,
+           H == 0,
+           L == 0,
+           C == 0,
+           V == 0,
+           V_AVG >= 400000,
+           DV >= 20000000)
+  
+  ID_DF_2 = ID_DF_2 %>%
+    filter(Stock %in% CHECK$Stock)
   
   ## Building Initial Models
   Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                  Volatility_Satchell > 0.10,
-                                                  Volatility_Satchell < 0.50,
-                                                  DIL > 15,
-                                                  DIL < 60,
-                                                  SMI_Signal > -50,
-                                                  SMI_Signal < 50,
-                                                  DI > -875,
-                                                  DI < 275),
+                                                  Stock %in% CHECK$Stock),
                              Max_Date = ymd(as.character(Dates[1])))
-
+  
+ 
+  
+  ## Initializing Counter / Progress Bar
   counter = 0
   p = progress_estimated(length(Dates))
   for(i in 1:length(Dates)){
+    ## Adjusted To Not Include Trained Information
     Current_Date = as.character(Dates[i]+Delta)
-    TODAY = ID_DF %>%
+   
+    ## Subsetting to Current Day Performance
+    TODAY = ID_DF_2 %>%
       filter(Date == Current_Date)
     
     ## Periodically Checking Positions
@@ -333,14 +370,7 @@ if(Back_Test){
                                   TODAY = TODAY,
                                   FinViz = F)
       RESULT = Preds$RESULT %>%
-        filter(Volatility_Satchell > 0.10,
-               Volatility_Satchell < 0.50,
-               DIL > 15,
-               DIL < 60,
-               SMI_Signal > -50,
-               SMI_Signal < 50,
-               DI > -875,
-               DI < 275)
+        filter(RSI > 20)
       FUTURES = Preds$FUTURES
       SHORTS = Preds$SHORTS
     }
@@ -379,7 +409,6 @@ if(Back_Test){
          }, warning = function(w){
            print(w)
          }, error = function(e){
-           print("Encountered a Non-Trading Day")
          }, finally = {
          })
          if(all(class(Result) == "data.frame")){
@@ -391,6 +420,10 @@ if(Back_Test){
 }
 print("S&P Market Return")
 (MR = scales::percent((FP-IP)/IP))
+
+arrange(Models$Names_Profit,P_Val)
+arrange(Models$Names_Futures,P_Val)
+
 
 ## Loading Previously Stored Back Test
 load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
@@ -415,7 +448,7 @@ Explore = History_Table %>%
   filter(!is.infinite(Pcent_Adj)) %>%
   select(Good,Pcent_Adj,Positive,Volatility_Satchell,everything())
 
-Var = "DI"
+Var = "DIL"
 counter = 0
 for(i in seq(min(Explore[,Var]),max(Explore[,Var]),length.out = 100)){
   counter = counter + 1
