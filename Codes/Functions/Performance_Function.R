@@ -6,7 +6,6 @@ Performance_Function = function(PR_Stage_R3,
                                 Max_Holding = 0.10,
                                 Max_Stocks = 10,
                                 Projection = 15,
-                                Profit_Target = 2,
                                 Max_Loss = 0.05,
                                 Current_Date,
                                 Fear_Marker,
@@ -39,7 +38,7 @@ Performance_Function = function(PR_Stage_R3,
              Profit = 0,
              Buy.Price = Close,
              Max.Price = Close,
-             Buy.Date = Date,
+             Buy.Date = Current_Date,
              Stop.Loss = case_when(
                abs(Stop_Loss - Buy.Price)/Buy.Price < (1-Max_Loss) ~ Buy.Price*(1-Max_Loss),
                T ~ Stop_Loss
@@ -162,11 +161,6 @@ Performance_Function = function(PR_Stage_R3,
           History_Table$Sell.Date[i] = ifelse(History_Table$Pcent.Gain[i] > 0,
                                               NA,
                                               as.character(Current_Date))
-          ## Selling if Return < Median After Projection Timeline
-          if(History_Table$Pcent.Gain[i]/History_Table$Time.Held[i] <
-             median(History_Table$Pcent.Gain/History_Table$Time.Held,na.rm = T)){
-            History_Table$Sell.Date[i] = as.character(Current_Date)
-          }
         }
         
         ## Selling if Projection Is to Lose More Than 1/2 of Gains
@@ -192,7 +186,7 @@ Performance_Function = function(PR_Stage_R3,
                Profit = 0,
                Buy.Price = Close,
                Max.Price = Close,
-               Buy.Date = Date,
+               Buy.Date = Current_Date,
                Stop.Loss = case_when(
                  abs(Stop_Loss - Buy.Price)/Buy.Price < (1-Max_Loss) ~ Buy.Price*(1-Max_Loss),
                  T ~ Stop_Loss

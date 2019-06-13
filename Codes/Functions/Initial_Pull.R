@@ -1,45 +1,48 @@
 Initial_Pull = function() {
-  NASDAQ_Stocks = read.csv(paste0(Project_Folder, "/Data/NASDAQ.csv")) %>%
-    mutate(LastSale = as.numeric(as.character(LastSale)),
-           IPOyear = as.numeric(as.character(IPOyear))) %>%
-    filter(!is.na(LastSale),
-           !is.na(IPOyear),
-           LastSale >= 15,
-           IPOyear <= as.numeric(year(Sys.Date()) - 5))
-  AMEX_Stocks = read.csv(paste0(Project_Folder, "/Data/AMEX.csv")) %>%
-    mutate(LastSale = as.numeric(as.character(LastSale)),
-           IPOyear = as.numeric(as.character(IPOyear))) %>%
-    filter(!is.na(LastSale),
-           !is.na(IPOyear),
-           LastSale >= 15,
-           IPOyear <= as.numeric(year(Sys.Date()) - 5))
-  NYSE_Stocks = read.csv(paste0(Project_Folder, "/Data/NYSE.csv")) %>%
-    mutate(LastSale = as.numeric(as.character(LastSale)),
-           IPOyear = as.numeric(as.character(IPOyear))) %>%
-    filter(!is.na(LastSale),
-           !is.na(IPOyear),
-           LastSale >= 15,
-           IPOyear <= as.numeric(year(Sys.Date()) - 5))
-  ETFS = read.csv(paste0(Project_Folder,"/Data/ETFList.csv")) %>%
-    mutate(IPOyear = as.numeric(year(Sys.Date()) - 5)) %>%
-    filter(LastSale >= 15)
+  ## Updating Stock List
+  Auto_Stocks = stockSymbols() %>%
+    filter(!is.na(Industry),
+           !is.na(Sector),
+           !is.na(MarketCap))
+  
+  Auto_Stocks = Auto_Stocks %>%
+    mutate(Multiplier = str_extract(MarketCap,"\\w$"),
+           Value = str_extract(MarketCap,"\\d+")) %>%
+    filter(str_detect(Multiplier,"M|B")) %>%
+    mutate(New_Cap = case_when(
+      Multiplier == "M" ~ as.numeric(Value) * 1e6,
+      Multiplier == "B" ~ as.numeric(Value) * 1e9
+    )) %>%
+    filter(New_Cap > 300e6) %>%
+    mutate(Cap_Type = case_when(
+      New_Cap > 300e9 ~ "Mega",
+      New_Cap > 10e9 ~ "Large",
+      New_Cap > 2e9 ~ "Mid",
+      New_Cap > 300e6 ~ "Small"
+    )) %>%
+    select(-c(IPOyear,Exchange,Multiplier,Value))
+  
+  save(Auto_Stocks,
+       file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
   Market_Tickers = data.frame(
-    Symbol = c("^GSPC", "^IXIC", "^DJI", "^VIX", "^VXN", "MFST","DIS"),
+    Symbol = c("^GSPC", "^IXIC", "^DJI", "^VIX", "^VXN"),
     Name = c(
       "S&P 500",
       "NASDAQ",
       "Dow Jones",
       "S&P Volatility",
-      "NASDAQ Volatility",
-      "Microsoft",
-      "Disney"
-    ),
-    IPOyear = as.numeric(year(Sys.Date()) - 5),
-    LastSale = 1000
+      "NASDAQ Volatility"
+    )
   )
   
-  Total_Stocks = bind_rows(Market_Tickers, NASDAQ_Stocks, NYSE_Stocks, AMEX_Stocks, ETFS)
+  ## Combining & Removing Dead Stocks
+  Total_Stocks = bind_rows(Market_Tickers, Auto_Stocks) %>%
+    filter(!str_detect(str_trim(Symbol),
+                       paste0("^ARII$|^ATHN$|^BHBK$|^BLMT$|^ECYT$|^ESRX$|^GNBC$|^HDP$|^KANG$|^IDTI$",
+                       "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
+                       "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
+                       "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$")))
  
   for (j in 1:2){
     Dump = list()
