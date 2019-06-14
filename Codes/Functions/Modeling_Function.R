@@ -28,7 +28,8 @@
     
     PR_Stage_R4 = PR_Stage_R4 %>%
       filter(Date <= Max_Date,
-             Date >= Max_Date-365)
+             Date >= Max_Date-365) %>%
+      BUY_POS_FILTER()
     
    
     

@@ -29,10 +29,19 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Re_Pull = T
-Initial_History = F
+Initial_History = T
 TEST = F
-Back_Test = F
+Back_Test = T
 Investment_Value = 350
+
+## Perfromance Function Parameters
+Starting_Money = 350
+Max_Loss = 0.05
+Max_Holding = Max_Loss*2
+Max_Stocks = floor(1/Max_Holding)
+
+## Timeline For Profit Model (Trading Days)
+Projection = 15
 ```
 
 ### {.tabset}
@@ -161,8 +170,8 @@ ID_DF = PR_Stage_R3 %>%
 ## Defining Target Variable
 PR_Stage_R4 = PR_Stage_R3 %>%
   group_by(Stock) %>%
-  mutate(Adjusted_Lead = lead(Close,15),
-         PD_Lead = (Adjusted_Lead - Adjusted)/Adjusted,
+  mutate(Adjusted_Lead = lead(Close,Projection),
+         PD_Lead = (Adjusted_Lead - Close)/Close,
          Target = ifelse(PD_Lead > 0,1,0),
          Adjusted_Lead = PD_Lead) %>%
    mutate(WAD_Delta = WAD - lag(WAD,1),
@@ -177,11 +186,7 @@ PR_Stage_R4 = PR_Stage_R3 %>%
   na.omit() %>%
   filter(!str_detect(Stock,"^\\^"))
 
-Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                DVI_STR < 7.925000e-01,
-                                                WAD_Delta > -6.883000e-01,
-                                                Pseudo_Alpha_PD > -5.20,
-                                                Volume > 3.02e5),
+Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
                            Max_Date = max(PR_Stage_R4$Date))
 
 TODAY = ID_DF %>%
@@ -191,11 +196,9 @@ PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = F)
 RESULT = PREDS$RESULT %>%
-  filter(DVI_STR < 7.925000e-01,
-         WAD_Delta > -6.883000e-01,
-         Pseudo_Alpha_PD > -5.20,
-         Volume > 3.02e5,
-         Close < Investement_Value*0.10)
+  filter(Close < Investment_Value*0.10) %>%
+  BUY_POS_FILTER() %>%
+  head(25)
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
@@ -303,258 +306,61 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
-  ## Perfromance Function Parameters
-  Starting_Money = 350
-  Max_Loss = 0.05
-  Max_Holding = Max_Loss*2
-  Max_Stocks = floor(1/Max_Holding)
-  Projection = 15
-  
-  ## Loop To Ensure Good Start / End Dates
-  MR = character(0)
-  while(length(MR) == 0){
-  Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
-  Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
-  Dates = sort(unique(PR_Stage_R4$Date))[Start:(Start+252)]
-  IP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                    Combined_Results$Date == Dates[1]+ Delta]
-  FP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                    Combined_Results$Date == Dates[length(Dates)] + Delta]
-  (MR = scales::percent((FP-IP)/IP))
-  }
-  (MR)
-  
-  ## Copy for Liquidity Check
-  ID_DF_2 = ID_DF %>%
-    filter(Date <= Dates[1] + Delta,
-           Date >= Dates[1]+Delta-365)
-  
-  ## Removing Junk / Baby Stocks
-  CHECK = ID_DF_2 %>%
-    group_by(Stock) %>%
-    na.locf() %>%
-    na.omit() %>%
-    summarise(O = sum(Open == 0),
-              H = sum(High == 0),
-              L = sum(Low == 0),
-              C = sum(Close == 0),
-              V = sum(Volume < 100),
-              V_AVG = median(Volume),
-              C_AVG = median(Close),
-              DV = V_AVG * C_AVG) %>%
-    filter(O == 0,
-           H == 0,
-           L == 0,
-           C == 0,
-           V == 0,
-           V_AVG >= 400000,
-           C_AVG < Starting_Money*Max_Holding,
-           DV >= 20000000)
-  
-  ID_DF_2 = ID_DF %>%
-    filter(Stock %in% CHECK$Stock)
-  
-  ## Building Initial Models
-  Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                  Stock %in% CHECK$Stock,
-                                                  DVI_STR < 7.925000e-01,
-                                                  AROON_Down > 8.33,
-                                                  Volume > 3.02e5,
-                                                  RSI > 31.4,
-                                                  Pseudo_Alpha_PD > -5.20,
-                                                  WAD_Delta > -6.883000e-01,
-                                                  Close_50_Time_Norm > 1),
-                             Max_Date = ymd(as.character(Dates[1])))
-  
- 
-  
-  ## Initializing Counter / Progress Bar
-  counter = 0
-  p = progress_estimated(length(Dates))
-  for(i in 1:length(Dates)){
-    ## Adjusted To Not Include Trained Information
-    Current_Date = as.character(Dates[i]+Delta)
-   
-    ## Subsetting to Current Day Performance
-    TODAY = ID_DF_2 %>%
-      filter(Date == Current_Date)
-    
-    ## Periodically Checking Positions
-    if(nrow(TODAY) > 0){
-      Preds = Prediction_Function(Models,
-                                  TODAY = TODAY,
-                                  FinViz = F)
-      RESULT = Preds$RESULT %>%
-        filter(DVI_STR < 7.925000e-01,
-               WAD_Delta > -6.883000e-01,
-               Pseudo_Alpha_PD > -5.20,
-               AROON_Down > 8.33,
-               Volume > 3.02e5,
-               RSI > 31.4,
-               Close_50_Time_Norm > 1)
-      FUTURES = Preds$FUTURES
-      SHORTS = Preds$SHORTS
-      
-      if(nrow(RESULT) > 0 & counter == 0){
-        counter = counter + 1
-        History_Table = 
-          Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                               RESULT = RESULT,
-                               FUTURES = FUTURES,
-                               SHORTS = SHORTS,
-                               Starting_Money = Starting_Money,
-                               Max_Holding = Max_Holding,
-                               Max_Stocks = Max_Stocks,
-                               Max_Loss = Max_Loss,
-                               Current_Date = Current_Date,
-                               Projection = 15,
-                               Initial_History = ifelse(counter == 1,T,F),
-                               History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
-      }else{
-         counter = counter + 1
-         Result =  tryCatch({
-           History_Table = 
-             Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                                  RESULT = RESULT,
-                                  FUTURES = FUTURES,
-                                  SHORTS = SHORTS,
-                                  Starting_Money = Starting_Money,
+BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   Max_Holding = Max_Holding,
                                   Max_Stocks = Max_Stocks,
                                   Max_Loss = Max_Loss,
-                                  Current_Date = Current_Date,
                                   Projection = Projection,
-                                  Initial_History = ifelse(counter == 1,T,F),
-                                  History_Location = paste0(Project_Folder,
-                                                            "/data/Back Test.RDATA"))
-         }, warning = function(w){
-           print(w)
-         }, error = function(e){
-           print(e)
-         }, finally = {
-         })
-         if(all(class(Result) == "data.frame")){
-           History_Table = Result
-         }
-      }
-    }
-    p$pause(0.1)$tick()$print()
+                                  ID_DF = ID_DF,
+                                  PR_Stage_R3 = PR_Stage_R3,
+                                  PR_Stage_R4 = PR_Stage_R4,
+                                  Combined_Results = Combined_Results,
+                                  Itterations = 2,
+                                  PARALLEL = T)
+save(BT_List,
+     file = paste0(Project_Folder,"/Data/BT.RDATA"))
+load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
+
+for(i in 1:length(BT_List)){
+  TMP = BT_List[[i]]
+  RUN_OUT = TMP$RUN_OUT
+  RULE_OUT = TMP$RULE_OUT %>%
+    ungroup() %>%
+    filter(MAX == max(MAX))
+  TRADES_OUT = TMP$TRADES_OUT
+  if(i == 1){
+    RUNS = RUN_OUT
+    RULES = RULE_OUT
+    TRADES = TRADES_OUT
+  }else{
+    RUNS = bind_rows(RUNS,RUN_OUT)
+    RULES = bind_rows(RULES,RULE_OUT)
+    TRADES = bind_rows(TRADES,TRADES_OUT)
   }
 }
-print("S&P Market Return")
-(MR = scales::percent((FP-IP)/IP))
 
-## Loading Previously Stored Back Test
-load(file = paste0(Project_Folder,"/data/Back Test.RDATA"))
+RULES_Summary = RULES %>%
+  group_by(Var) %>%
+  summarise_all(median) %>%
+  mutate(Delta = abs(PL-PH))
 
-History_Table = History_Table %>%
-  select(Prob,Delta,everything())
-
-## Adding Additional Technical Indicators
-Explore = History_Table %>%
-    filter(Pcent.Gain != 0,
-           !is.na(Sell.Date)) %>%
-    left_join(Market_Ind) %>%
-    left_join(Fear_Ind) %>%
-    mutate(Positive = ifelse(Pcent.Gain > 0,1,0),
-           Pcent_Adj = Pcent.Gain/Time.Held,
-           Good = case_when(
-             Max.Price > Buy.Price ~ 1,
-             T ~ 0
-           ),
-           SL = case_when(
-             Pcent.Gain == -Max_Loss ~ 1,
-             T ~ 0
-           )) %>%
-  select_if(is.numeric) %>%
-  select(-contains("MAX_")) %>%
-  filter(!is.infinite(Pcent_Adj)) %>%
-  select(Good,Pcent_Adj,Positive,SL,everything())
-
-STORE = data.frame(Var = character(),
-                   VL = numeric(),
-                   PL = numeric(),
-                   VH = numeric(),
-                   PH = numeric())
-Vars = colnames(Explore)
-p = progress_estimated(length(Vars))
-for(Var in Vars){
-  counter = 0
-  for(i in seq(min(Explore[,Var]),max(Explore[,Var]),length.out = 25)){
-    counter = counter + 1
-    Keep_Low = which(Explore[,Var] < i)
-    Keep_High = which(Explore[,Var] > i)
-    TMP_Low = History_Table[Keep_Low,]
-    P_TL = sum(TMP_Low$Profit) + 
-      sum(TMP_Low$Buy.Price[is.na(TMP_Low$Sell.Date)] *
-            TMP_Low$Pcent.Gain[is.na(TMP_Low$Sell.Date)] *
-            TMP_Low$Number[is.na(TMP_Low$Sell.Date)])
-    TMP_High = History_Table[Keep_High,]
-    P_TH = sum(TMP_High$Profit) + 
-      sum(TMP_High$Buy.Price[is.na(TMP_High$Sell.Date)] *
-            TMP_High$Pcent.Gain[is.na(TMP_High$Sell.Date)] *
-            TMP_High$Number[is.na(TMP_High$Sell.Date)])
-    if(counter == 1){
-      PL = P_TL
-      VL = i
-      PH = P_TH
-      VH = i
-    }else{
-      if(P_TL > PL){
-        PL = P_TL
-        VL = i
-      }
-      if(P_TH > PH){
-        PH = P_TH
-        VH = i
-      }
-    }
-  }
-  TMP = data.frame(
-    Var = Var,
-    VL = round(VL, 4),
-    PL = PL,
-    VH = round(VH, 4),
-    PH = PH
-  )
-  STORE = bind_rows(STORE,TMP)
-  p$pause(0.1)$tick()$print()
 }
-STORE = STORE %>%
-  filter(!Var %in% c("Profit","Number","Positive","Pcent.Gain","Good",
-                     "Time.Held","Pcent_Adj","SL","Delta","Future","Decider","Risk")) %>%
-  rowwise() %>%
-  mutate(MAX = max(c(PL,PH))) %>%
-  arrange(desc(MAX))
-STORE  
-
-## Interactive Table of Buy History
-DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
-              filter = list(position = 'top',
-                            autoWidth = T),
-              rownames = F)
 ```
-
-##### Historical Return `r Historical_Return`
 
 #### Performance History
 
 ```{r Perf History, echo = F,message = F,warning=F}
-load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                                      RESULT = RESULT,
                                      FUTURES = FUTURES,
+                                     SHORTS = SHORTS,
+                                     Starting_Money = Investment_Value,
+                                     Max_Holding = Max_Holding,
+                                     Max_Stocks = Max_Stocks,
+                                     Max_Loss = Max_Loss,
+                                     Projection = Projection,
                                      Current_Date = getmode(TODAY$Date),
-                                     Fear_Marker = getmode(TODAY$Fear_Extent),
                                      Initial_History = Initial_History)
-
-# Printing Historical Returns
-Historical_Return = scales::percent(sum(History_Table$Pcent.Gain*History_Table$Buy.Price)/
-                                      sum(History_Table$Buy.Price) * 
-                                      (365 /
-                                         (as.numeric(max(History_Table$Buy.Date) - 
-                                                       min(History_Table$Buy.Date)))))
-
 ## Interactive Table of Buy History
 DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
               filter = list(position = 'top',
@@ -562,5 +368,5 @@ DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
               rownames = F)
 ```
 
-##### Historical Return `r Historical_Return`
+
 

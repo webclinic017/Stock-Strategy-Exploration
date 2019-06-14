@@ -42,7 +42,8 @@ Initial_Pull = function() {
                        paste0("^ARII$|^ATHN$|^BHBK$|^BLMT$|^ECYT$|^ESRX$|^GNBC$|^HDP$|^KANG$|^IDTI$",
                        "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
                        "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
-                       "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$")))
+                       "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$|^DEACU$",
+                       "|^SVA$|^UBS$")))
  
   for (j in 1:2){
     Dump = list()
@@ -87,6 +88,7 @@ Initial_Pull = function() {
     output.list  <- Dump[list.condition]
     Combined_Results = plyr::ldply(output.list, data.frame)
     
+    ## Performing Liquidity Checks
     CHECK = Combined_Results %>%
       group_by(Stock) %>%
       na.locf() %>%
@@ -106,6 +108,8 @@ Initial_Pull = function() {
              V == 0,
              V_AVG >= 400000,
              DV >= 20000000)
+    
+    ## Reducing to Highly Liquid Stocks
     Total_Stocks = Total_Stocks %>%
       filter(Symbol %in% c(CHECK$Stock,"^VIX","^VXN"))
   }

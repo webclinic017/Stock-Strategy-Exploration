@@ -10,6 +10,8 @@ Performance_Function = function(PR_Stage_R3,
                                 Current_Date,
                                 Fear_Marker,
                                 Initial_History = F,
+                                Load_Hist = T,
+                                Save_Hist = T,
                                 History_Location = paste0(Project_Folder,"/Data//History_Results.RDATA")){
   
   ## Builds Initial History Table
@@ -49,8 +51,7 @@ Performance_Function = function(PR_Stage_R3,
              Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
-    ## Loading historical performacne
-    load(file = History_Location)
+    if(Load_Hist){load(file = History_Location)}
     
     ## Subsetting Currently Held Stocks
     Checks = which(is.na(History_Table$Sell.Date))
@@ -210,13 +211,7 @@ Performance_Function = function(PR_Stage_R3,
     ))
   
   # Saving Pool Results and Reduced Raw Data
-  print(scales::dollar(sum(History_Table$Profit) + 
-                         sum(History_Table$Buy.Price[is.na(History_Table$Sell.Date)] *
-                               History_Table$Pcent.Gain[is.na(History_Table$Sell.Date)] *
-                               History_Table$Number[is.na(History_Table$Sell.Date)]),
-                       negative_parens = T))
-  print(sum(is.na(History_Table$Sell.Date) & History_Table$Number > 0))
-  save(History_Table,
-       file = History_Location)
+  if(Save_Hist){save(History_Table,file = History_Location)}
+  
   return(History_Table)
 }
