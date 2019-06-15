@@ -4,6 +4,8 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                    Max_Loss,
                                    Projection,
                                    ID_DF,
+                                   Fear_Ind,
+                                   Market_Ind,
                                    PR_Stage_R3,
                                    PR_Stage_R4,
                                    Combined_Results,
@@ -15,7 +17,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   opts <- list(progress = progress)
   if(PARALLEL){
     library(doSNOW)
-    c1 = makeCluster(min(c(detectCores(),2)),outfile = "")
+    c1 = makeCluster(min(c(detectCores(),8)),outfile = "")
     registerDoSNOW(c1)
   }else{
     registerDoSEQ()
@@ -32,7 +34,8 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                   "TTR"),
                     .export = c("Modeling_Function",
                                 "Prediction_Function",
-                                "Performance_Function"), 
+                                "Performance_Function",
+                                "BUY_POS_FILTER"), 
                     .verbose = T,
                     .options.snow = opts) %dopar% 
     {
@@ -91,6 +94,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
       counter = 0
       MH = -9e9
       ML = 9e9
+      p = progress_estimated(length(Dates))
       for(i in 1:length(Dates)){
         ## Adjusted To Not Include Trained Information
         Current_Date = as.character(Dates[i]+Delta)
@@ -162,6 +166,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                 History_Table$Number[is.na(History_Table$Sell.Date)])
         if(Profit > MH){MH = Profit}
         if(Profit < ML){ML = Profit}
+        p$pause(0.1)$tick()$print()
       }
     
       History_Table = History_Table %>%
