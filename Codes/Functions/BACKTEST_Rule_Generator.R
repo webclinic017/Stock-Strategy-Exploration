@@ -1,11 +1,11 @@
 BACKTEST_Rule_Generator = function(Starting_Money,
                                    Max_Holding,
-                                   Max_Stocks,
                                    Max_Loss,
                                    Projection,
                                    ID_DF,
                                    Fear_Ind,
                                    Market_Ind,
+                                   Auto_Stocks,
                                    PR_Stage_R3,
                                    PR_Stage_R4,
                                    Combined_Results,
@@ -17,7 +17,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   opts <- list(progress = progress)
   if(PARALLEL){
     library(doSNOW)
-    c1 = makeCluster(min(c(detectCores(),8)),outfile = "")
+    c1 = makeCluster(min(c(detectCores(),4)),outfile = "")
     registerDoSNOW(c1)
   }else{
     registerDoSEQ()
@@ -36,7 +36,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                 "Prediction_Function",
                                 "Performance_Function",
                                 "BUY_POS_FILTER"), 
-                    .verbose = T,
+                    .verbose = F,
                     .options.snow = opts) %dopar% 
     {
       ## Loop To Ensure Good Start / End Dates
@@ -109,7 +109,12 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                       TODAY = TODAY,
                                       FinViz = F)
           RESULT = Preds$RESULT %>%
-            BUY_POS_FILTER()
+            BUY_POS_FILTER() %>%
+            left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+            select(Sector,Industry,Decider,everything()) %>%
+            group_by(Sector,Industry) %>%
+            filter(Decider == max(Decider)) %>%
+            ungroup()
           FUTURES = Preds$FUTURES
           SHORTS = Preds$SHORTS
           
@@ -122,7 +127,6 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                    SHORTS = SHORTS,
                                    Starting_Money = Starting_Money,
                                    Max_Holding = Max_Holding,
-                                   Max_Stocks = Max_Stocks,
                                    Max_Loss = Max_Loss,
                                    Current_Date = Current_Date,
                                    Projection = Projection,
@@ -140,7 +144,6 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                      SHORTS = SHORTS,
                                      Starting_Money = Starting_Money,
                                      Max_Holding = Max_Holding,
-                                     Max_Stocks = Max_Stocks,
                                      Max_Loss = Max_Loss,
                                      Current_Date = Current_Date,
                                      Projection = Projection,
@@ -250,7 +253,9 @@ BACKTEST_Rule_Generator = function(Starting_Money,
         rowwise() %>%
         mutate(MAX = max(c(PL,PH))) %>%
         arrange(desc(MAX)) %>%
-        filter(MAX > Method_Profit)
+        filter(MAX > Method_Profit) %>% 
+        ungroup() %>%
+        filter(MAX == max(MAX))
       
       ## Storing_Results
       RUN_OUT = data.frame(Time_Start = Dates[1] + Delta,

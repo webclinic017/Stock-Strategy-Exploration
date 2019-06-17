@@ -5,11 +5,15 @@ BUY_POS_FILTER = function(DF){
            Volatility_Close < 1.03870,
            Ultimate_Oscillator > 39.616,
            Close_PD_200_Norm > -0.2154,
+           Close_SD_50_Norm < 1.58610,
            Volume_SD_Norm > -0.5719,
            Price_Range_15_SD_Norm < 3.1024,
            Pseudo_Alpha_PD < 4.8991,
            CCI > -177.6927,
            CLV > -0.58330,
+           DVI_MAG > 0.08600,
+           TDI > -24.926,
+           RSI > 35.47190,
            RSI_Delta < 4.83465,
            SMI > -49.1631,
            SMI_Signal > -53.9173,
@@ -17,9 +21,14 @@ BUY_POS_FILTER = function(DF){
            SMI_Delta > -4.0882,
            Fast_K > 0.2497,
            WPR < 0.7503,
+           WAD > -94.33665,
+           DIL < 27.90830,
+           MACD_Signal < 7.17395,
            AROON_Down > 25,
            AROON_Up > 0,
-           VHF > 0.3477
+           AROON_Osc > 83.33,
+           VHF > 0.3477,
+           TRIX > -0.46030
            )
   return(DF)
 }

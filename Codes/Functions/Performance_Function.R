@@ -4,7 +4,6 @@ Performance_Function = function(PR_Stage_R3,
                                 SHORTS,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
-                                Max_Stocks = 10,
                                 Projection = 15,
                                 Max_Loss = 0.05,
                                 Current_Date,
@@ -18,19 +17,30 @@ Performance_Function = function(PR_Stage_R3,
   if(Initial_History){
     ## Removes Any Outside of Price Range
     RESULT = RESULT %>%
-      filter(Close < Starting_Money*Max_Holding) %>%
-      head(Max_Stocks)
+      BUY_POS_FILTER() %>%
+      filter(Close < Starting_Money*Max_Holding)
     MAX = RESULT %>%
       select(Stock,Date,Volume_PD_Norm:CCI_Delta)
     colnames(MAX)[3:length(colnames(MAX))] = str_c("MAX_",colnames(MAX)[3:length(colnames(MAX))])
     RESULT = RESULT %>%
       left_join(MAX,by = c("Stock", "Date"))
     
-    ## Weights based on Prob + Delta
-    Weights = RESULT$Decider/sum(RESULT$Decider)
-    Weights[Weights > Max_Holding] = Max_Holding
-    ## Adjusts Purchase Amount based on weighting
-    Numbers = floor((Starting_Money*Weights)/RESULT$Close)
+    K = 0
+    Total_Capital = Starting_Money
+    Remaining_Money = Starting_Money
+    Number = numeric(length = nrow(RESULT))
+    while(K < nrow(RESULT)){
+      K = K + 1
+      counter = 0
+      Price = RESULT$Close[K]
+      while(Price < Remaining_Money & (counter+1)*Price < Total_Capital*Max_Holding){
+        counter = counter + 1
+        Remaining_Money = Remaining_Money - Price
+      }
+      Number[K] = counter
+    }
+    Numbers = Number[which(Number > 0)]
+    RESULT = RESULT[which(Number > 0),]
     
     ## Setting up initial history tracking
     History_Table = RESULT %>%
@@ -62,12 +72,10 @@ Performance_Function = function(PR_Stage_R3,
     
     ## Reducing Purchase List
     Remaining_Money = Starting_Money - sum(History_Table$Buy.Price[Checks]*History_Table$Number[Checks]) + sum(History_Table$Profit)
+    Total_Capital = sum(History_Table$Buy.Price[Checks]*History_Table$Number[Checks]) + sum(History_Table$Profit)
     RESULT = RESULT[New_Buys,]
-    Current_Holding = sum(is.na(History_Table$Sell.Date) & History_Table$Number > 0)
-    KEEP = ifelse(Current_Holding >= Max_Stocks,0,Max_Stocks- Current_Holding)
     RESULT = RESULT %>%
-      filter(Close < Remaining_Money*Max_Holding) %>%
-      head(KEEP)
+      filter(Close < Total_Capital*Max_Holding)
     if(nrow(RESULT) > 0){
       MAX = RESULT %>%
         select(Stock,Date,Volume_PD_Norm:CCI_Delta)
@@ -76,9 +84,20 @@ Performance_Function = function(PR_Stage_R3,
         left_join(MAX,by = c("Stock", "Date"))
     }
     
-    Weights = RESULT$Decider/sum(RESULT$Decider)
-    Weights[Weights > Max_Holding] = Max_Holding
-    Numbers = floor((Remaining_Money*Weights)/RESULT$Close)
+    K = 0
+    Number = numeric(length = nrow(RESULT))
+    while(K < nrow(RESULT)){
+      K = K + 1
+      counter = 0
+      Price = RESULT$Close[K]
+      while(Price < Remaining_Money & (counter+1)*Price < Total_Capital*Max_Holding){
+        counter = counter + 1
+        Remaining_Money = Remaining_Money - Price
+      }
+      Number[K] = counter
+    }
+    Numbers = Number[which(Number > 0)]
+    RESULT = RESULT[which(Number > 0),]
     
     ## Performing Holding Checks and Adjustments
     for(i in Checks){
