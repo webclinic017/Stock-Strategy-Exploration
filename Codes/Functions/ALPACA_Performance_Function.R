@@ -12,6 +12,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Paper API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
+  }else{
+    
   }
   
   ## Checking Account Status
