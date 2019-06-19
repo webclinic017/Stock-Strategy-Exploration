@@ -77,8 +77,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       Current_Info = get_bars(ticker = STOCK,limit = 1)[[STOCK]]
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
-      Time_Held = floor(as.numeric(difftime(max(Filled_Orders$filled_at[Filled_Orders$symbol == STOCK]),
-                                            Sys.time(),
+      Time_Held = floor(as.numeric(difftime(Sys.time(),
+                                            max(Filled_Orders$filled_at[Filled_Orders$symbol == STOCK]),
                                             units = "days")))
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
@@ -97,6 +97,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
         if(as.numeric(Current_Info$c) < Buy.Price){
           if(nrow(Loss_Order) != 0){
             cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
                        qty = Quantity,
@@ -108,6 +109,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
         if(Delta + Pcent_Gain <= Pcent_Gain*0.5){
           if(nrow(Loss_Order) != 0){
             cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
                        qty = Quantity,
@@ -146,7 +148,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           
           ## Updating Stop Loss if Higher
           if(Stop_Loss > Current_Stop_Loss){
+            ## Canceling Exisiting Order
             cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            Sys.sleep(10)
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
                          side = "sell",
