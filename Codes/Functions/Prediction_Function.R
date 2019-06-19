@@ -96,8 +96,7 @@ Prediction_Function = function(Models,
       select(-contains("Perf"))
     
     RESULT = Pool_Results %>%
-      filter(EPS.Q.Q > 0,
-             Sales.Q.Q > 0)
+      filter(EPS.Q.Q > 0)
   }
   
   FUTURES = TODAY %>%

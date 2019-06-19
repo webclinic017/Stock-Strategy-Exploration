@@ -17,7 +17,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret")
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -28,11 +28,13 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = T
+Re_Pull = F
 Initial_History = T
 TEST = F
 Back_Test = T
 Investment_Value = 350
+ALPACA = T
+PAPER = T
 
 ## Perfromance Function Parameters
 Starting_Money = 350
@@ -193,11 +195,9 @@ TODAY = ID_DF %>%
 
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
-                            FinViz = F)
+                            FinViz = T)
 RESULT = PREDS$RESULT %>%
-  filter(Close < Investment_Value*0.10) %>%
-  BUY_POS_FILTER() %>%
-  head(25)
+  BUY_POS_FILTER() 
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
 
@@ -381,6 +381,7 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             RESULT = RESULT,
                             FUTURES = FUTURES,
                             SHORTS = SHORTS,
+                            Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding,
                             Projection = Projection,
