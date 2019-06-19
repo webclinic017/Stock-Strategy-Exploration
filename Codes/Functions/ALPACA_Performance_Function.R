@@ -119,7 +119,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       }
       
       ## Calculating Stop Loss
-      if(Market_Sell == F){
+      if(!Market_Sell){
         if(nrow(Loss_Order) == 0){
           ## Determining Stop Loss
           Stop_Loss = max(c(

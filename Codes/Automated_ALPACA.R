@@ -15,7 +15,6 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Re_Pull = F
-ALPACA = T
 PAPER = T
 
 ## Perfromance Function Parameters
@@ -41,9 +40,9 @@ Combined_Results = Combined_Results %>%
   filter(Date != Sys.Date())
 
 ## Bear/Bull Calculations
-Market_Ind = Market_Direction(Combined_Results)
+Market_Ind = Market_Direction(Combined_Results,Plot = F)
 ## General Fear Calculations
-Fear_Ind = Fear_Direction(Combined_Results,Market_Ind)
+Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = F)
 
 ## Saving Market Indicators
 save(Market_Ind,Fear_Ind,
@@ -121,10 +120,6 @@ PR_Stage_R3 = plyr::ldply(Results,data.frame)
 save(PR_Stage_R3,
      file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 
-## Loading Indicator Data
-load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
-load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
-
 ## Initial Data
 ID_DF = PR_Stage_R3 %>%
   left_join(Market_Ind) %>%
@@ -173,7 +168,6 @@ SHORTS = PREDS$SHORTS
 save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 
-library(AlpacaforR)
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 
 ## Running Position Setting Function

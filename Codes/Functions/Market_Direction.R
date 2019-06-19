@@ -1,4 +1,4 @@
-Market_Direction = function(Combined_Results){
+Market_Direction = function(Combined_Results,Plot = T){
   
   ## Defining Market Status Based on Rolling Quarterly Performance
   Market_DF = Combined_Results %>%
@@ -77,18 +77,20 @@ Market_Direction = function(Combined_Results){
     head(1)
   
   ## Plot Examining Market Direction Designation
-  p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted)) +
-    geom_point(aes(color = Market_Status)) +
-    geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
-    scale_x_date(breaks = scales::pretty_breaks(9)) +
-    labs(x = "Date",
-         y = "Adjusted",
-         title = "Market Status of Past 6 Months",
-         subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Current Date = ",Current_Status$Date,
-                           " :: Status for Past ",Current_Status$Days," Days"),
-         color = "Market Status") +
-    facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
-  print(p1)
+  if(Plot){
+    p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted)) +
+      geom_point(aes(color = Market_Status)) +
+      geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+      scale_x_date(breaks = scales::pretty_breaks(9)) +
+      labs(x = "Date",
+           y = "Adjusted",
+           title = "Market Status of Past 6 Months",
+           subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Current Date = ",Current_Status$Date,
+                             " :: Status for Past ",Current_Status$Days," Days"),
+           color = "Market Status") +
+      facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+    print(p1)
+  }
   
   return(Market_Ind) 
 }

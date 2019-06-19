@@ -1,4 +1,4 @@
-Fear_Direction = function(Combined_Results,Market_Ind){
+Fear_Direction = function(Combined_Results,Market_Ind,Plot = T){
   ## Defining Fear Status
   Fear_DF = Combined_Results %>%
     filter(Stock %in% c("^VIX","^VXN")) %>%
@@ -69,18 +69,20 @@ Fear_Direction = function(Combined_Results,Market_Ind){
   VOLT_DF$Market_Status = factor(VOLT_DF$Market_Status,
                                  levels = c("Bull","Pullback","Correction","Bear"),
                                  ordered = F)
-  p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
-    geom_point(aes(color = Market_Status)) +
-    geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
-    scale_x_date(breaks = scales::pretty_breaks(9)) +
-    labs(x = "Date",
-         y = "Adjusted",
-         title = "Market Fear of Past 6 Months",
-         subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Current Date = ",Current_Type$Date,
-                           " :: Type for Past ",Current_Type$Days," Days"),
-         color = "Market Status") +
-    facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
-  print(p2)
   
+  if(Plot){
+    p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
+      geom_point(aes(color = Market_Status)) +
+      geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+      scale_x_date(breaks = scales::pretty_breaks(9)) +
+      labs(x = "Date",
+           y = "Adjusted",
+           title = "Market Fear of Past 6 Months",
+           subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Current Date = ",Current_Type$Date,
+                             " :: Type for Past ",Current_Type$Days," Days"),
+           color = "Market Status") +
+      facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+    print(p2)
+  }  
   return(Fear_Ind)
 }

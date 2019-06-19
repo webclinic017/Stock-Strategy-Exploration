@@ -197,9 +197,12 @@ PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = T)
 RESULT = PREDS$RESULT %>%
-  BUY_POS_FILTER() 
+  BUY_POS_FILTER()
 FUTURES = PREDS$FUTURES
 SHORTS = PREDS$SHORTS
+
+RESULT = RESULT %>%
+  filter(Delta > 2*ATR.x/Close)
 
 save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
@@ -346,6 +349,11 @@ RULES_Summary = RULES %>%
   group_by(Var) %>%
   summarise_all(median) %>%
   mutate(Delta = abs(PL-PH))
+TRADES_OUT = TRADES %>%
+  filter(Date >= max(Date)-365)
+write.csv(TRADES_OUT,
+          file = "C://users//aayorde//desktop//March_18_19_Trades.csv")
+
 
 }
 ```
