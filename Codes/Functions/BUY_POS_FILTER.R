@@ -2,6 +2,7 @@ BUY_POS_FILTER = function(DF){
   DF %>%
     filter(Volatility_Zhang < 0.883,
            Chaikin_Volatility < 0.2009,
+           chaikin_AD > -1.22648e+0,
            Volatility_Close < 1.03870,
            Ultimate_Oscillator > 39.616,
            Close_PD_200_Norm > -0.2154,
@@ -22,10 +23,11 @@ BUY_POS_FILTER = function(DF){
            Fast_K > 0.2497,
            WPR < 0.7503,
            WAD > -94.33665,
-           DIL < 27.90830,
+           DIL < 39,
+           DIP > 1.38047e+01,
            MACD_Signal < 7.17395,
            AROON_Down > 25,
-           AROON_Up > 0,
+           AROON_Up > 20,
            AROON_Osc > 83.33,
            VHF > 0.3477,
            TRIX > -0.46030

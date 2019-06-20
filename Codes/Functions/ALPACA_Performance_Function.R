@@ -14,12 +14,17 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
   }else{
-    
+    KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Live API.txt"))
+    Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
+    Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
   }
   
   ## Checking Account Status
   ACCT_Status = get_account()
   Current_Holdings = get_positions()
+  Sector_Ind_DF = try(Current_Holdings %>%
+    left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
+    select(Sector,Industry))
   Current_Orders = try(get_orders(status = 'all') %>%
     filter(status == "new"))
   Filled_Orders = try(get_orders(status = 'all') %>%
@@ -37,6 +42,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(Close < Investment_Value*Max_Holding,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    filter(!Sector %in% Sector_Ind_DF$Sector |
+             !Industry %in% Sector_Ind_DF$Industry) %>%
     select(Sector,Industry,Decider,everything()) %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%

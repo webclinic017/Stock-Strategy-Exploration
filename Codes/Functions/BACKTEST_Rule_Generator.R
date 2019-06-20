@@ -25,7 +25,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   
   RESULTS = foreach(LOOP = 1:Itterations,
                     .inorder = F,
-                    .errorhandling = "remove",
+                    .errorhandling = "stop",
                     .packages = c("tidyverse",
                                   "quantmod",
                                   "lubridate",
@@ -46,9 +46,11 @@ BACKTEST_Rule_Generator = function(Starting_Money,
         Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
         Dates = sort(unique(PR_Stage_R4$Date))[Start:(Start+252)]
         IP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                      Combined_Results$Date == Dates[1]+ Delta]
+                                      Combined_Results$Date == Dates[1]+ Delta] %>%
+          na.omit()
         FP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                      Combined_Results$Date == Dates[length(Dates)] + Delta]
+                                      Combined_Results$Date == Dates[length(Dates)] + Delta] %>%
+          na.omit()
         (MR = scales::percent((FP-IP)/IP))
       }
       
