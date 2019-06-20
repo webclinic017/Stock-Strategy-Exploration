@@ -382,8 +382,6 @@ DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
 #### Alpaca Paper Trading
 
 ```{r Alpaca Paper, echo = F,message = F,warning=F}
-library(AlpacaforR)
-
 ## Running Position Setting Function
 ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             RESULT = RESULT,
@@ -397,4 +395,19 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             PAPAER = T)
 ```
 
+#### Alpaca Live Trading
+
+```{r Alpaca Live,echo = F,message = F,warning=F}
+## Running Position Setting Function
+ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                            RESULT = RESULT,
+                            FUTURES = FUTURES,
+                            SHORTS = SHORTS,
+                            Auto_Stocks = Auto_Stocks,
+                            Project_Folder = Project_Folder,
+                            Max_Holding = Max_Holding,
+                            Projection = Projection,
+                            Max_Loss = Max_Loss,
+                            PAPAER = F)
+```
 
