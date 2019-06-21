@@ -95,7 +95,8 @@ registerDoSNOW(c1)
 
 ## Parallel Execution
 Results = foreach(i = 1:length(Stocks),
-                  .inorder = F,
+                    .inorder = F,
+                  .errorhandling = "remove",
                   .packages = c("tidyverse",
                                 "quantmod",
                                 "lubridate",
@@ -161,6 +162,7 @@ TODAY = ID_DF %>%
 PREDS = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = T)
+
 RESULT = PREDS$RESULT %>%
   BUY_POS_FILTER() 
 FUTURES = PREDS$FUTURES
@@ -171,7 +173,7 @@ save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
 
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 
-## Running Position Setting Function
+## Running Position Setting Function (Paper and Live)
 ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             RESULT = RESULT,
                             FUTURES = FUTURES,

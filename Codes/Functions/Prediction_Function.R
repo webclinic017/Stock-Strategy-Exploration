@@ -25,7 +25,7 @@ Prediction_Function = function(Models,
     ## Takes About 2 Minutes
     Start = Sys.time()
     storage = list()
-    print("Beginning Pool Selection FinViz Stat Pull")
+    print("FinViz Stat Pull")
     p = progress_estimated(nrow(RESULT))
     for(i in 1:nrow(RESULT)){
       Ticker = RESULT$Stock[i]
@@ -84,11 +84,7 @@ Prediction_Function = function(Models,
              Dividend = as.numeric(as.character(Dividend))) %>%
       distinct() 
     
-    RESULT = Pool_Results %>%
-      filter(EPS.past.5Y > 0,
-             ROE > 0,
-             Forward.P.E > P.E,
-             Dividend > 0)
+    RESULT = Pool_Results
   }
   
   FUTURES = TODAY %>%

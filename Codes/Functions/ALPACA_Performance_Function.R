@@ -9,7 +9,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                                        Max_Loss = 0.05,
                                        PAPER = T){
   ## Setting API Keys
-  if(PAPAER){
+  if(PAPER){
     KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Paper API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
@@ -93,7 +93,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     if(!"try-error" %in% class(Sold_Orders)){
       if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol & 
          as.numeric(difftime(Sys.time(),
-                             max(Sold_Orders$filled_at[Sold_Orders$symbol == RESULT$Stock[STOCK]]),
+                             max(Sold_Orders$filled_at[Sold_Orders$symbol == RESULT$Stock[STOCK]],na.rm = T),
                              units = "days")) < 30){
         print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
       }else{
@@ -139,9 +139,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       }
       
       ## Stop Loss Override Checks
-      if(Time_Held >= Projection){
+      if(Time_Held >= Projection & !is.infinite(Time_Held)){
         ## Selling if Negative After Projection Time Frame
-        if(as.numeric(Current_Info$c) < Buy.Price){
+        if(as.numeric(Current_Info$c) < Buy_Price){
           if(nrow(Loss_Order) != 0){
             cancel_order(ticker = STOCK,order_id = Loss_Order$id)
             Sys.sleep(10)
@@ -150,7 +150,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        qty = Quantity,
                        side = "sell",
                        type = "market",
-                       time_in_force = "gtc")
+                       time_in_force = "gtc",
+                       live = !PAPER)
           Market_Sell = T
         }
         if(Delta + Pcent_Gain <= Pcent_Gain*0.5){
@@ -162,7 +163,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        qty = Quantity,
                        side = "sell",
                        type = "market",
-                       time_in_force = "gtc")
+                       time_in_force = "gtc",
+                       live = !PAPER)
           Market_Sell = T
         }
       }
@@ -183,7 +185,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        type = "stop_limit",
                        time_in_force = "gtc",
                        stop_price = as.character(Stop_Loss),
-                       limit_price = as.character(Stop_Loss*0.99))
+                       limit_price = as.character(Stop_Loss*0.99),
+                       live = !PAPER)
         }else{
           ## Pulling Current Stop Loss
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
@@ -205,7 +208,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                          type = "stop_limit",
                          time_in_force = "gtc",
                          stop_price = as.character(Stop_Loss),
-                         limit_price = as.character(Stop_Loss*0.99))
+                         limit_price = as.character(Stop_Loss*0.99),
+                         live = !PAPER)
           }
         }
       }
