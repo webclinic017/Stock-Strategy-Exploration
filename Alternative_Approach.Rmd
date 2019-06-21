@@ -208,15 +208,19 @@ save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
-#### Potential Buy Position
 
-```{r,echo = F}
+```{r Report Data, include = F}
 load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
+```
 
+
+#### Potential Buy Position
+
+```{r,echo = F}
 DT::datatable(mutate_if(RESULT,is.numeric,round,3),
               rownames = F,
               options = list(autoWidth = T))

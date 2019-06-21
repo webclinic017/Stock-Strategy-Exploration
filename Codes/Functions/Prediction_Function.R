@@ -34,24 +34,18 @@ Prediction_Function = function(Models,
       storage[[i]] = TMP
       p$pause(0.5)$tick()$print()
     }
-    Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
+    Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame) %>%
+      select(-contains("Perf"),
+             -contains("SMA"),
+             -c(ATR,Volume,Prev.Close,Price,Volatility,Change,Rel.Volume,
+                                  X52W.Range,X52W.High,X52W.Low,RSI..14.,
+                Index,Optionable,Shortable,Earnings,Beta))
     Sys.time() - Start
     
     Pool_Results = RESULT %>%
       left_join(Metrics,by = "Stock") %>%
       mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
              Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
-             Change = as.numeric(str_remove(Change,"%"))/100,
-             Price = as.numeric(as.character(Price)),
-             Prev.Close = as.numeric(as.character(Prev.Close)),
-             Beta = as.numeric(as.character(Beta)),
-             Perf.YTD = as.numeric(str_remove(Perf.YTD,"%"))/100,
-             Perf.Year = as.numeric(str_remove(Perf.Year,"%"))/100,
-             Perf.Half.Y = as.numeric(str_remove(Perf.Half.Y,"%"))/100,
-             Perf.Quarter = as.numeric(str_remove(Perf.Quarter,"%"))/100,
-             Perf.Month = as.numeric(str_remove(Perf.Month,"%"))/100,
-             Perf.Week = as.numeric(str_remove(Perf.Week,"%"))/100,
-             RSI..14. = as.numeric(as.character(RSI..14.)),
              EPS..ttm. = as.numeric(str_remove(EPS..ttm.,"%"))/100,
              EPS.next.Y = as.numeric(str_remove(EPS.next.Y,"%"))/100,
              EPS.next.Q = as.numeric(str_remove(EPS.next.Q,"%"))/100,
@@ -65,8 +59,6 @@ Prediction_Function = function(Models,
              ROA = as.numeric(str_remove(ROA,"%"))/100,
              ROE = as.numeric(str_remove(ROE,"%"))/100,
              ROI = as.numeric(str_remove(ROI,"%"))/100,
-             X52W.High = as.numeric(str_remove(X52W.High,"%"))/100,
-             X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
              Target.Price = as.numeric(as.character(Target.Price)),
              Short.Ratio = as.numeric(as.character(Short.Ratio)),
              Short.Float = as.numeric(str_remove(Short.Float,"%"))/100,
@@ -76,7 +68,6 @@ Prediction_Function = function(Models,
              Inst.Own = as.numeric(str_remove(Inst.Own,"%"))/100,
              Insider.Trans = as.numeric(str_remove(Insider.Trans,"%"))/100,
              Insider.Own = as.numeric(str_remove(Insider.Own,"%"))/100,
-             X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
              LT.Debt.Eq = as.numeric(as.character(LT.Debt.Eq)),
              Debt.Eq = as.numeric(as.character(Debt.Eq)),
              Current.Ratio = as.numeric(as.character(Current.Ratio)),
@@ -90,14 +81,14 @@ Prediction_Function = function(Models,
              P.E = as.numeric(as.character(P.E)),
              Recom = as.numeric(as.character(Recom)),
              Employees = as.numeric(as.character(Employees)),
-             Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
-             Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - 
-                                      as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
-      distinct() %>%
-      select(-contains("Perf"))
+             Dividend = as.numeric(as.character(Dividend))) %>%
+      distinct() 
     
     RESULT = Pool_Results %>%
-      filter(EPS.Q.Q > 0)
+      filter(EPS.past.5Y > 0,
+             ROE > 0,
+             Forward.P.E > P.E,
+             Dividend > 0)
   }
   
   FUTURES = TODAY %>%

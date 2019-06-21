@@ -31,6 +31,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(status == "filled",
            type == "limit") %>%
     mutate(filled_at = ymd_hms(filled_at)))
+  Sold_Orders = try(get_orders(status = 'all') %>%
+                      filter(status == "filled",
+                             type == "stop_limit" | type == "stop") %>%
+                      mutate(filled_at = ymd_hms(filled_at)))
   
   ## Updating Capital 
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
@@ -42,9 +46,25 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(Close < Investment_Value*Max_Holding,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    filter(!Sector %in% Sector_Ind_DF$Sector |
-             !Industry %in% Sector_Ind_DF$Industry) %>%
-    select(Sector,Industry,Decider,everything()) %>%
+    select(Sector,Industry,Decider,everything())
+  
+  ## Prioritizing Sector & Industry Diversification
+  CHECK = RESULT %>%
+    filter(!Sector %in% Sector_Ind_DF$Sector)
+  if(nrow(CHECK) == 0){
+    RESULT = RESULT %>%
+      filter(!Industry %in% Sector_Ind_DF$Industry,
+             !Sector %in% Sector_Ind_DF$Sector)
+  }else if(sum(CHECK$Close) < Buying_Power){
+    RESULT = RESULT %>%
+      filter(!Industry %in% Sector_Ind_DF$Industry |
+               !Sector %in% Sector_Ind_DF$Sector)
+  }else{
+    RESULT = CHECK
+  }
+  
+  ## Keeping Best Outlook Within Industry and Sector
+   RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
     ungroup()
@@ -66,14 +86,28 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   Numbers = Number[which(Number > 0)]
   RESULT = RESULT[which(Number > 0),]
   
-  ## Submitting Limit Orders
+  ## Submitting Limit Orders (Wash Sale Criteria Implemented)
   for(STOCK in 1:nrow(RESULT)){
-    submit_order(ticker = RESULT$Stock[STOCK],
-                 qty = as.character(Numbers[STOCK]),
-                 side = "buy",
-                 type = "limit",
-                 time_in_force = "day",
-                 limit_price = as.character(RESULT$Close[STOCK]))
+    if(STOCK %in% Sold_Orders$symbol & 
+       as.numeric(difftime(Sys.time(),
+                           max(Sold_Orders$filled_at[Sold_Orders$symbol == STOCK]),
+                           units = "days")) < 30){
+      print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
+    }else if(!STOCK %in% Sold_Orders$symbol){
+      submit_order(ticker = RESULT$Stock[STOCK],
+                   qty = as.character(Numbers[STOCK]),
+                   side = "buy",
+                   type = "limit",
+                   time_in_force = "day",
+                   limit_price = as.character(RESULT$Close[STOCK]))
+    }else{
+      submit_order(ticker = RESULT$Stock[STOCK],
+                   qty = as.character(Numbers[STOCK]),
+                   side = "buy",
+                   type = "limit",
+                   time_in_force = "day",
+                   limit_price = as.character(RESULT$Close[STOCK]))
+    }
   }
   
   ## Running Checks For Currently Held Stocks
@@ -140,9 +174,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           submit_order(ticker = STOCK,
                        qty = as.character(Quantity),
                        side = "sell",
-                       type = "stop",
+                       type = "stop_limit",
                        time_in_force = "gtc",
-                       stop_price = as.character(Stop_Loss))
+                       stop_price = as.character(Stop_Loss),
+                       limit_price = as.character(Stop_Loss*0.99))
         }else{
           ## Pulling Current Stop Loss
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
@@ -161,9 +196,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
                          side = "sell",
-                         type = "stop",
+                         type = "stop_limit",
                          time_in_force = "gtc",
-                         stop_price = as.character(Stop_Loss))
+                         stop_price = as.character(Stop_Loss),
+                         limit_price = as.character(Stop_Loss*0.99))
           }
         }
       }
