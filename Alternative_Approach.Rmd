@@ -28,18 +28,17 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = F
+Re_Pull = T
 Initial_History = T
 TEST = F
 Back_Test = T
 Investment_Value = 350
-ALPACA = T
-PAPER = T
 
 ## Perfromance Function Parameters
 Starting_Money = 350
 Max_Loss = 0.05
 Max_Holding = 0.10
+Max_Holding_Live = 0.25
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
@@ -352,7 +351,12 @@ for(i in 1:length(BT_List)){
 RULES_Summary = RULES %>%
   group_by(Var) %>%
   summarise_all(median) %>%
-  mutate(Delta = abs(PL-PH))
+  mutate(Delta = abs(PL-PH),
+         PD = Delta/MAX) %>%
+  filter(PD > 0.05,
+         VL > VH) %>%
+  ungroup() %>%
+  arrange(PD)
 TRADES_OUT = TRADES %>%
   filter(Date >= max(Date)-365)
 write.csv(TRADES_OUT,
@@ -396,7 +400,7 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             Max_Holding = Max_Holding,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
-                            PAPAER = T)
+                            PAPER = T)
 ```
 
 #### Alpaca Live Trading
@@ -409,9 +413,9 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             SHORTS = SHORTS,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding,
+                            Max_Holding = Max_Holding_Live,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
-                            PAPAER = F)
+                            PAPER = F)
 ```
 

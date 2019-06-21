@@ -7,7 +7,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                                        Max_Holding = 0.10,
                                        Projection = 15,
                                        Max_Loss = 0.05,
-                                       PAPAER = T){
+                                       PAPER = T){
   ## Setting API Keys
   if(PAPAER){
     KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Paper API.txt"))
@@ -15,23 +15,23 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
   }else{
     KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Live API.txt"))
-    Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
-    Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
+    Sys.setenv('APCA-API-KEY-ID' = as.character(KEYS$Key.ID))
+    Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   }
   
   ## Checking Account Status
-  ACCT_Status = get_account()
-  Current_Holdings = get_positions()
+  (ACCT_Status = get_account(live = !PAPER))
+  Current_Holdings = get_positions(live = !PAPER)
   Sector_Ind_DF = try(Current_Holdings %>%
     left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
     select(Sector,Industry))
-  Current_Orders = try(get_orders(status = 'all') %>%
+  Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
     filter(status == "new"))
-  Filled_Orders = try(get_orders(status = 'all') %>%
+  Filled_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
     filter(status == "filled",
            type == "limit") %>%
     mutate(filled_at = ymd_hms(filled_at)))
-  Sold_Orders = try(get_orders(status = 'all') %>%
+  Sold_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                       filter(status == "filled",
                              type == "stop_limit" | type == "stop") %>%
                       mutate(filled_at = ymd_hms(filled_at)))
@@ -49,20 +49,22 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     select(Sector,Industry,Decider,everything())
   
   ## Prioritizing Sector & Industry Diversification
-  CHECK = RESULT %>%
-    filter(!Sector %in% Sector_Ind_DF$Sector)
-  if(nrow(CHECK) == 0){
-    RESULT = RESULT %>%
-      filter(!Industry %in% Sector_Ind_DF$Industry,
-             !Sector %in% Sector_Ind_DF$Sector)
-  }else if(sum(CHECK$Close) < Buying_Power){
-    RESULT = RESULT %>%
-      filter(!Industry %in% Sector_Ind_DF$Industry |
+  if(!"try-error" %in% class(Sector_Ind_DF)){
+    CHECK = RESULT %>%
+      filter(!Sector %in% Sector_Ind_DF$Sector)
+    if(nrow(CHECK) == 0){
+      RESULT = RESULT %>%
+        filter(!Industry %in% Sector_Ind_DF$Industry,
                !Sector %in% Sector_Ind_DF$Sector)
-  }else{
-    RESULT = CHECK
+    }else if(sum(CHECK$Close) < Buying_Power){
+      RESULT = RESULT %>%
+        filter(!Industry %in% Sector_Ind_DF$Industry |
+                 !Sector %in% Sector_Ind_DF$Sector)
+    }else{
+      RESULT = CHECK
+    }
   }
-  
+    
   ## Keeping Best Outlook Within Industry and Sector
    RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
@@ -88,24 +90,28 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   ## Submitting Limit Orders (Wash Sale Criteria Implemented)
   for(STOCK in 1:nrow(RESULT)){
-    if(STOCK %in% Sold_Orders$symbol & 
-       as.numeric(difftime(Sys.time(),
-                           max(Sold_Orders$filled_at[Sold_Orders$symbol == STOCK]),
-                           units = "days")) < 30){
-      print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
-    }else if(!STOCK %in% Sold_Orders$symbol){
+    if(!"try-error" %in% class(Sold_Orders)){
+      if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol & 
+         as.numeric(difftime(Sys.time(),
+                             max(Sold_Orders$filled_at[Sold_Orders$symbol == RESULT$Stock[STOCK]]),
+                             units = "days")) < 30){
+        print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
+      }else{
       submit_order(ticker = RESULT$Stock[STOCK],
                    qty = as.character(Numbers[STOCK]),
                    side = "buy",
                    type = "limit",
                    time_in_force = "day",
+                   live = !PAPER,
                    limit_price = as.character(RESULT$Close[STOCK]))
+      }
     }else{
       submit_order(ticker = RESULT$Stock[STOCK],
                    qty = as.character(Numbers[STOCK]),
                    side = "buy",
                    type = "limit",
                    time_in_force = "day",
+                   live = !PAPER,
                    limit_price = as.character(RESULT$Close[STOCK]))
     }
   }

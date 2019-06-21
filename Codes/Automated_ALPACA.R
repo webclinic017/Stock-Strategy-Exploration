@@ -14,12 +14,13 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = F
+Re_Pull = T
 PAPER = T
 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.10
+Max_Holding_Live = 0.50
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
@@ -180,4 +181,15 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             Max_Holding = Max_Holding,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
-                            PAPAER = T)
+                            PAPER = T)
+
+ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+                            RESULT = RESULT,
+                            FUTURES = FUTURES,
+                            SHORTS = SHORTS,
+                            Auto_Stocks = Auto_Stocks,
+                            Project_Folder = Project_Folder,
+                            Max_Holding = Max_Holding_Live,
+                            Projection = Projection,
+                            Max_Loss = Max_Loss,
+                            PAPER = F)
