@@ -352,8 +352,9 @@ RULES_Summary = RULES %>%
   group_by(Var) %>%
   summarise_all(median) %>%
   mutate(Delta = abs(PL-PH),
+         PDM = (MAX - MP)/MP,
          PD = Delta/MAX) %>%
-  filter(PD > 0.05,
+  filter(PDM > 0.025,
          VL > VH) %>%
   ungroup() %>%
   arrange(PD)

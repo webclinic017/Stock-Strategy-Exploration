@@ -252,6 +252,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
               History_Table$Number[is.na(History_Table$Sell.Date)])
       
       STORE = STORE %>%
+        mutate(MP = Method_Profit) %>%
         rowwise() %>%
         mutate(MAX = max(c(PL,PH))) %>%
         arrange(desc(MAX)) %>%
@@ -264,9 +265,9 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                    Time_End = Dates[length(Dates)] + Delta,
                                    Starting_Money = Starting_Money,
                                    Market_Return = MR,
-                                   Method_Return = scales::percent(Profit/Starting_Money),
-                                   Max_Gain = scales::percent(MH/Starting_Money),
-                                   Max_Loss = scales::percent(ML/Starting_Money),
+                                   Method_Return = (Profit/Starting_Money),
+                                   Max_Gain = (MH/Starting_Money),
+                                   Max_Loss = (ML/Starting_Money),
                                    Trade_Number = nrow(History_Table))
       RULE_OUT = STORE
       
