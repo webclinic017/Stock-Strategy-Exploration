@@ -143,7 +143,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
         ## Selling if Negative After Projection Time Frame
         if(as.numeric(Current_Info$c) < Buy_Price){
           if(nrow(Loss_Order) != 0){
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
             Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
@@ -156,7 +156,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
         }
         if(Delta + Pcent_Gain <= Pcent_Gain*0.5){
           if(nrow(Loss_Order) != 0){
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
             Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
@@ -200,7 +200,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           ## Updating Stop Loss if Higher
           if(Stop_Loss > Current_Stop_Loss){
             ## Canceling Exisiting Order
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id)
+            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
             Sys.sleep(10)
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
