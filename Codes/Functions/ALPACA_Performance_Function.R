@@ -27,11 +27,15 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     select(Sector,Industry))
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
     filter(status == "new"))
-  Filled_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
+  Filled_Orders = try(get_orders(status = 'all',
+                                 from = Sys.Date() - 15,
+                                 live = !PAPER) %>%
     filter(status == "filled",
            type == "limit") %>%
     mutate(filled_at = ymd_hms(filled_at)))
-  Sold_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
+  Sold_Orders = try(get_orders(status = 'all',
+                               from = Sys.Date() - 30,
+                               live = !PAPER) %>%
                       filter(status == "filled",
                              type == "stop_limit" | type == "stop") %>%
                       mutate(filled_at = ymd_hms(filled_at)))
@@ -50,26 +54,52 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   ## Prioritizing Sector & Industry Diversification
   if(!"try-error" %in% class(Sector_Ind_DF)){
+    
+    Diversification = function(RESULT){ 
     CHECK = RESULT %>%
       filter(!Sector %in% Sector_Ind_DF$Sector)
-    if(nrow(CHECK) == 0){
-      RESULT = RESULT %>%
-        filter(!Industry %in% Sector_Ind_DF$Industry,
-               !Sector %in% Sector_Ind_DF$Sector)
-    }else if(sum(CHECK$Close) < Buying_Power){
-      RESULT = RESULT %>%
-        filter(!Industry %in% Sector_Ind_DF$Industry |
+      if(nrow(CHECK) == 0){
+        RESULT = RESULT %>%
+          filter(!Industry %in% Sector_Ind_DF$Industry,
                  !Sector %in% Sector_Ind_DF$Sector)
-    }else{
-      RESULT = CHECK
+      }else if(sum(CHECK$Close) < Buying_Power){
+        RESULT = RESULT %>%
+          filter(!Industry %in% Sector_Ind_DF$Industry |
+                   !Sector %in% Sector_Ind_DF$Sector)
+      }else{
+        RESULT = CHECK
+      }
+      return(RESULT)
     }
+    RESULT = Diversification(RESULT)
   }
-    
+  
   ## Keeping Best Outlook Within Industry and Sector
    RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
     ungroup()
+   
+   ## Checking If Alternate Value Investing Strategy Needs Inacted
+   if(sum(RESULT$Close) < Buying_Power){
+     RESULT = FUTURES %>%
+       filter(Close < Investment_Value*Max_Holding,
+              !Stock %in% toupper(Current_Holdings$symbol),
+              Delta > 2*ATR/Close) %>%
+       left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+       select(Sector,Industry,Decider,everything()) %>%
+       Diversification() %>%
+       FinViz_Meta_Data()
+     
+     ## Applying Value Investing Filters
+     RESULT = RESULT %>%
+       filter(EPS.past.5Y > 0,
+              P.E > Forward.P.E) %>%
+       group_by(Sector,Industry) %>%
+       filter(PEG == min(PEG)) %>%
+       ungroup() %>%
+       arrange(PEG)
+   }
   
   ## Defining Purchase Numbers
   K = 0
@@ -91,10 +121,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   ## Submitting Limit Orders (Wash Sale Criteria Implemented)
   for(STOCK in 1:nrow(RESULT)){
     if(!"try-error" %in% class(Sold_Orders)){
-      if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol & 
-         as.numeric(difftime(Sys.time(),
-                             max(Sold_Orders$filled_at[Sold_Orders$symbol == RESULT$Stock[STOCK]],na.rm = T),
-                             units = "days")) < 30){
+      if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol){
         print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
       }else{
       submit_order(ticker = RESULT$Stock[STOCK],
@@ -124,9 +151,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       Current_Info = get_bars(ticker = STOCK,limit = 1)[[STOCK]]
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
-      Time_Held = floor(as.numeric(difftime(Sys.time(),
-                                            max(Filled_Orders$filled_at[Filled_Orders$symbol == STOCK]),
-                                            units = "days")))
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
       Market_Sell = F
@@ -139,9 +163,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       }
       
       ## Stop Loss Override Checks
-      if(Time_Held >= Projection & !is.infinite(Time_Held)){
+      if(!STOCK %in% Filled_Orders$symbol){
         ## Selling if Negative After Projection Time Frame
-        if(as.numeric(Current_Info$c) < Buy_Price){
+        if(Pcent_Gain < 0){
           if(nrow(Loss_Order) != 0){
             cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
             Sys.sleep(10)

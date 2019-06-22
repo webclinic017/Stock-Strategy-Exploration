@@ -350,7 +350,7 @@ for(i in 1:length(BT_List)){
 
 RULES_Summary = RULES %>%
   group_by(Var) %>%
-  summarise_all(median) %>%
+  summarise_all(mean) %>%
   mutate(Delta = abs(PL-PH),
          PDM = (MAX - MP)/MP,
          PD = Delta/MAX) %>%
