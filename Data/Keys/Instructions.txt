@@ -6,18 +6,26 @@ Trading Website
 https://alpaca.markets/
 
 Set up an automated task to run on weekdays to execute trading strategy
-****Actions Tab****
+
+**** Actions Tab ****
 *Program/script
 "C:\Program Files\R\R-3.5.3\bin\R.exe"
 *Add arguments (optional):
 CMD BATCH  "C:\Users\USERNAME\Documents\GitHub\Stock-Strategy-Exploration\Codes\Automated_ALPACA.R"
-****Triggers Tab****
+
+**** Triggers Tab ****
 *Trigger
 Weekly
 *Details
 At 6:30 AM every Monday,Tuesday,etc.
+At 9:30 PM every Monday,Tuesday,etc.
+	(9:30 Run just updates stop loss and limit orders)
 *Status
 Enabled
-****General Tab****
+
+**** General Tab ****
 *Security Options
 Run whether user is logged on or not
+
+**** Required R Package Install ****
+devtools::install_github("jagg19/AlpacaforR")

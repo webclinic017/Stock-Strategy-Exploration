@@ -77,7 +77,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
    RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
-    ungroup()
+    ungroup() %>%
+    distinct()
    
    ## Checking If Alternate Value Investing Strategy Needs Inacted
    if(sum(RESULT$Close) < Buying_Power){
