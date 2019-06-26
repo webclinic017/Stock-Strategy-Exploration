@@ -10,11 +10,11 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                                        PAPER = T){
   ## Setting API Keys
   if(PAPER){
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Paper API.txt"))
+    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
   }else{
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Abram Live API.txt"))
+    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = as.character(KEYS$Key.ID))
     Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   }

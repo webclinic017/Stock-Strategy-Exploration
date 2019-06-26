@@ -1,0 +1,3 @@
+Drop two files in this folder following the API Key Template.
+The key and secret key values are found on the Alpaca website.
+The file names must be [Live API.txt] & [Paper API.txt]
