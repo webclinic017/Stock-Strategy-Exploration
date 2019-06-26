@@ -17,7 +17,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR")
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR","gradDescent")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -359,6 +359,8 @@ print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return
 print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
 print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
 print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
+
+RULES_Total = Rule_Generator(TRADES)
 
 RULES_Summary = RULES %>%
   group_by(Var) %>%
