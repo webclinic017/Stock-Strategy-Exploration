@@ -1,3 +1,23 @@
 Drop two files in this folder following the API Key Template.
 The key and secret key values are found on the Alpaca website.
 The file names must be [Live API.txt] & [Paper API.txt]
+
+Trading Website
+https://alpaca.markets/
+
+Set up an automated task to run on weekdays to execute trading strategy
+****Actions Tab****
+*Program/script
+"C:\Program Files\R\R-3.5.3\bin\R.exe"
+*Add arguments (optional):
+CMD BATCH  "C:\Users\USERNAME\Documents\GitHub\Stock-Strategy-Exploration\Codes\Automated_ALPACA.R"
+****Triggers Tab****
+*Trigger
+Weekly
+*Details
+At 6:30 AM every Monday,Tuesday,etc.
+*Status
+Enabled
+****General Tab****
+*Security Options
+Run whether user is logged on or not
