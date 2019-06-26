@@ -54,7 +54,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   ## Prioritizing Sector & Industry Diversification
   if(!"try-error" %in% class(Sector_Ind_DF)){
-    
     Diversification = function(RESULT){ 
     CHECK = RESULT %>%
       filter(!Sector %in% Sector_Ind_DF$Sector)
@@ -119,33 +118,62 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   RESULT = RESULT[which(Number > 0),]
   
   ## Submitting Limit Orders (Wash Sale Criteria Implemented)
-  for(STOCK in 1:nrow(RESULT)){
-    if(!"try-error" %in% class(Sold_Orders)){
-      if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol){
-        print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
+  # Skipping if Buying Power Too Low to Invest (0 RESULT Options)
+  if(nrow(RESULT) > 0){
+    for(STOCK in 1:nrow(RESULT)){
+      if(!"try-error" %in% class(Sold_Orders)){
+        if(nrow(Sold_Orders) > 0){
+          if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol){
+            print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
+          }else{
+            submit_order(ticker = RESULT$Stock[STOCK],
+                         qty = as.character(Numbers[STOCK]),
+                         side = "buy",
+                         type = "limit",
+                         time_in_force = "day",
+                         live = !PAPER,
+                         limit_price = as.character(RESULT$Close[STOCK]))
+          }
+        }
       }else{
-      submit_order(ticker = RESULT$Stock[STOCK],
-                   qty = as.character(Numbers[STOCK]),
-                   side = "buy",
-                   type = "limit",
-                   time_in_force = "day",
-                   live = !PAPER,
-                   limit_price = as.character(RESULT$Close[STOCK]))
+        submit_order(ticker = RESULT$Stock[STOCK],
+                     qty = as.character(Numbers[STOCK]),
+                     side = "buy",
+                     type = "limit",
+                     time_in_force = "day",
+                     live = !PAPER,
+                     limit_price = as.character(RESULT$Close[STOCK]))
       }
-    }else{
-      submit_order(ticker = RESULT$Stock[STOCK],
-                   qty = as.character(Numbers[STOCK]),
-                   side = "buy",
-                   type = "limit",
-                   time_in_force = "day",
-                   live = !PAPER,
-                   limit_price = as.character(RESULT$Close[STOCK]))
     }
-  }
+  } 
   
   ## Running Checks For Currently Held Stocks
   Ticker_List = c(Current_Holdings$symbol)
   if(!is_empty(Ticker_List)){
+    ## Rebalancing Daily Check
+    for(STOCK in Ticker_List){
+      if(Current_Holdings$market_value[Current_Holdings$symbol == STOCK] > 
+         Investment_Value * Max_Holding){
+        Number = floor((Investment_Value * Max_Holding)/
+          as.numeric(Current_Holdings$current_price[Current_Holdings$symbol == STOCK]))
+        Held = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
+        Sell = Held - Number
+        if(Sell > 0){
+          submit_order(ticker = STOCK,
+                       qty = Sell,
+                       side = "sell",
+                       type = "market",
+                       time_in_force = "gtc",
+                       live = !PAPER)
+          Sys.sleep(10)
+        }
+      }
+    }
+    ## Updating Holdings
+    Sys.sleep(10)
+    Current_Holdings = get_positions(live = !PAPER)
+    
+    
     for(STOCK in Ticker_List){
       ## Pulling Recent Close Price / Relevant Data
       Current_Info = get_bars(ticker = STOCK,limit = 1)[[STOCK]]

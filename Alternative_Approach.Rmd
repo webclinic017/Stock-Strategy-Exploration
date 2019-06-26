@@ -347,6 +347,18 @@ for(i in 1:length(BT_List)){
     TRADES = bind_rows(TRADES,TRADES_OUT)
   }
 }
+RUNS_Summary = RUNS %>%
+  mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
+  summarise(Method_Return = mean(Method_Return),
+            Market_Return = mean(Market_Return),
+            Max_Gain = mean(Max_Gain),
+            Max_Loss = mean(Max_Loss),
+            Trade_Number = round(mean(Trade_Number)))
+print(paste0("Typical Market Return ",scales::percent(RUNS_Summary$Market_Return)))
+print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return)))
+print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
+print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
+print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
 
 RULES_Summary = RULES %>%
   group_by(Var) %>%
@@ -354,14 +366,21 @@ RULES_Summary = RULES %>%
   mutate(Delta = abs(PL-PH),
          PDM = (MAX - MP)/MP,
          PD = Delta/MAX) %>%
-  filter(PDM > 0.025,
+  filter(PDM > 0.05,
+         PD > 0.05,
          VL > VH) %>%
   ungroup() %>%
-  arrange(PD)
+  arrange(desc(PDM))
+
 TRADES_OUT = TRADES %>%
-  filter(Date >= max(Date)-365)
+  filter(Buy.Date >= "2011-08-02",
+         Buy.Date <= "2012-08-01")
+
 write.csv(TRADES_OUT,
           file = "C://users//aayorde//desktop//March_18_19_Trades.csv")
+
+TRADES_Summary = TRADES %>%
+  summarise()
 
 
 }

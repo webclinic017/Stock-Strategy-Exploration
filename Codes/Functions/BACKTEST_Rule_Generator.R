@@ -120,6 +120,16 @@ BACKTEST_Rule_Generator = function(Starting_Money,
           FUTURES = Preds$FUTURES
           SHORTS = Preds$SHORTS
           
+          if(sum(RESULT$Close) < Starting_Money*Max_Holding*3){
+            RESULT = FUTURES %>%
+              left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+              select(Sector,Industry,Decider,everything()) %>%
+              group_by(Sector,Industry) %>%
+              filter(Decider == max(Decider)) %>%
+              ungroup() %>%
+              arrange(desc(Decider))
+          }
+          
           if(nrow(RESULT) > 0 & counter == 0){
             counter = counter + 1
             History_Table = 
@@ -262,13 +272,15 @@ BACKTEST_Rule_Generator = function(Starting_Money,
       
       ## Storing_Results
       RUN_OUT = data.frame(Time_Start = Dates[1] + Delta,
-                                   Time_End = Dates[length(Dates)] + Delta,
-                                   Starting_Money = Starting_Money,
-                                   Market_Return = MR,
-                                   Method_Return = (Profit/Starting_Money),
-                                   Max_Gain = (MH/Starting_Money),
-                                   Max_Loss = (ML/Starting_Money),
-                                   Trade_Number = nrow(History_Table))
+                           Time_End = Dates[length(Dates)] + Delta,
+                           Starting_Money = Starting_Money,
+                           Market_Return = MR,
+                           Method_Return = (Method_Profit/Starting_Money),
+                           Max_Gain = (MH/Starting_Money),
+                           Max_Loss = (ML/Starting_Money),
+                           Trade_Number = nrow(History_Table),
+                           Typical_Holding = round(mean(History_Table$Time.Held,na.rm = T))
+      )
       RULE_OUT = STORE
       
       list(RUN_OUT = RUN_OUT,

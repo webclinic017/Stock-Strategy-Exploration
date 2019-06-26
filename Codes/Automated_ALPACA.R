@@ -20,7 +20,7 @@ PAPER = T
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.10
-Max_Holding_Live = 0.50
+Max_Holding_Live = 0.25
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
