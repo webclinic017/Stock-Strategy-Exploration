@@ -1,44 +1,18 @@
   Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
-    
-    stripGlmLR = function(cm) {
-      cm$y = c()
-      cm$model = c()
-      
-      cm$residuals = c()
-      cm$fitted.values = c()
-      cm$effects = c()
-      cm$qr$qr = c()
-      cm$linear.predictors = c()
-      cm$weights = c()
-      cm$prior.weights = c()
-      cm$data = c()
-      
-      
-      cm$family$variance = c()
-      cm$family$dev.resids = c()
-      cm$family$aic = c()
-      cm$family$validmu = c()
-      cm$family$simulate = c()
-      attr(cm$terms,".Environment") = c()
-      attr(cm$formula,".Environment") = c()
-      
-      cm
-    }
-    
+    require('speedglm')
     
     PR_Stage_R4 = PR_Stage_R4 %>%
       filter(Date <= Max_Date,
              Date >= Max_Date-365) %>%
       BUY_POS_FILTER()
     
-   
-    
+
     ## Reducing Variable Pool
-    Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
+    Names_Profit = Variable_Importance_Reduction(DF = dplyr::select(PR_Stage_R4,
                                                              -c(Adjusted_Lead)),
                                                  Type = 'C',
                                                  Target = "Target")
-    Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target)),
+    Names_Futures = Variable_Importance_Reduction(DF = dplyr::select(PR_Stage_R4,-c(Target)),
                                                   Type = 'R',
                                                   Target = "Adjusted_Lead")
     
@@ -46,7 +20,7 @@
     LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
     UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
     PR_Stage_R5 = PR_Stage_R4 %>%
-      select(Stock,
+      dplyr::select(Stock,
              Date,
              Adjusted,
              Names_Profit$Var,
@@ -56,7 +30,7 @@
     
     ## Defining Filter Columns
     Filter = PR_Stage_R5 %>%
-      select(Names_Profit$Var,Names_Futures$Var,Adjusted_Lead) %>% 
+      dplyr::select(Names_Profit$Var,Names_Futures$Var,Adjusted_Lead) %>% 
       colnames()
     
     ## Removing Outliers
@@ -70,11 +44,13 @@
     Train_Futures = PR_Stage_R5[,c(Names_Futures$Var,"Adjusted_Lead")]
 
     
-    Model_Profit = stripGlmLR(glm(Target~.^2,
+    Model_Profit = speedglm(formula = Target~.^3,
                        data = Train_Profit,
-                       family = "quasibinomial"))
-    Model_Futures = stripGlmLR(glm(Adjusted_Lead~.^2,
-                       data = Train_Futures))
+                       family = quasibinomial(),
+                       method = "qr")
+    Model_Futures = speedlm(formula = Adjusted_Lead~.^3,
+                       data = Train_Futures,
+                       method = "qr")
     
     return(list(Model_Futures = Model_Futures,
                 Model_Profit = Model_Profit,

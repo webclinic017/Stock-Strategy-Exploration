@@ -9,6 +9,17 @@ editor_options:
   chunk_output_type: console
 ---
 
+## General Notes / Links
+
+[Short Term Capitial Gains Rates](https://www.nerdwallet.com/blog/taxes/federal-income-tax-brackets/)
+[Long Term Capital Gains Rates](https://www.nerdwallet.com/blog/taxes/capital-gains-tax-rates/)
+
+Stocks held less than a year are subject to short term capital gains tax where longer than a year are subject to long term capitial gains. The same rates apply to capital losses within the same time frames. Maximum capital losses that can be claimed are 3,000 dollars, and only apply if the capital losses are more than the capital gains. You also will need to file an 8949 form and a schedule D form with the IRS during your tax return filing.
+
+Stocks sold and rebought within 30 days cancel out any capital losses and this is considered the wash rule
+
+
+
 ```{r setup, include=FALSE}
 ## Setting RMD Project Directory
 Project_Folder = rprojroot::find_rstudio_root_file()
@@ -17,7 +28,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR","gradDescent")
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",)
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -28,7 +39,6 @@ options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
-Re_Pull = T
 Initial_History = T
 TEST = F
 Back_Test = T
@@ -40,6 +50,9 @@ Max_Loss = 0.05
 Max_Holding = 0.10
 Max_Holding_Live = 0.25
 
+## Cap Preferences (one of All/Mega/Large/Mid/Small)
+Cap = "Small" 
+
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
 ```
@@ -47,15 +60,8 @@ Projection = 15
 ### {.tabset}
 
 ```{r Raw Data Pull, include = F,eval = !TEST}
-## Pulling Historical Data
-if(Re_Pull){
-  ## Fresh Historical Data Pull
-  Initial_Pull()
-}else{
-  ## Historical Table Update
-  Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),
-                       Google_Drive = F)
-}
+## Fresh Historical Data Pull
+Initial_Pull(Cap = Cap,PAPER = F)
 ```
 
 #### Market Status
@@ -329,7 +335,7 @@ save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))
 load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
 
-
+## Condensing Results Into Dataframes
 for(i in 1:length(BT_List)){
   TMP = BT_List[[i]]
   RUN_OUT = TMP$RUN_OUT
@@ -347,6 +353,8 @@ for(i in 1:length(BT_List)){
     TRADES = bind_rows(TRADES,TRADES_OUT)
   }
 }
+
+## Summarizing Run Results
 RUNS_Summary = RUNS %>%
   mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
   summarise(Method_Return = mean(Method_Return),
@@ -360,8 +368,10 @@ print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
 print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
 print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
 
+## Looking At If Total Rules Exist
 RULES_Total = Rule_Generator(TRADES)
 
+##
 RULES_Summary = RULES %>%
   group_by(Var) %>%
   summarise_all(mean) %>%
