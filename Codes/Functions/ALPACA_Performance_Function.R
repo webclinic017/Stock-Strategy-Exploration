@@ -19,6 +19,26 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   }
   
+  ## Diversification
+  Diversification = function(RESULT){ 
+    if(!"try-error" %in% class(Sector_Ind_DF)){
+      CHECK = RESULT %>%
+        filter(!Sector %in% Sector_Ind_DF$Sector)
+      if(nrow(CHECK) == 0){
+        RESULT = RESULT %>%
+          filter(!Industry %in% Sector_Ind_DF$Industry,
+                 !Sector %in% Sector_Ind_DF$Sector)
+      }else if(sum(CHECK$Close) < Buying_Power){
+        RESULT = RESULT %>%
+          filter(!Industry %in% Sector_Ind_DF$Industry |
+                   !Sector %in% Sector_Ind_DF$Sector)
+      }else{
+        RESULT = CHECK
+      }
+    }
+    return(RESULT)
+  }
+  
   ## Checking Account Status
   (ACCT_Status = get_account(live = !PAPER))
   Current_Holdings = get_positions(live = !PAPER)
@@ -54,22 +74,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   ## Prioritizing Sector & Industry Diversification
   if(!"try-error" %in% class(Sector_Ind_DF)){
-    Diversification = function(RESULT){ 
-    CHECK = RESULT %>%
-      filter(!Sector %in% Sector_Ind_DF$Sector)
-      if(nrow(CHECK) == 0){
-        RESULT = RESULT %>%
-          filter(!Industry %in% Sector_Ind_DF$Industry,
-                 !Sector %in% Sector_Ind_DF$Sector)
-      }else if(sum(CHECK$Close) < Buying_Power){
-        RESULT = RESULT %>%
-          filter(!Industry %in% Sector_Ind_DF$Industry |
-                   !Sector %in% Sector_Ind_DF$Sector)
-      }else{
-        RESULT = CHECK
-      }
-      return(RESULT)
-    }
     RESULT = Diversification(RESULT)
   }
   
@@ -100,6 +104,12 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
        ungroup() %>%
        arrange(PEG)
    }
+   
+   ## Checking 30 Day Wash Rule
+   if(!"try-error" %in% class(Sold_Orders)){
+     RESULT = RESULT %>%
+       filter(!Stock %in% Sold_Orders$symbol)
+   }
   
   ## Defining Purchase Numbers
   K = 0
@@ -118,25 +128,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   Numbers = Number[which(Number > 0)]
   RESULT = RESULT[which(Number > 0),]
   
-  ## Submitting Limit Orders (Wash Sale Criteria Implemented)
-  # Skipping if Buying Power Too Low to Invest (0 RESULT Options)
+  ## Skipping if Buying Power Too Low to Invest (0 RESULT Options)
   if(nrow(RESULT) > 0){
     for(STOCK in 1:nrow(RESULT)){
       if(!"try-error" %in% class(Sold_Orders)){
-        if(nrow(Sold_Orders) > 0){
-          if(RESULT$Stock[STOCK] %in% Sold_Orders$symbol){
-            print(paste0(STOCK," Skipped Due To 30 Day Wash Rule"))
-          }else{
-            submit_order(ticker = RESULT$Stock[STOCK],
-                         qty = as.character(Numbers[STOCK]),
-                         side = "buy",
-                         type = "limit",
-                         time_in_force = "day",
-                         live = !PAPER,
-                         limit_price = as.character(RESULT$Close[STOCK]))
-          }
-        }
-      }else{
         submit_order(ticker = RESULT$Stock[STOCK],
                      qty = as.character(Numbers[STOCK]),
                      side = "buy",
@@ -148,9 +143,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     }
   } 
   
-  ## Running Checks For Currently Held Stocks
+  
   Ticker_List = c(Current_Holdings$symbol)
   if(!is_empty(Ticker_List)){
+    
     ## Rebalancing Daily Check
     for(STOCK in Ticker_List){
       if(Current_Holdings$market_value[Current_Holdings$symbol == STOCK] > 
@@ -174,7 +170,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     Sys.sleep(10)
     Current_Holdings = get_positions(live = !PAPER)
     
-    
+    ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
       ## Pulling Recent Close Price / Relevant Data
       Current_Info = get_bars(ticker = STOCK,limit = 1)[[STOCK]]

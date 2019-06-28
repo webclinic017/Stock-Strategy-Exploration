@@ -27,6 +27,9 @@ Max_Holding_Live = 0.25
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
 
+## Cap Preferences (one of All/Mega/Large/Mid/Small)
+Cap = "Small" 
+
 ## Running Stop Loss Updates if Afternoon Check
 Hour = hour(Sys.time())
 
@@ -34,7 +37,7 @@ if(Hour < 9){
   ## Pulling Historical Data
   if(Re_Pull){
     ## Fresh Historical Data Pull
-    Initial_Pull()
+    Initial_Pull(Cap = Cap,PAPER = F)
   }else{
     ## Historical Table Update
     Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),

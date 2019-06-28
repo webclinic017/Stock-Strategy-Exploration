@@ -17,7 +17,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   opts <- list(progress = progress)
   if(PARALLEL){
     library(doSNOW)
-    c1 = makeCluster(min(c(detectCores(),4)),outfile = "")
+    c1 = makeCluster(min(c(detectCores(),2)),outfile = "")
     registerDoSNOW(c1)
   }else{
     registerDoSEQ()
@@ -30,6 +30,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                   "quantmod",
                                   "lubridate",
                                   "scales",
+                                  "speedglm",
                                   "EmersonDataScience",
                                   "TTR"),
                     .export = c("Modeling_Function",
