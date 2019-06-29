@@ -44,13 +44,12 @@
     Train_Futures = PR_Stage_R5[,c(Names_Futures$Var,"Adjusted_Lead")]
 
     
-    Model_Profit = speedglm(formula = Target~.^3,
+    Model_Profit = glm(formula = Target~.^2,
                        data = Train_Profit,
-                       family = quasibinomial(),
-                       method = "qr")
-    Model_Futures = speedlm(formula = Adjusted_Lead~.^3,
+                       family = quasibinomial())
+    Model_Futures = glm(formula = Adjusted_Lead~.^2,
                        data = Train_Futures,
-                       method = "qr")
+                       family = gaussian())
     
     return(list(Model_Futures = Model_Futures,
                 Model_Profit = Model_Profit,
