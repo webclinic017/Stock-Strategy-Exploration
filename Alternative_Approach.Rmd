@@ -329,7 +329,7 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 1  00,
+                                  Itterations = 100,
                                   PARALLEL = T)
 save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))

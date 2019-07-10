@@ -18,22 +18,23 @@ options("getSymbols.warning4.0" = FALSE)
 ## General RMD Options
 Re_Pull = T
 PAPER = T
+NClusters = 8
 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
-Max_Holding = 0.10
-Max_Holding_Live = 0.25
+Max_Holding = 0.05
+Max_Holding_Live = 0.15
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 15
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "Small" 
+Cap = "All" 
 
 ## Running Stop Loss Updates if Afternoon Check
 Hour = hour(Sys.time())
 
-if(Hour < 9){
+if(Hour < 12){
   ## Pulling Historical Data
   if(Re_Pull){
     ## Fresh Historical Data Pull
@@ -61,8 +62,14 @@ if(Hour < 9){
   ## Normalizing OHLCV Values  
   Start = Sys.time()
   print("Initial Stat Calculation for Pool Selection")
-  PR_Stage = PR_Appendage(Combined_Results,parallel = T)
+  PR_Stage = PR_Appendage(Combined_Results,
+                          parallel = T,
+                          NCores = NClusters)
   Sys.time() - Start
+  ## Saving Results
+  save(PR_Stage,
+       file = paste0(Project_Folder,"/Data/Initial Stats.RDATA"))
+  
   
   ## Compairing Performance to Major Indexs
   Major_Indexs = c("^GSPC","^IXIC","^DJI")
@@ -95,12 +102,8 @@ if(Hour < 9){
   Stocks = unique(Last_Time$Stock)
   
   ## Spinning Up Clusters
-  pb <- txtProgressBar(max = length(Stocks), style = 3)
-  progress <- function(n) setTxtProgressBar(pb, n)
-  opts <- list(progress = progress)
-  library(doSNOW)
-  c1 = makeCluster(10,outfile = "")
-  registerDoSNOW(c1)
+  c1 = makeCluster(NClusters)
+  registerDoParallel(c1)
   
   ## Parallel Execution
   Results = foreach(i = 1:length(Stocks),
@@ -110,14 +113,18 @@ if(Hour < 9){
                                   "quantmod",
                                   "lubridate",
                                   "TTR"),
-                    .verbose = F,
-                    .options.snow = opts) %dopar% {
+                    .verbose = F) %dopar% {
                       ## Subsetting Data
                       TMP = PR_Stage_R2 %>%
                         filter(Stock == Stocks[i])
                       
-                      ## Calculating Technical Indicators
-                      Stat_Appendage_Function(DF = TMP)
+                      ## Prevents Error During Stat Appendage (Technical Indicators)
+                      if(nrow(TMP) < 1000){
+                        stop("Not Enough Data")
+                      }else{
+                        ## Calculating Technical Indicators
+                        Stat_Appendage_Function(DF = TMP)
+                      }
                     }
   
   ## Spinning Down Clusters

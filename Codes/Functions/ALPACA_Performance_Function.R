@@ -97,8 +97,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
      
      ## Applying Value Investing Filters
      RESULT = RESULT %>%
-       filter(EPS.past.5Y > 0,
-              P.E > Forward.P.E) %>%
+       filter(EPS.past.5Y > 0) %>%
        group_by(Sector,Industry) %>%
        filter(PEG == min(PEG)) %>%
        ungroup() %>%
@@ -149,13 +148,26 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     
     ## Rebalancing Daily Check
     for(STOCK in Ticker_List){
-      if(Current_Holdings$market_value[Current_Holdings$symbol == STOCK] > 
+      if(as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK]) > 
          Investment_Value * Max_Holding){
         Number = floor((Investment_Value * Max_Holding)/
           as.numeric(Current_Holdings$current_price[Current_Holdings$symbol == STOCK]))
         Held = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
         Sell = Held - Number
+        Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
         if(Sell > 0){
+          if(nrow(Loss_Order) > 0){
+            Stop_Price = Loss_Order$stop_price
+            cancel_order(order_id = Loss_Order$id)
+            Sys.sleep(10)
+            submit_order(ticker = STOCK,
+                         qty = Number,
+                         side = "sell",
+                         type = "stop",
+                         stop_price = Stop_Price,
+                         time_in_force = "gtc",
+                         live = !PAPER)
+          }
           submit_order(ticker = STOCK,
                        qty = Sell,
                        side = "sell",
@@ -185,6 +197,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
         Delta = FUTURES$Delta[FUTURES$Stock == STOCK]
       }else if(STOCK %in% SHORTS$Stock){
         Delta = SHORTS$Delta[SHORTS$Stock == STOCK]
+      }else{
+        Delta = 0
       }
       
       ## Stop Loss Override Checks
@@ -231,10 +245,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           submit_order(ticker = STOCK,
                        qty = as.character(Quantity),
                        side = "sell",
-                       type = "stop_limit",
+                       type = "stop",
                        time_in_force = "gtc",
                        stop_price = as.character(Stop_Loss),
-                       limit_price = as.character(Stop_Loss*0.99),
                        live = !PAPER)
         }else{
           ## Pulling Current Stop Loss
@@ -254,10 +267,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
                          side = "sell",
-                         type = "stop_limit",
+                         type = "stop",
                          time_in_force = "gtc",
                          stop_price = as.character(Stop_Loss),
-                         limit_price = as.character(Stop_Loss*0.99),
                          live = !PAPER)
           }
         }

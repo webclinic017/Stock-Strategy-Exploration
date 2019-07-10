@@ -1,5 +1,4 @@
   Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
-    require('speedglm')
     
     PR_Stage_R4 = PR_Stage_R4 %>%
       filter(Date <= Max_Date,

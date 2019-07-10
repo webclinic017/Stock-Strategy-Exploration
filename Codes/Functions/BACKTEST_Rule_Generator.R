@@ -113,7 +113,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
           RESULT = Preds$RESULT %>%
             BUY_POS_FILTER() %>%
             left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-            select(Sector,Industry,Decider,everything()) %>%
+            dplyr::select(Sector,Industry,Decider,everything()) %>%
             group_by(Sector,Industry) %>%
             filter(Decider == max(Decider)) %>%
             ungroup()
@@ -123,7 +123,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
           if(sum(RESULT$Close) < Starting_Money*Max_Holding*3){
             RESULT = FUTURES %>%
               left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-              select(Sector,Industry,Decider,everything()) %>%
+              dplyr::select(Sector,Industry,Decider,everything()) %>%
               group_by(Sector,Industry) %>%
               filter(Decider == max(Decider)) %>%
               ungroup() %>%
@@ -185,7 +185,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
       }
     
       History_Table = History_Table %>%
-        select(Prob,Delta,everything())
+        dplyr::select(Prob,Delta,everything())
       
       ## Calculating Overall Profit
       Method_Profit = sum(History_Table$Profit) + 
