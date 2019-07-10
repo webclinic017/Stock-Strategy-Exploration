@@ -130,15 +130,14 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   ## Skipping if Buying Power Too Low to Invest (0 RESULT Options)
   if(nrow(RESULT) > 0){
     for(STOCK in 1:nrow(RESULT)){
-      if(!"try-error" %in% class(Sold_Orders)){
-        submit_order(ticker = RESULT$Stock[STOCK],
-                     qty = as.character(Numbers[STOCK]),
-                     side = "buy",
-                     type = "limit",
-                     time_in_force = "day",
-                     live = !PAPER,
-                     limit_price = as.character(RESULT$Close[STOCK]))
-      }
+      submit_order(ticker = RESULT$Stock[STOCK],
+                   qty = as.character(Numbers[STOCK]),
+                   side = "buy",
+                   type = "limit",
+                   time_in_force = "day",
+                   live = !PAPER,
+                   limit_price = as.character(RESULT$Close[STOCK]))
+      
     }
   } 
   
