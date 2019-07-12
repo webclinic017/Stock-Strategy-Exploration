@@ -64,10 +64,17 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
   Buying_Power = as.numeric(ACCT_Status$buying_power)
   
+  ## Checking 30 Day Wash Rule
+  if(!"try-error" %in% class(Sold_Orders)){
+    RESULT = RESULT %>%
+      filter(!Stock %in% Sold_Orders$symbol)
+  }
+  
   ## Removes Any Outside of Price Range
   RESULT = RESULT %>%
     BUY_POS_FILTER() %>%
     filter(Close < Investment_Value*Max_Holding,
+           2*ATR/Close < 0.05,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
     select(Sector,Industry,Decider,everything())
@@ -84,32 +91,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     ungroup() %>%
     distinct()
    
-   ## Checking If Alternate Value Investing Strategy Needs Inacted
-   if(sum(RESULT$Close) < Buying_Power){
-     RESULT = FUTURES %>%
-       filter(Close < Investment_Value*Max_Holding,
-              !Stock %in% toupper(Current_Holdings$symbol),
-              Delta > 2*ATR/Close) %>%
-       left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-       select(Sector,Industry,Decider,everything()) %>%
-       Diversification() %>%
-       FinViz_Meta_Data()
-     
-     ## Applying Value Investing Filters
-     RESULT = RESULT %>%
-       filter(EPS.past.5Y > 0) %>%
-       group_by(Sector,Industry) %>%
-       filter(PEG == min(PEG)) %>%
-       ungroup() %>%
-       arrange(PEG)
-   }
-   
-   ## Checking 30 Day Wash Rule
-   if(!"try-error" %in% class(Sold_Orders)){
-     RESULT = RESULT %>%
-       filter(!Stock %in% Sold_Orders$symbol)
-   }
-  
   ## Defining Purchase Numbers
   K = 0
   Remaining_Money = Buying_Power
@@ -144,7 +125,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   Ticker_List = c(Current_Holdings$symbol)
   if(!is_empty(Ticker_List)){
-    
     ## Rebalancing Daily Check
     for(STOCK in Ticker_List){
       if(as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK]) > 
