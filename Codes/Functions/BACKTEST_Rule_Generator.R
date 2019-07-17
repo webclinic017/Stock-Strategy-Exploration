@@ -22,6 +22,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
     registerDoSNOW(c1)
     ## Spins Down Cluster After Execution or Error
     on.exit({
+      kill_all_Rscript_s()
       stopCluster(c1)
       registerDoSEQ()}
     )
@@ -89,6 +90,21 @@ BACKTEST_Rule_Generator = function(Starting_Money,
         
         ID_DF_2 = ID_DF %>%
           filter(Stock %in% CHECK$Stock)
+        
+        ## Pausing to stagger CPU draw
+        CPU_Check = T
+        while(CPU_Check){
+          Loading = sum(as.numeric(str_extract_all(system("wmic cpu get loadpercentage",
+                                                          intern = T),
+                                                   "\\d",
+                                                   simplify = T)),
+                        na.rm = T)
+          if(Loading < 50){
+            CPU_Check = F
+          }else{
+            Sys.sleep(30)
+          }
+        }
         
         ## Building Initial Models
         Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,

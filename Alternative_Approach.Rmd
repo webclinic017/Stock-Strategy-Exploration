@@ -28,8 +28,9 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR")
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW')
 load_or_install(Required_Packages)
+
 
 ## Loading Required Functions
 sourceDir(paste0(Project_Folder,"/Codes/Functions"))
@@ -222,6 +223,103 @@ load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 ```
 
+#### Rule Generation
+
+```{r Standard Rule Generation, include = F}
+Explore = PR_Stage_R4 %>%
+  select_if(is.numeric)
+Loop_DF = Explore
+Baseline_Return = median(Explore$Adjusted_Lead,na.rm = T)
+
+STORE = data.frame(Var = character(),
+                   VL = numeric(),
+                   PL = numeric(),
+                   VH = numeric(),
+                   PH = numeric())
+Vars = colnames(Explore)[!colnames(Explore) %in% c("Adjusted_Lead","Target","Open","High","Low","Close","Adjusted","Volume")]
+
+
+pb = progress_estimated(length(Vars))
+progress <- function(n) pb$pause(0.1)$tick()$print()
+opts <- list(progress = progress)
+c1 = makeCluster(2)
+registerDoSNOW(c1)
+
+STORE = foreach(Var = Vars,
+                .errorhandling = "stop",
+                .packages = Required_Packages,
+                .options.snow = opts) %dopar% 
+  {
+    counter = 0
+    p$pause(0.1)$tick()$print()
+    for(i in as_vector(quantile(as_vector(Loop_DF[,Var]),seq(0,1,length.out = 25),na.rm = T))){
+      counter = counter + 1
+      P_TL = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] < i],na.rm = T)
+      P_TL = ifelse(is.na(P_TL),-999,P_TL)
+      P_TH = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] > i],na.rm = T)
+      P_TH = ifelse(is.na(P_TH),-999,P_TH)
+      if(counter == 1){
+        PL = P_TL
+        VL = i
+        PH = P_TH
+        VH = i
+      }else{
+        if(P_TL > PL){
+          PL = P_TL
+          VL = i
+        }
+        if(P_TH > PH){
+          PH = P_TH
+          VH = i
+        }
+      }
+    }
+    TMP = data.frame(
+      Var = Var,
+      VL = round(VL, 4),
+      PL = PL,
+      VH = round(VH, 4),
+      PH = PH
+    )
+    TMP
+  }
+
+## Spinning Down Clusters
+registerDoSEQ()
+stopCluster(c1)
+kill_all_Rscript_s()
+
+STORE = data.table::rbindlist(STORE) %>%
+  as.data.frame()
+
+FINAL = STORE %>%
+  filter(PL > Baseline_Return | PH > Baseline_Return) %>%
+  rowwise() %>%
+  mutate(Profit = max(c(PL,PH),na.rm = T)) %>%
+  rowwise() %>%
+  mutate(Side = case_when(
+    PL > PH ~ "Low",
+    T ~ "High"
+  ),
+  Value =  case_when(
+    PL > PH ~ VL,
+    T ~ VH
+  ),
+  Increase = Profit - Baseline_Return,
+  IP = scales::percent(Increase),
+  Percent = 0)
+for(i in 1:nrow(FINAL)){
+  if(FINAL$Side[i] == "Low"){
+    FINAL$Percent[i] =  sum(PR_Stage_R4[,as.character(FINAL$Var[i])] <
+                              FINAL$Value[i])/nrow(PR_Stage_R4)
+  }else{
+    FINAL$Percent[i] =  sum(PR_Stage_R4[,as.character(FINAL$Var[i])] > 
+                              FINAL$Value[i])/nrow(PR_Stage_R4)
+  }
+}
+FINAL$Decider = 2*FINAL$Increase + FINAL$Percent 
+```
+
 
 #### Potential Buy Position
 
@@ -329,9 +427,9 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 100,
+                                  Itterations = 25,
                                   PARALLEL = T,
-                                  NCores = 2)
+                                  NCores = 5)
 save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))
 load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
