@@ -15,6 +15,9 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   pb <- progress_estimated(Itterations)
   progress <- function(n) pb$pause(0.1)$tick()$print()
   opts <- list(progress = progress)
+  threads = floor(detectCores()/2/NCores)
+  setMKLthreads(threads)
+  print(getMKLthreads())
   if(PARALLEL){
     require(doSNOW)
     ## Creating Clusters
@@ -32,20 +35,23 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   
   RESULTS = foreach(LOOP = 1:Itterations,
                     .inorder = F,
-                    .errorhandling = "stop",
+                    .errorhandling = "remove",
                     .packages = c("tidyverse",
                                     "quantmod",
                                     "lubridate",
                                     "scales",
                                     "EmersonDataScience",
-                                    "TTR"),
+                                    "TTR",
+                                  "RevoUtilsMath"),
                       .export = c("Modeling_Function",
+                                  "Rule_Generator",
                                   "Prediction_Function",
                                   "Performance_Function",
                                   "BUY_POS_FILTER"), 
                       .verbose = F,
                       .options.snow = opts) %dopar% 
       {
+        setMKLthreads(threads)
         ## Loop To Ensure Good Start / End Dates
         MR = character(0)
         while(length(MR) == 0){
@@ -64,7 +70,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
         ## Copy for Liquidity Check
         ID_DF_2 = ID_DF %>%
           filter(Date <= Dates[1] + Delta,
-                 Date >= Dates[1]+Delta-365)
+                 Date >= Dates[1] + Delta-365)
         
         ## Removing Junk / Baby Stocks
         CHECK = ID_DF_2 %>%
@@ -92,14 +98,15 @@ BACKTEST_Rule_Generator = function(Starting_Money,
           filter(Stock %in% CHECK$Stock)
         
         ## Pausing to stagger CPU draw
+        Sys.sleep(runif(n = 1,min = 5,max = 60))
         CPU_Check = T
         while(CPU_Check){
-          Loading = sum(as.numeric(str_extract_all(system("wmic cpu get loadpercentage",
+          (Loading = sum(as.numeric(str_extract_all(system("wmic cpu get loadpercentage",
                                                           intern = T),
                                                    "\\d",
                                                    simplify = T)),
-                        na.rm = T)
-          if(Loading < 50){
+                        na.rm = T))
+          if(Loading < 90){
             CPU_Check = F
           }else{
             Sys.sleep(30)
@@ -141,16 +148,6 @@ BACKTEST_Rule_Generator = function(Starting_Money,
               ungroup()
             FUTURES = Preds$FUTURES
             SHORTS = Preds$SHORTS
-            
-            if(sum(RESULT$Close) < Starting_Money*Max_Holding*3){
-              RESULT = FUTURES %>%
-                left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-                dplyr::select(Sector,Industry,Decider,everything()) %>%
-                group_by(Sector,Industry) %>%
-                filter(Decider == max(Decider)) %>%
-                ungroup() %>%
-                arrange(desc(Decider))
-            }
             
             if(nrow(RESULT) > 0 & counter == 0){
               counter = counter + 1

@@ -53,11 +53,11 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(status == "filled",
            type == "limit") %>%
     mutate(filled_at = ymd_hms(filled_at)))
-  Sold_Orders = try(get_orders(status = 'all',
+  Sold_Orders = try(get_orders(status = 'filled',
                                from = Sys.Date() - 30,
                                live = !PAPER) %>%
                       filter(status == "filled",
-                             type == "stop_limit" | type == "stop") %>%
+                             type == "stop_limit" | type == "stop" | type == "market") %>%
                       mutate(filled_at = ymd_hms(filled_at)))
   
   ## Updating Capital 

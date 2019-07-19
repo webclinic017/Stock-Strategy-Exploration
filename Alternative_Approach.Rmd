@@ -427,9 +427,9 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 25,
+                                  Itterations = 50,
                                   PARALLEL = T,
-                                  NCores = 5)
+                                  NCores = 4)
 save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))
 load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
@@ -456,10 +456,10 @@ for(i in 1:length(BT_List)){
 ## Summarizing Run Results
 RUNS_Summary = RUNS %>%
   mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
-  summarise(Method_Return = mean(Method_Return),
-            Market_Return = mean(Market_Return),
-            Max_Gain = mean(Max_Gain),
-            Max_Loss = mean(Max_Loss),
+  summarise(Method_Return = mean(Method_Return,trim = 0.05),
+            Market_Return = mean(Market_Return,trim = 0.05),
+            Max_Gain = mean(Max_Gain,trim = 0.05),
+            Max_Loss = mean(Max_Loss,trim = 0.05),
             Trade_Number = round(mean(Trade_Number)))
 print(paste0("Typical Market Return ",scales::percent(RUNS_Summary$Market_Return)))
 print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return)))
@@ -476,7 +476,14 @@ RULES_Summary = RULES %>%
   summarise_all(mean) %>%
   mutate(Delta = abs(PL-PH),
          PDM = (MAX - MP)/MP,
-         PD = Delta/MAX) %>%
+         PD = Delta/MAX,
+         Side = case_when(
+           PH > PL ~ "High",
+           T ~ "Low"
+         ),
+         Value = case_when(
+           Side == "High" ~ VH,
+           T ~ VL)) %>%
   filter(PDM > 0.05,
          PD > 0.05,
          VL > VH) %>%
