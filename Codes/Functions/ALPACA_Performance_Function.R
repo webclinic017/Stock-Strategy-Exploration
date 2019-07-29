@@ -13,10 +13,12 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
     Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
+    Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Paper Choices.csv")
   }else{
     KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = as.character(KEYS$Key.ID))
     Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
+    Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Live Choices.csv")
   }
   
   ## Diversification
@@ -118,7 +120,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                    time_in_force = "day",
                    live = !PAPER,
                    limit_price = as.character(RESULT$Close[STOCK]))
-      
+      Report_Out = data.frame(Time = Sys.time(),
+                              Stock = RESULT$Stock[STOCK],
+                              Qty = as.character(Numbers[STOCK]),
+                              Side = "Buy",
+                              Type = "Limit",
+                              Price = as.character(RESULT$Close[STOCK]),
+                              Reason = "Probability")
+      write_csv(x = Report_Out,
+                path = Report_CSV,
+                append = T)
     }
   } 
   
@@ -146,6 +157,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                          stop_price = Stop_Price,
                          time_in_force = "gtc",
                          live = !PAPER)
+            Report_Out = data.frame(Time = Sys.time(),
+                                    Stock = STOCK,
+                                    Qty = Number,
+                                    Side = "sell",
+                                    Type = "stop",
+                                    Price = Stop_Price,
+                                    Reason = "Rebalance Stop Loss Reset")
+            write_csv(x = Report_Out,
+                      path = Report_CSV,
+                      append = T)
           }
           submit_order(ticker = STOCK,
                        qty = Sell,
@@ -153,6 +174,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        type = "market",
                        time_in_force = "gtc",
                        live = !PAPER)
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Sell,
+                                  Side = "sell",
+                                  Type = "market",
+                                  Price = NA,
+                                  Reason = "Rebalance Market Sell")
+          write_csv(x = Report_Out,
+                    path = Report_CSV,
+                    append = T)
           Sys.sleep(10)
         }
       }
@@ -194,6 +225,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        type = "market",
                        time_in_force = "gtc",
                        live = !PAPER)
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "market",
+                                  Price = NA,
+                                  Reason = "Negative After Projection")
+          write_csv(x = Report_Out,
+                    path = Report_CSV,
+                    append = T)
           Market_Sell = T
         }
         if(Delta + Pcent_Gain <= Pcent_Gain*0.5){
@@ -207,6 +248,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        type = "market",
                        time_in_force = "gtc",
                        live = !PAPER)
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "market",
+                                  Price = NA,
+                                  Reason = "Projected To Lose Half Of Gains")
+          write_csv(x = Report_Out,
+                    path = Report_CSV,
+                    append = T)
           Market_Sell = T
         }
       }
@@ -228,6 +279,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                        time_in_force = "gtc",
                        stop_price = as.character(Stop_Loss),
                        live = !PAPER)
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "stop",
+                                  Price = Stop_Loss,
+                                  Reason = "Initial Stop Loss")
+          write_csv(x = Report_Out,
+                    path = Report_CSV,
+                    append = T)
         }else{
           ## Pulling Current Stop Loss
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
@@ -250,6 +311,16 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                          time_in_force = "gtc",
                          stop_price = as.character(Stop_Loss),
                          live = !PAPER)
+            Report_Out = data.frame(Time = Sys.time(),
+                                    Stock = STOCK,
+                                    Qty = Quantity,
+                                    Side = "sell",
+                                    Type = "stop",
+                                    Price = Stop_Loss,
+                                    Reason = "Stop Loss Update")
+            write_csv(x = Report_Out,
+                      path = Report_CSV,
+                      append = T)
           }
         }
       }
