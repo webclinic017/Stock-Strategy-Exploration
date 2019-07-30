@@ -80,3 +80,30 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-07-30T11:38:49Z,ARRY,10,sell,market,47.88,Projected To Lose Half Of Gain
 2019-07-30T11:38:50Z,ADP,3,sell,stop,160.4828907674872,Initial Stop Loss
 2019-07-30T11:39:01Z,AAPL,1,sell,market,209.67,Projected To Lose Half Of Gain
+2019-07-30T14:59:17Z,PG,4,Buy,Limit,116,Probability
+2019-07-30T14:59:18Z,V,2,Buy,Limit,183.210007,Probability
+2019-07-30T14:59:18Z,VMW,2,Buy,Limit,177.660004,Probability
+2019-07-30T14:59:19Z,KO,6,Buy,Limit,53.990002,Probability
+2019-07-30T14:59:41Z,SO,1,sell,market,55.94,Rebalance Market Sell
+2019-07-30T14:59:52Z,ADP,1,sell,market,167.5,Rebalance Market Sell
+2019-07-30T15:00:14Z,WCG,1,sell,stop,275.9863113550493,Initial Stop Loss
+2019-07-30T15:00:15Z,TXN,3,sell,stop,123.48227942694815,Initial Stop Loss
+2019-07-30T15:00:16Z,TDY,1,sell,market,293.56,Negative After Projection
+2019-07-30T15:00:17Z,T,14,sell,stop,32.709618943612476,Initial Stop Loss
+2019-07-30T15:00:18Z,SO,8,sell,stop,53.96175043920996,Initial Stop Loss
+2019-07-30T15:00:20Z,SFLY,1,sell,market,50.62,Projected To Lose Half Of Gain
+2019-07-30T15:00:21Z,SBUX,5,sell,stop,94.20215478739641,Initial Stop Loss
+2019-07-30T15:00:22Z,RSG,4,sell,stop,87.79453345008349,Initial Stop Loss
+2019-07-30T15:00:23Z,RMD,3,sell,stop,122.14783644674262,Initial Stop Loss
+2019-07-30T15:00:24Z,PANW,2,sell,stop,209.96061867294569,Initial Stop Loss
+2019-07-30T15:00:25Z,NTB,15,sell,market,30.98,Negative After Projection
+2019-07-30T15:00:26Z,INVH,2,sell,stop,26.51984343928066,Initial Stop Loss
+2019-07-30T15:00:27Z,HD,2,sell,stop,212.24395931950804,Initial Stop Loss
+2019-07-30T15:00:29Z,HAS,3,sell,stop,120.79861567586255,Initial Stop Loss
+2019-07-30T15:00:41Z,GPC,3,sell,stop,94.93141599059419,Stop Loss Update
+2019-07-30T15:00:42Z,EW,2,sell,stop,202.24279935797895,Initial Stop Loss
+2019-07-30T15:00:43Z,CMCSA,6,sell,stop,42.340644796476184,Initial Stop Loss
+2019-07-30T15:00:44Z,CHE,1,sell,stop,382.5743380272547,Initial Stop Loss
+2019-07-30T15:00:45Z,CB,2,sell,stop,146.39503944462953,Initial Stop Loss
+2019-07-30T15:00:47Z,AXP,3,sell,stop,121.31330008382794,Initial Stop Loss
+2019-07-30T15:00:48Z,ADP,3,sell,stop,160.4828907674872,Initial Stop Loss

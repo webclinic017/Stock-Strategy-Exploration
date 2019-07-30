@@ -17,7 +17,6 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Re_Pull = T
-PAPER = T
 NClusters = 8
 
 ## Perfromance Function Parameters
