@@ -1,3 +1,4 @@
+Date,Stock,Qty,Side,Type,Price,Reason
 2019-07-29T11:39:20Z,RMD,3,Buy,Limit,126.870003,Probability
 2019-07-29T11:39:20Z,CHE,1,Buy,Limit,386.01001,Probability
 2019-07-29T11:39:20Z,GS,2,Buy,Limit,222.139999,Probability
@@ -5,23 +6,77 @@
 2019-07-29T11:39:21Z,DIS,3,Buy,Limit,144.649994,Probability
 2019-07-29T11:39:21Z,GPC,3,Buy,Limit,97.910004,Probability
 2019-07-29T11:39:21Z,ADP,1,sell,market,NA,Rebalance Market Sell
-2019-07-29T11:39:43Z,WCG,1,sell,stop,275.68526038236075,Initial Stop Loss
-2019-07-29T11:39:53Z,TDY,1,sell,stop,285.3366614379949,Stop Loss Update
-2019-07-29T11:40:05Z,TDG,1,sell,stop,479.7496050173999,Stop Loss Update
-2019-07-29T11:40:16Z,T,14,sell,stop,33.09189763158266,Stop Loss Update
-2019-07-29T11:40:27Z,SO,9,sell,stop,54.28650031914919,Stop Loss Update
-2019-07-29T11:40:38Z,SFLY,1,sell,stop,50.02099541544814,Stop Loss Update
-2019-07-29T11:40:48Z,PANW,2,sell,stop,217.8829728785569,Stop Loss Update
+2019-07-29T11:39:43Z,WCG,1,sell,stop,275.6852604,Initial Stop Loss
+2019-07-29T11:39:53Z,TDY,1,sell,stop,285.3366614,Stop Loss Update
+2019-07-29T11:40:05Z,TDG,1,sell,stop,479.749605,Stop Loss Update
+2019-07-29T11:40:16Z,T,14,sell,stop,33.09189763,Stop Loss Update
+2019-07-29T11:40:27Z,SO,9,sell,stop,54.28650032,Stop Loss Update
+2019-07-29T11:40:38Z,SFLY,1,sell,stop,50.02099542,Stop Loss Update
+2019-07-29T11:40:48Z,PANW,2,sell,stop,217.8829729,Stop Loss Update
 2019-07-29T11:40:49Z,NTB,15,sell,market,NA,Negative After Projection
 2019-07-29T11:41:00Z,KLAC,3,sell,market,NA,Negative After Projection
-2019-07-29T11:41:11Z,INVH,2,sell,stop,26.602138934609943,Stop Loss Update
+2019-07-29T11:41:11Z,INVH,2,sell,stop,26.60213893,Stop Loss Update
 2019-07-29T11:41:22Z,INTC,9,sell,market,NA,Negative After Projection
-2019-07-29T11:41:33Z,HHC,3,sell,stop,126.6612892819777,Stop Loss Update
-2019-07-29T11:41:34Z,EW,2,sell,stop,202.34532346243887,Initial Stop Loss
-2019-07-29T11:41:45Z,CMCSA,6,sell,stop,43.159925165435894,Stop Loss Update
-2019-07-29T11:41:45Z,CB,2,sell,stop,146.3054278634472,Initial Stop Loss
-2019-07-29T11:41:56Z,BID,8,sell,stop,56.68840215734158,Stop Loss Update
-2019-07-29T11:42:07Z,AXP,3,sell,stop,123.16816901335316,Stop Loss Update
-2019-07-29T11:42:18Z,ARRY,10,sell,stop,46.090143586214154,Stop Loss Update
-2019-07-29T11:42:19Z,ADP,3,sell,stop,160.38465251883238,Initial Stop Loss
-2019-07-29T11:42:30Z,ADBE,1,sell,stop,301.102512672534,Stop Loss Update
+2019-07-29T11:41:33Z,HHC,3,sell,stop,126.6612893,Stop Loss Update
+2019-07-29T11:41:34Z,EW,2,sell,stop,202.3453235,Initial Stop Loss
+2019-07-29T11:41:45Z,CMCSA,6,sell,stop,43.15992517,Stop Loss Update
+2019-07-29T11:41:45Z,CB,2,sell,stop,146.3054279,Initial Stop Loss
+2019-07-29T11:41:56Z,BID,8,sell,stop,56.68840216,Stop Loss Update
+2019-07-29T11:42:07Z,AXP,3,sell,stop,123.168169,Stop Loss Update
+2019-07-29T11:42:18Z,ARRY,10,sell,stop,46.09014359,Stop Loss Update
+2019-07-29T11:42:19Z,ADP,3,sell,stop,160.3846525,Initial Stop Loss
+2019-07-29T11:42:30Z,ADBE,1,sell,stop,301.1025127,Stop Loss Update
+2019-07-29T18:02:41Z,ADP,1,sell,market,NA,Rebalance Market Sell
+2019-07-29T18:03:02Z,WCG,1,sell,stop,275.68526038236075,Initial Stop Loss
+2019-07-29T18:03:02Z,UHAL,1,sell,stop,373.00674687777166,Initial Stop Loss
+2019-07-29T18:03:03Z,TDY,1,sell,stop,285.2666614379949,Initial Stop Loss
+2019-07-29T18:03:04Z,TDG,1,sell,market,491.31,Negative After Projection
+2019-07-29T18:03:04Z,T,14,sell,stop,32.70618334586838,Initial Stop Loss
+2019-07-29T18:03:05Z,SO,9,sell,stop,53.93650031914919,Initial Stop Loss
+2019-07-29T18:03:06Z,SFLY,1,sell,stop,50.01099541544815,Initial Stop Loss
+2019-07-29T18:03:07Z,RMD,3,sell,stop,122.23074709649205,Initial Stop Loss
+2019-07-29T18:03:07Z,PANW,2,sell,stop,210.4529728785569,Initial Stop Loss
+2019-07-29T18:03:08Z,NTB,15,sell,market,31.96,Negative After Projection
+2019-07-29T18:03:09Z,KLAC,3,sell,market,139.59,Negative After Projection
+2019-07-29T18:03:09Z,INVH,2,sell,stop,26.52213893460994,Initial Stop Loss
+2019-07-29T18:03:10Z,INTC,9,sell,market,52.445,Negative After Projection
+2019-07-29T18:03:11Z,HHC,3,sell,market,130.815,Negative After Projection
+2019-07-29T18:03:12Z,GS,2,sell,stop,214.09224862533296,Initial Stop Loss
+2019-07-29T18:03:13Z,GPC,3,sell,stop,94.53614106679373,Initial Stop Loss
+2019-07-29T18:03:24Z,EW,2,sell,stop,206.37532346243887,Stop Loss Update
+2019-07-29T18:03:25Z,CMCSA,6,sell,stop,42.31992516543589,Initial Stop Loss
+2019-07-29T18:03:36Z,CB,2,sell,stop,148.9854278634472,Stop Loss Update
+2019-07-29T18:03:37Z,BID,8,sell,stop,55.89840215734158,Initial Stop Loss
+2019-07-29T18:03:37Z,AXP,3,sell,stop,121.18816901335316,Initial Stop Loss
+2019-07-29T18:03:38Z,ARRY,10,sell,stop,45.21014358621415,Initial Stop Loss
+2019-07-29T18:03:39Z,ADP,3,sell,stop,160.38465251883238,Initial Stop Loss
+2019-07-29T18:03:39Z,ADBE,1,sell,market,307.53,Negative After Projection
+2019-07-29T18:03:50Z,AAPL,1,sell,stop,204.01376253657799,Stop Loss Update
+2019-07-30T11:35:44Z,SBUX,5,Buy,Limit,98.019997,Probability
+2019-07-30T11:35:44Z,TXN,3,Buy,Limit,129.970001,Probability
+2019-07-30T11:35:44Z,CHE,1,Buy,Limit,396.049988,Probability
+2019-07-30T11:35:44Z,PG,4,Buy,Limit,116,Probability
+2019-07-30T11:35:44Z,HAS,3,Buy,Limit,126.07,Probability
+2019-07-30T11:35:45Z,HD,2,Buy,Limit,218.039993,Probability
+2019-07-30T11:35:45Z,RSG,4,Buy,Limit,90.089996,Probability
+2019-07-30T11:35:55Z,SO,8,sell,stop,53.93,Rebalance Stop Loss Reset
+2019-07-30T11:35:56Z,SO,1,sell,market,NA,Rebalance Market Sell
+2019-07-30T11:36:06Z,ADP,1,sell,market,NA,Rebalance Market Sell
+2019-07-30T11:36:27Z,WCG,1,sell,stop,275.9863113550493,Initial Stop Loss
+2019-07-30T11:36:38Z,TDY,1,sell,market,294.43,Negative After Projection
+2019-07-30T11:36:49Z,T,14,sell,stop,33.27533322932676,Stop Loss Update
+2019-07-30T11:37:00Z,SO,9,sell,stop,54.67175043920996,Stop Loss Update
+2019-07-30T11:37:10Z,SFLY,1,sell,market,50.64,Projected To Lose Half Of Gain
+2019-07-30T11:37:21Z,RMD,3,sell,stop,124.67783644674262,Stop Loss Update
+2019-07-30T11:37:32Z,PANW,2,sell,stop,215.9206186729457,Stop Loss Update
+2019-07-30T11:37:33Z,NTB,15,sell,market,31.55,Negative After Projection
+2019-07-30T11:37:44Z,INVH,2,sell,stop,26.79984343928066,Stop Loss Update
+2019-07-30T11:37:44Z,GPC,3,sell,stop,94.64141599059418,Initial Stop Loss
+2019-07-30T11:37:55Z,EW,2,sell,stop,206.49279935797895,Stop Loss Update
+2019-07-30T11:38:06Z,CMCSA,6,sell,stop,42.760644796476186,Stop Loss Update
+2019-07-30T11:38:17Z,CB,2,sell,stop,149.14503944462953,Stop Loss Update
+2019-07-30T11:38:28Z,BID,8,sell,market,58.42,Projected To Lose Half Of Gain
+2019-07-30T11:38:39Z,AXP,3,sell,stop,123.74330008382793,Stop Loss Update
+2019-07-30T11:38:49Z,ARRY,10,sell,market,47.88,Projected To Lose Half Of Gain
+2019-07-30T11:38:50Z,ADP,3,sell,stop,160.4828907674872,Initial Stop Loss
+2019-07-30T11:39:01Z,AAPL,1,sell,market,209.67,Projected To Lose Half Of Gain

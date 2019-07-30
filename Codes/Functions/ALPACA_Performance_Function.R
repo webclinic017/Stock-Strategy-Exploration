@@ -151,10 +151,10 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
             cancel_order(order_id = Loss_Order$id)
             Sys.sleep(10)
             submit_order(ticker = STOCK,
-                         qty = Number,
+                         qty = as.character(Number),
                          side = "sell",
                          type = "stop",
-                         stop_price = Stop_Price,
+                         stop_price = as.character(Stop_Price),
                          time_in_force = "gtc",
                          live = !PAPER)
             Report_Out = data.frame(Time = Sys.time(),
@@ -169,7 +169,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                       append = T)
           }
           submit_order(ticker = STOCK,
-                       qty = Sell,
+                       qty = as.character(Sell),
                        side = "sell",
                        type = "market",
                        time_in_force = "gtc",
@@ -191,6 +191,14 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     ## Updating Holdings
     Sys.sleep(10)
     Current_Holdings = get_positions(live = !PAPER)
+    Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
+                           filter(status == "new"))
+    Filled_Orders = try(get_orders(status = 'all',
+                                   from = Sys.Date() - 15,
+                                   live = !PAPER) %>%
+                          filter(status == "filled",
+                                 type == "limit") %>%
+                          mutate(filled_at = ymd_hms(filled_at)))
     
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
@@ -220,7 +228,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
             Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
-                       qty = Quantity,
+                       qty = as.character(Quantity),
                        side = "sell",
                        type = "market",
                        time_in_force = "gtc",
@@ -243,7 +251,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
             Sys.sleep(10)
           }
           submit_order(ticker = STOCK,
-                       qty = Quantity,
+                       qty = as.character(Quantity),
                        side = "sell",
                        type = "market",
                        time_in_force = "gtc",

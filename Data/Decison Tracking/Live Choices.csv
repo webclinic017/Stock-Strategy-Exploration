@@ -1,3 +1,10 @@
-2019-07-29T11:42:53Z,CY,1,sell,stop,22.51337100658083,Stop Loss Update
-2019-07-29T11:43:04Z,CTRL,1,sell,stop,23.756628068521692,Stop Loss Update
+Date,Stock,Qty,Side,Type,Price,Reason
+2019-07-29T11:42:53Z,CY,1,sell,stop,22.51337101,Stop Loss Update
+2019-07-29T11:43:04Z,CTRL,1,sell,stop,23.75662807,Stop Loss Update
 2019-07-29T11:43:15Z,BB,2,sell,stop,7.0015,Stop Loss Update
+2019-07-29T18:04:13Z,CY,1,sell,stop,22.59837100658083,Stop Loss Update
+2019-07-30T11:39:02Z,IBN,3,Buy,Limit,12.58,Probability
+2019-07-30T11:39:03Z,T,1,Buy,Limit,34.34,Probability
+2019-07-30T11:39:03Z,CRAY,1,Buy,Limit,34.650002,Probability
+2019-07-30T11:39:24Z,CY,1,sell,stop,22.629558648967915,Stop Loss Update
+2019-07-30T11:39:35Z,CTRL,1,sell,stop,23.750440492198713,Stop Loss Update
