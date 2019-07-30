@@ -42,41 +42,50 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   }
   
   ## Checking Account Status
-  (ACCT_Status = get_account(live = !PAPER))
+  ACCT_Status = get_account(live = !PAPER)
+  
+  ## Pulling Holinds
   Current_Holdings = get_positions(live = !PAPER)
+  
+  ## Appending Sector / Industry Info
   Sector_Ind_DF = try(Current_Holdings %>%
     left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
     select(Sector,Industry))
+  
+  ## Pulling Existing Orders
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
     filter(status == "new"))
+  
+  ## Pulling Orders Filled Within Projection Period
   Filled_Orders = try(get_orders(status = 'all',
                                  from = Sys.Date() - 15,
                                  live = !PAPER) %>%
     filter(status == "filled",
            type == "limit") %>%
     mutate(filled_at = ymd_hms(filled_at)))
-  Sold_Orders = try(get_orders(status = 'filled',
-                               from = Sys.Date() - 30,
-                               live = !PAPER) %>%
-                      filter(status == "filled",
-                             type == "stop_limit" | type == "stop" | type == "market") %>%
-                      mutate(filled_at = ymd_hms(filled_at)))
+  
+  ## Pulling Filled Sell Orders During Wash Sale Window
+  Wash_Sale_Record = try(get_orders(status = 'filled',
+                                    from = Sys.Date() - 30,
+                                    live = !PAPER) %>%
+                           filter(status == "filled",
+                                  type == "stop_limit" | type == "stop" | type == "market") %>%
+                           mutate(filled_at = ymd_hms(filled_at)))
   
   ## Updating Capital 
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
   Buying_Power = as.numeric(ACCT_Status$buying_power)
   
   ## Checking 30 Day Wash Rule
-  if(!"try-error" %in% class(Sold_Orders)){
+  if(!"try-error" %in% class(Wash_Sale_Record)){
     RESULT = RESULT %>%
-      filter(!Stock %in% Sold_Orders$symbol)
+      filter(!Stock %in% Wash_Sale_Record$symbol)
   }
   
   ## Removes Any Outside of Price Range
   RESULT = RESULT %>%
     BUY_POS_FILTER() %>%
     filter(Close < Investment_Value*Max_Holding,
-           2*ATR/Close < 0.05,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
     select(Sector,Industry,Decider,everything())
@@ -136,58 +145,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   Ticker_List = c(Current_Holdings$symbol)
   if(!is_empty(Ticker_List)){
-    ## Rebalancing Daily Check
-    for(STOCK in Ticker_List){
-      if(as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK]) > 
-         Investment_Value * Max_Holding){
-        Number = floor((Investment_Value * Max_Holding)/
-          as.numeric(Current_Holdings$current_price[Current_Holdings$symbol == STOCK]))
-        Held = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
-        Sell = Held - Number
-        Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
-        if(Sell > 0){
-          if(nrow(Loss_Order) > 0){
-            Stop_Price = Loss_Order$stop_price
-            cancel_order(order_id = Loss_Order$id)
-            Sys.sleep(10)
-            submit_order(ticker = STOCK,
-                         qty = as.character(Number),
-                         side = "sell",
-                         type = "stop",
-                         stop_price = as.character(Stop_Price),
-                         time_in_force = "gtc",
-                         live = !PAPER)
-            Report_Out = data.frame(Time = Sys.time(),
-                                    Stock = STOCK,
-                                    Qty = Number,
-                                    Side = "sell",
-                                    Type = "stop",
-                                    Price = Stop_Price,
-                                    Reason = "Rebalance Stop Loss Reset")
-            write_csv(x = Report_Out,
-                      path = Report_CSV,
-                      append = T)
-          }
-          submit_order(ticker = STOCK,
-                       qty = as.character(Sell),
-                       side = "sell",
-                       type = "market",
-                       time_in_force = "gtc",
-                       live = !PAPER)
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Sell,
-                                  Side = "sell",
-                                  Type = "market",
-                                  Price =  as.numeric(Current_Holdings$current_price[Current_Holdings$symbol == STOCK]),
-                                  Reason = "Rebalance Market Sell")
-          write_csv(x = Report_Out,
-                    path = Report_CSV,
-                    append = T)
-          Sys.sleep(10)
-        }
-      }
-    }
     ## Updating Holdings
     Sys.sleep(10)
     Current_Holdings = get_positions(live = !PAPER)
