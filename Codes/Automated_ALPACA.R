@@ -23,7 +23,7 @@ NClusters = 8
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
-Max_Holding_Live = 0.25
+Max_Holding_Live = 0.15
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 15

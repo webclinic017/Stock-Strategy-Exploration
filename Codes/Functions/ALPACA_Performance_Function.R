@@ -179,7 +179,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                                   Qty = Sell,
                                   Side = "sell",
                                   Type = "market",
-                                  Price = NA,
+                                  Price =  as.numeric(Current_Holdings$current_price[Current_Holdings$symbol == STOCK]),
                                   Reason = "Rebalance Market Sell")
           write_csv(x = Report_Out,
                     path = Report_CSV,
