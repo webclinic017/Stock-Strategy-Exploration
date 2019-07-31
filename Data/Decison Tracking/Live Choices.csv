@@ -8,3 +8,12 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-07-30T11:39:03Z,CRAY,1,Buy,Limit,34.650002,Probability
 2019-07-30T11:39:24Z,CY,1,sell,stop,22.629558648967915,Stop Loss Update
 2019-07-30T11:39:35Z,CTRL,1,sell,stop,23.750440492198713,Stop Loss Update
+2019-07-30T18:05:13Z,IBN,1,sell,market,12.22,Rebalance Market Sell
+2019-07-30T18:05:23Z,CRAY,1,sell,market,34.67,Rebalance Market Sell
+2019-07-30T18:05:45Z,T,1,sell,stop,33.27533322932676,Initial Stop Loss
+2019-07-30T18:05:45Z,IBN,2,sell,stop,11.895290505549635,Initial Stop Loss
+2019-07-30T18:05:57Z,CTRL,1,sell,stop,23.770440492198713,Stop Loss Update
+2019-07-31T11:32:55Z,WMGI,1,Buy,Limit,28.84,Probability
+2019-07-31T11:33:17Z,CY,1,sell,stop,22.648876031184493,Stop Loss Update
+2019-07-31T11:33:28Z,CTRL,1,sell,stop,23.772552028470233,Stop Loss Update
+2019-07-31T11:33:39Z,BB,2,sell,stop,7.068,Stop Loss Update

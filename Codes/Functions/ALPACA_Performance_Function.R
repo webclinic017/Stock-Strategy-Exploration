@@ -58,7 +58,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   
   ## Pulling Orders Filled Within Projection Period
   Filled_Orders = try(get_orders(status = 'all',
-                                 from = Sys.Date() - 15,
+                                 from = Sys.Date() - Projection,
                                  live = !PAPER) %>%
     filter(status == "filled",
            type == "limit") %>%
