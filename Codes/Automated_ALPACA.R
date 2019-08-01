@@ -25,7 +25,7 @@ Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
 ## Timeline For Profit Model (Trading Days)
-Projection = 15
+Projection = 5
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = "All" 
@@ -70,20 +70,63 @@ if(Hour < 12){
   
   
   ## Compairing Performance to Major Indexs
+  load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   Major_Indexs = c("^GSPC","^IXIC","^DJI")
-  Index_Alpha_Slope = PR_Stage %>%
-    filter(Stock %in% Major_Indexs) %>%
-    select(Stock,Date,Close_Slope_50_Norm) %>%
-    spread(Stock,Close_Slope_50_Norm) %>%
-    mutate(Alpha_Slope = rowMeans(cbind(`^GSPC`,`^IXIC`,`^DJI`))) %>%
-    select(Date,Alpha_Slope)
+  Total_Alpha_Slope = PR_Stage %>%
+    filter(!Stock %in% Major_Indexs) %>%
+    select(Date,Close_Slope_50_Norm) %>%
+    group_by(Date) %>%
+    summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Sector_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Sector) %>%
+    summarise(Sector_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Industry_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Industry) %>%
+    summarise(Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Sector_Industry_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Sector,Industry) %>%
+    summarise(Sector_Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Cap_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Cap_Type) %>%
+    summarise(Cap_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
   
   ## Appending Results
   PR_Stage_R2 = PR_Stage %>%
-    left_join(Index_Alpha_Slope,by = "Date") %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    left_join(Total_Alpha_Slope) %>%
+    left_join(Sector_Alpha_Slope) %>%
+    left_join(Industry_Alpha_Slope) %>% 
+    left_join(Sector_Industry_Alpha_Slope) %>%
+    left_join(Cap_Alpha_Slope) %>%
     na.omit() %>%
-    mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
-    filter_all(all_vars(!is.infinite(.)))
+    mutate(Pseudo_Alpha_Total = (Close_Slope_50_Norm - Total_Alpha)/Total_Alpha,
+           Pseudo_Alpha_Sector = (Close_Slope_50_Norm - Sector_Alpha)/Sector_Alpha,
+           Pseudo_Alpha_Industry = (Close_Slope_50_Norm - Industry_Alpha)/Industry_Alpha,
+           Psuedo_Alpha_Sector_Industry = (Close_Slope_50_Norm - Sector_Industry_Alpha)/Sector_Industry_Alpha,
+           Psuedo_Alpha_Cap = (Close_Slope_50_Norm - Cap_Alpha)/Cap_Alpha) %>%
+    filter_all(all_vars(!is.infinite(.))) %>%
+    filter(Open > 0,
+           Open < 5000,
+           High > 0,
+           High < 5000,
+           Low > 0,
+           Low < 5000,
+           Close > 0,
+           Close < 5000,
+           Adjusted > 0,
+           Adjusted < 5000,
+           Volume > 0) %>%
+    select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
+    na.omit()
   
   
   ## Removing Dead Stocks Or Baby Stocks
@@ -92,9 +135,11 @@ if(Hour < 12){
   Last_Time = PR_Stage_R2 %>% 
     group_by(Stock) %>%
     summarise(Max_Time = max(Date),
-              Min_Time = min(Date)) %>%
+              Min_Time = min(Date),
+              Count = n()) %>%
     filter(Max_Time == Time_Stop,
-           Min_Time <= Time_Start)
+           Min_Time <= Time_Start,
+           Count > 1000)
   
   ## Calculating Technical Indicators
   Stocks = unique(Last_Time$Stock)
@@ -167,25 +212,31 @@ if(Hour < 12){
     na.omit() %>%
     filter(!str_detect(Stock,"^\\^"))
   
+  ## Training Simple Models
   Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
                              Max_Date = max(PR_Stage_R4$Date))
   
+  ## Subsetting to Latest Data
   TODAY = ID_DF %>%
     filter(Date == max(Date))
   
+  ## Appending Forecasts and Probabilities
   PREDS = Prediction_Function(Models = Models,
                               TODAY = TODAY,
-                              FinViz = T)
+                              FinViz = F)
   
+  ## Separating Projections of Interest
   RESULT = PREDS$RESULT %>%
     BUY_POS_FILTER() 
-  FUTURES = PREDS$FUTURES
+  FUTURES = PREDS$FUTURES %>%
+    BUY_POS_FILTER()
   SHORTS = PREDS$SHORTS
   
+  ## Saving Results
   save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
        file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 }else{
-
+  ## Loading Daily Decision Data
   load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
@@ -193,7 +244,7 @@ if(Hour < 12){
 }  
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
-  ## Running Position Setting Function (Paper and Live)
+## Running Position Setting Function (Paper and Live)
 ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             RESULT = RESULT,
                             FUTURES = FUTURES,

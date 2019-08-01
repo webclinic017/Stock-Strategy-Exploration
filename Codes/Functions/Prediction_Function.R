@@ -13,10 +13,9 @@ Prediction_Function = function(Models,
            Delta = Futures,
            Future = (Close*Delta) + Close,
            Decider = Prob + Delta,
-           Stop_Loss = Close - 2*ATR,
-           Risk = (- 2*ATR)/Close + Delta) %>%
+           Stop_Loss = Close - 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^"),
-           Delta > 2*ATR/Close) %>%
+           Future > Close) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank)
   

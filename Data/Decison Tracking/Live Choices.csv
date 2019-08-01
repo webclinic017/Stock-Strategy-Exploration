@@ -17,3 +17,7 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-07-31T11:33:17Z,CY,1,sell,stop,22.648876031184493,Stop Loss Update
 2019-07-31T11:33:28Z,CTRL,1,sell,stop,23.772552028470233,Stop Loss Update
 2019-07-31T11:33:39Z,BB,2,sell,stop,7.068,Stop Loss Update
+2019-08-01T11:30:09Z,WMGI,1,sell,stop,27.398,Initial Stop Loss
+2019-08-01T11:30:21Z,CTRL,1,sell,market,23.91,Projected To Lose Half Of Gain
+2019-08-01T18:03:20Z,CTRL,1,sell,market,23.91,Projected To Lose Half Of Gain
+2019-08-01T18:03:31Z,BB,2,sell,market,7.255,Projected To Lose Half Of Gain

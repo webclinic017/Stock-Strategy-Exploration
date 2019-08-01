@@ -2,8 +2,7 @@
     
     PR_Stage_R4 = PR_Stage_R4 %>%
       filter(Date <= Max_Date,
-             Date >= Max_Date-365) %>%
-      BUY_POS_FILTER()
+             Date >= Max_Date-365)
     
 
     ## Reducing Variable Pool
@@ -43,10 +42,10 @@
     Train_Futures = PR_Stage_R5[,c(Names_Futures$Var,"Adjusted_Lead")]
 
     
-    Model_Profit = glm(formula = Target~.^2,
+    Model_Profit = glm(formula = Target~.,
                        data = Train_Profit,
                        family = quasibinomial())
-    Model_Futures = glm(formula = Adjusted_Lead~.^2,
+    Model_Futures = glm(formula = Adjusted_Lead~.,
                        data = Train_Futures,
                        family = gaussian())
     
