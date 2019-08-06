@@ -21,3 +21,26 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-01T11:30:21Z,CTRL,1,sell,market,23.91,Projected To Lose Half Of Gain
 2019-08-01T18:03:20Z,CTRL,1,sell,market,23.91,Projected To Lose Half Of Gain
 2019-08-01T18:03:31Z,BB,2,sell,market,7.255,Projected To Lose Half Of Gain
+2019-08-02T11:30:44Z,TUP,2,Buy,Limit,14.95,Probability
+2019-08-02T11:30:44Z,GVA,1,Buy,Limit,34,Probability
+2019-08-02T11:30:44Z,OII,1,Buy,Limit,15.03,Probability
+2019-08-02T11:30:44Z,RRC,1,Buy,Limit,5.15,Probability
+2019-08-02T18:03:00Z,TUP,2,sell,stop,14.155,Initial Stop Loss
+2019-08-02T18:03:01Z,RRC,1,sell,stop,4.845,Initial Stop Loss
+2019-08-02T18:03:02Z,OII,1,sell,stop,14.2785,Initial Stop Loss
+2019-08-02T18:03:02Z,GVA,1,sell,stop,31.929499999999997,Initial Stop Loss
+2019-08-05T11:32:37Z,WMGI,1,sell,stop,27.606999999999996,Stop Loss Update
+2019-08-05T11:32:38Z,RRC,1,sell,stop,4.845,Initial Stop Loss
+2019-08-05T11:32:39Z,OII,1,sell,stop,14.2785,Initial Stop Loss
+2019-08-05T11:32:39Z,GVA,1,sell,stop,31.929499999999997,Initial Stop Loss
+2019-08-05T18:03:58Z,WLL,2,Buy,Limit,11.06,Probability
+2019-08-05T18:03:58Z,CARB,1,Buy,Limit,17.370001,Probability
+2019-08-05T18:03:58Z,PGTI,2,Buy,Limit,14.37,Probability
+2019-08-06T11:34:22Z,VST,1,Buy,Limit,21.719999,Probability
+2019-08-06T11:34:22Z,PJT,1,Buy,Limit,39.400002,Probability
+2019-08-06T11:34:23Z,CCJ,1,Buy,Limit,8.67,Probability
+2019-08-06T11:34:23Z,SXC,1,Buy,Limit,6.71,Probability
+2019-08-06T11:34:35Z,WLL,2,sell,stop,10.131749999999998,Initial Stop Loss
+2019-08-06T11:34:45Z,TUP,2,sell,stop,14.2785,Stop Loss Update
+2019-08-06T11:34:46Z,PGTI,2,sell,stop,13.651499999999999,Initial Stop Loss
+2019-08-06T11:34:47Z,CARB,1,sell,stop,16.188,Initial Stop Loss

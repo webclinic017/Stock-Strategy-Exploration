@@ -228,8 +228,7 @@ if(Hour < 12){
   ## Separating Projections of Interest
   RESULT = PREDS$RESULT %>%
     BUY_POS_FILTER() 
-  FUTURES = PREDS$FUTURES %>%
-    BUY_POS_FILTER()
+  FUTURES = PREDS$FUTURES
   SHORTS = PREDS$SHORTS
   
   ## Saving Results

@@ -49,7 +49,7 @@ Investment_Value = 350
 Starting_Money = 350
 Max_Loss = 0.05
 Max_Holding = 0.10
-Max_Holding_Live = 0.25
+Max_Holding_Live = 0.20
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = "Small" 
@@ -96,34 +96,40 @@ Sys.time() - Start
 
 ## Compairing Performance to Major Indexs
 Major_Indexs = c("^GSPC","^IXIC","^DJI")
-Total_Alpha_Slope = PR_Stage %>%
-  filter(!Stock %in% Major_Indexs) %>%
-  select(Date,Close_Slope_50_Norm) %>%
-  group_by(Date) %>%
-  summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-  na.omit()
-Sector_Alpha_Slope = PR_Stage %>%
-  left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-  group_by(Date,Sector) %>%
-  summarise(Sector_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-  na.omit()
-Industry_Alpha_Slope = PR_Stage %>%
-  left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-  group_by(Date,Industry) %>%
-  summarise(Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-  na.omit()
-Cap_Alpha_Slope = PR_Stage %>%
-  left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-  group_by(Date,Cap_Type) %>%
-  summarise(Cap_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-  na.omit()
-
+ Total_Alpha_Slope = PR_Stage %>%
+    filter(!Stock %in% Major_Indexs) %>%
+    select(Date,Close_Slope_50_Norm) %>%
+    group_by(Date) %>%
+    summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Sector_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Sector) %>%
+    summarise(Sector_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Industry_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Industry) %>%
+    summarise(Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Sector_Industry_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Sector,Industry) %>%
+    summarise(Sector_Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  Cap_Alpha_Slope = PR_Stage %>%
+    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+    group_by(Date,Cap_Type) %>%
+    summarise(Cap_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    na.omit()
+  
 ## Appending Results
 PR_Stage_R2 = PR_Stage %>%
   left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
   left_join(Total_Alpha_Slope) %>%
   left_join(Sector_Alpha_Slope) %>%
   left_join(Industry_Alpha_Slope) %>%  
+  left_join(Sector_Industry_Alpha_Slope) %>%
   left_join(Cap_Alpha_Slope) %>%
   na.omit() %>%
   mutate(Pseudo_Alpha_Total = (Close_Slope_50_Norm - Total_Alpha)/Total_Alpha,
@@ -143,8 +149,7 @@ PR_Stage_R2 = PR_Stage %>%
         Adjusted < 5000,
         Volume > 0) %>%
   select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
-  na.omit() %>%
-  na.locf()
+  na.omit()
 
 
 ## Removing Dead Stocks Or Baby Stocks
@@ -467,9 +472,9 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 100,
+                                  Itterations = 50,
                                   PARALLEL = T,
-                                  NCores = 4)
+                                  NCores = 2)
 save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))
 load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
