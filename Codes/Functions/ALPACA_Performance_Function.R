@@ -7,6 +7,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                                        Max_Holding = 0.10,
                                        Projection = 15,
                                        Max_Loss = 0.05,
+                                       Target = 0.40,
                                        PAPER = T){
   ## Setting API Keys
   if(PAPER){
@@ -57,7 +58,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(status == "new"))
   
   ## Pulling Orders Filled Within Projection Period
-  Filled_Orders = try(get_orders(status = 'all',
+  Filled_Orders = try(get_orders(status = 'closed',
                                  from = Sys.Date() - Projection,
                                  live = !PAPER) %>%
     filter(status == "filled",
@@ -65,7 +66,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     mutate(filled_at = ymd_hms(filled_at)))
   
   ## Pulling Filled Sell Orders During Wash Sale Window
-  Wash_Sale_Record = try(get_orders(status = 'filled',
+  Wash_Sale_Record = try(get_orders(status = 'closed',
                                     from = Sys.Date() - 30,
                                     live = !PAPER) %>%
                            filter(status == "filled",
@@ -96,12 +97,13 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   }
   
   ## Keeping Best Outlook Within Industry and Sector
-   RESULT = RESULT %>%
+  RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
+    filter(Delta >= (1 + Target/365)^Projection - 1) %>%
     ungroup() %>%
     distinct()
-   
+  
   ## Defining Purchase Numbers
   K = 0
   Remaining_Money = Buying_Power
@@ -151,7 +153,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                            filter(status == "new"))
     Filled_Orders = try(get_orders(status = 'all',
-                                   from = Sys.Date() - 15,
+                                   from = Sys.Date() - Projection,
                                    live = !PAPER) %>%
                           filter(status == "filled",
                                  type == "limit") %>%
