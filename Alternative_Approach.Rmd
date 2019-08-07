@@ -52,7 +52,7 @@ Max_Holding = 0.10
 Max_Holding_Live = 0.20
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "Small" 
+Cap = "All" 
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 5
@@ -473,6 +473,7 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
                                   Itterations = 10,
+                                  Target = 0.40,
                                   PARALLEL = T,
                                   NCores = 3)
 save(BT_List,

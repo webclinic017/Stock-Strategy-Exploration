@@ -43,7 +43,7 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
                               "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
                               "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
                               "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$|^DEACU$",
-                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$")))
+                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$")))
   
   ## Filtering to Specific 
   if(Cap != "All"){

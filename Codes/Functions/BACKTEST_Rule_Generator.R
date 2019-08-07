@@ -146,8 +146,9 @@ BACKTEST_Rule_Generator = function(Starting_Money,
               dplyr::select(Sector,Industry,Decider,everything()) %>%
               group_by(Sector,Industry) %>%
               filter(Decider == max(Decider)) %>%
+              ungroup() %>%
               filter(Delta >= (1+Target/365)^Projection - 1)
-              ungroup()
+              
             FUTURES = Preds$FUTURES
             SHORTS = Preds$SHORTS
             
