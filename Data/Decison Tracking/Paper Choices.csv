@@ -369,3 +369,83 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-06T18:04:18Z,AXGN,1,sell,stop,16.625,Stop Loss Update
 2019-08-06T18:04:29Z,ASH,6,sell,stop,71.63197474398828,Stop Loss Update
 2019-08-06T18:04:29Z,ABMD,2,sell,stop,194.294,Initial Stop Loss
+2019-08-07T11:29:29Z,REGN,1,Buy,Limit,300.26001,Probability
+2019-08-07T11:29:29Z,NTAP,10,Buy,Limit,46.009998,Probability
+2019-08-07T11:29:29Z,GWR,4,Buy,Limit,109.650002,Probability
+2019-08-07T11:29:29Z,NAV,17,Buy,Limit,27,Probability
+2019-08-07T11:29:30Z,ASR,3,Buy,Limit,145.539993,Probability
+2019-08-07T11:29:30Z,BIDU,4,Buy,Limit,99.68,Probability
+2019-08-07T11:29:30Z,DD,6,Buy,Limit,68.529999,Probability
+2019-08-07T11:29:30Z,PKX,2,Buy,Limit,43.110001,Probability
+2019-08-07T11:29:30Z,FAST,1,Buy,Limit,29.200001,Probability
+2019-08-07T11:29:52Z,VST,22,sell,stop,21.255042784060286,Stop Loss Update
+2019-08-07T11:29:53Z,VCRA,18,sell,market,26.32,Negative After Projection
+2019-08-07T11:30:04Z,SNA,3,sell,stop,144.78661197984434,Stop Loss Update
+2019-08-07T11:30:15Z,SBAC,1,sell,stop,237.63431156208804,Stop Loss Update
+2019-08-07T11:30:25Z,PTC,7,sell,stop,62.234500000000004,Stop Loss Update
+2019-08-07T11:30:26Z,NTB,15,sell,market,28.29,Negative After Projection
+2019-08-07T11:30:26Z,NTB,15,sell,market,28.29,Projected To Lose Half Of Gain
+2019-08-07T11:30:37Z,NFLX,1,sell,stop,294.6045,Stop Loss Update
+2019-08-07T11:30:38Z,HOLI,1,sell,stop,14.240499999999999,Initial Stop Loss
+2019-08-07T11:30:48Z,GCO,1,sell,stop,35.872,Stop Loss Update
+2019-08-07T11:30:49Z,FOE,12,sell,stop,11.514,Initial Stop Loss
+2019-08-07T11:31:00Z,DORM,7,sell,stop,67.279,Stop Loss Update
+2019-08-07T11:31:01Z,CRC,41,sell,stop,10.1935,Initial Stop Loss
+2019-08-07T11:31:01Z,CALM,5,sell,stop,36.622499999999995,Initial Stop Loss
+2019-08-07T11:31:12Z,AXGN,1,sell,stop,16.662999999999997,Stop Loss Update
+2019-08-07T11:31:23Z,ASH,6,sell,stop,71.95254854798912,Stop Loss Update
+2019-08-07T11:31:24Z,ADS,3,sell,stop,145.46910142311575,Initial Stop Loss
+2019-08-07T11:31:24Z,ABMD,2,sell,stop,194.294,Initial Stop Loss
+2019-08-07T18:02:18Z,VST,22,sell,stop,20.415042784060287,Initial Stop Loss
+2019-08-07T18:02:18Z,VCRA,18,sell,market,25.79,Negative After Projection
+2019-08-07T18:02:18Z,VCRA,18,sell,market,25.79,Projected To Lose Half Of Gain
+2019-08-07T18:02:19Z,SNA,3,sell,stop,142.38661197984433,Initial Stop Loss
+2019-08-07T18:02:20Z,SBAC,1,sell,stop,234.58431156208803,Initial Stop Loss
+2019-08-07T18:02:21Z,REGN,1,sell,stop,281.4945,Initial Stop Loss
+2019-08-07T18:02:21Z,PTC,7,sell,stop,61.389,Initial Stop Loss
+2019-08-07T18:02:22Z,PKX,2,sell,stop,40.413,Initial Stop Loss
+2019-08-07T18:02:22Z,NTB,15,sell,market,28.09,Negative After Projection
+2019-08-07T18:02:23Z,NTB,15,sell,market,28.09,Projected To Lose Half Of Gain
+2019-08-08T16:33:00Z,VST,22,sell,stop,21.508968013770268,Stop Loss Update
+2019-08-08T16:33:11Z,SNA,3,sell,stop,147.51614040985544,Stop Loss Update
+2019-08-08T16:33:23Z,SBAC,1,sell,stop,240.62624573622463,Stop Loss Update
+2019-08-08T16:33:35Z,REGN,1,sell,stop,292.96612999999996,Stop Loss Update
+2019-08-08T16:33:46Z,PTC,7,sell,stop,62.4625,Stop Loss Update
+2019-08-08T16:33:48Z,PKX,2,sell,stop,40.413,Initial Stop Loss
+2019-08-08T16:33:49Z,NTB,15,sell,market,28.82,Negative After Projection
+2019-08-08T16:33:49Z,NTB,15,sell,market,28.82,Projected To Lose Half Of Gain
+2019-08-08T16:33:50Z,NTAP,10,sell,stop,43.1395,Initial Stop Loss
+2019-08-08T16:33:52Z,NFLX,1,sell,stop,292.21049999999997,Initial Stop Loss
+2019-08-08T16:33:53Z,NAV,17,sell,stop,25.554999999999996,Initial Stop Loss
+2019-08-08T16:34:04Z,HOLI,1,sell,stop,15.219,Stop Loss Update
+2019-08-08T16:34:05Z,GWR,4,sell,stop,108.18977677673243,Initial Stop Loss
+2019-08-08T16:34:07Z,GCO,1,sell,stop,34.58,Initial Stop Loss
+2019-08-08T16:34:18Z,FOE,12,sell,stop,11.904734999999999,Stop Loss Update
+2019-08-08T16:34:19Z,FAST,1,sell,stop,27.502499999999998,Initial Stop Loss
+2019-08-08T16:34:21Z,DORM,7,sell,stop,65.4835,Initial Stop Loss
+2019-08-08T16:34:22Z,DD,6,sell,stop,64.581,Initial Stop Loss
+2019-08-08T16:34:34Z,CALM,5,sell,stop,37.1355,Stop Loss Update
+2019-08-08T16:34:35Z,BIDU,4,sell,stop,93.5275,Initial Stop Loss
+2019-08-08T16:34:36Z,AXGN,1,sell,market,12.995,Negative After Projection
+2019-08-08T16:34:37Z,AXGN,1,sell,market,12.995,Projected To Lose Half Of Gain
+2019-08-08T16:34:38Z,ASR,3,sell,stop,137.9115,Initial Stop Loss
+2019-08-08T16:34:39Z,ASH,6,sell,stop,71.27093722313276,Initial Stop Loss
+2019-08-08T16:34:54Z,ADS,3,sell,stop,148.64273803575034,Stop Loss Update
+2019-08-08T18:02:24Z,VST,22,sell,stop,21.643968013770266,Stop Loss Update
+2019-08-08T18:02:35Z,SNA,3,sell,stop,147.61614040985543,Stop Loss Update
+2019-08-08T18:02:48Z,PKX,2,sell,stop,40.793,Stop Loss Update
+2019-08-08T18:02:48Z,NTB,15,sell,market,28.7,Negative After Projection
+2019-08-08T18:02:48Z,NTB,15,sell,market,28.7,Projected To Lose Half Of Gain
+2019-08-08T18:03:00Z,NTAP,10,sell,stop,45.182,Stop Loss Update
+2019-08-08T18:03:11Z,NFLX,1,sell,stop,299.08755,Stop Loss Update
+2019-08-08T18:03:22Z,HOLI,1,sell,stop,15.219,Stop Loss Update
+2019-08-08T18:03:33Z,GWR,4,sell,stop,108.35977677673243,Stop Loss Update
+2019-08-08T18:03:44Z,GCO,1,sell,stop,36.56075,Stop Loss Update
+2019-08-08T18:03:55Z,FOE,12,sell,stop,11.993749999999999,Stop Loss Update
+2019-08-08T18:04:06Z,FAST,1,sell,stop,28.0915,Stop Loss Update
+2019-08-08T18:04:17Z,DORM,7,sell,stop,68.3715,Stop Loss Update
+2019-08-08T18:04:28Z,DD,6,sell,stop,67.34075,Stop Loss Update
+2019-08-08T18:04:39Z,CALM,5,sell,stop,37.268499999999996,Stop Loss Update
+2019-08-08T18:04:50Z,BIDU,4,sell,stop,94.23049999999999,Stop Loss Update
+2019-08-08T18:05:01Z,ASR,3,sell,stop,138.69050000000001,Stop Loss Update
+2019-08-08T18:05:13Z,ASH,6,sell,stop,72.75093722313277,Stop Loss Update

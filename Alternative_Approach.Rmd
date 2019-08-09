@@ -43,7 +43,7 @@ options("getSymbols.warning4.0" = FALSE)
 Initial_History = T
 TEST = F
 Back_Test = T
-Investment_Value = 350
+Investment_Value = 1000
 
 ## Perfromance Function Parameters
 Starting_Money = 350
@@ -472,7 +472,7 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 10,
+                                  Itterations = 20,
                                   Target = 0.40,
                                   PARALLEL = T,
                                   NCores = 3)
@@ -530,8 +530,7 @@ RULES_Summary = RULES %>%
          Value = case_when(
            Side == "High" ~ VH,
            T ~ VL)) %>%
-  filter(PDM > 0.05,
-         PD > 0.05,
+  filter(PD > 0,
          VL > VH) %>%
   ungroup() %>%
   arrange(desc(PDM))

@@ -21,6 +21,20 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
     filter(status == "active",
            tradable)
   
+  ETF_Stocks = read.csv(paste0(Project_Folder,"/Data/ETF List.csv")) %>%
+    mutate(Symbol = str_extract(Name,"(?<=\\()[:alpha:]+(?=\\))"),
+           Sector = str_extract(Category,'(?<=--).+$'),
+           Industry = str_remove(Category,'--.+$')) %>%
+    mutate(Industry = case_when(
+      is.na(Industry) ~ "ETF",
+      T ~ Industry
+    ),
+    Sector = case_when(
+      is.na(Sector) ~ "ETF",
+      T ~ Sector)) %>%
+    filter(Symbol %in% Alpaca_Stocks$symbol) %>%
+    select(-Name,-Category)
+  
   Auto_Stocks = Auto_Stocks %>%
     mutate(Multiplier = str_extract(MarketCap,"\\w$"),
            Value = str_extract(MarketCap,"\\d+")) %>%
@@ -43,7 +57,8 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
                               "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
                               "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
                               "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$|^DEACU$",
-                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$")))
+                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$"))) %>%
+    bind_rows(ETF_Stocks)
   
   ## Filtering to Specific 
   if(Cap != "All"){

@@ -70,7 +70,9 @@ if(Hour < 12){
   
   
   ## Compairing Performance to Major Indexs
+  load(file = paste0(Project_Folder,"/Data/Initial Stats.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
+  
   Major_Indexs = c("^GSPC","^IXIC","^DJI")
   Total_Alpha_Slope = PR_Stage %>%
     filter(!Stock %in% Major_Indexs) %>%
@@ -180,6 +182,7 @@ if(Hour < 12){
   ## Saving Results
   save(PR_Stage_R3,
        file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+  load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   
   ## Initial Data
   ID_DF = PR_Stage_R3 %>%

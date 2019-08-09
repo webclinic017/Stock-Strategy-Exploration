@@ -44,3 +44,16 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-06T11:34:45Z,TUP,2,sell,stop,14.2785,Stop Loss Update
 2019-08-06T11:34:46Z,PGTI,2,sell,stop,13.651499999999999,Initial Stop Loss
 2019-08-06T11:34:47Z,CARB,1,sell,stop,16.188,Initial Stop Loss
+2019-08-07T11:31:47Z,WMGI,1,sell,market,28.51,Negative After Projection
+2019-08-07T11:31:57Z,WMGI,1,sell,market,28.51,Projected To Lose Half Of Gain
+2019-08-07T11:31:58Z,VST,1,sell,stop,20.695042784060288,Initial Stop Loss
+2019-08-07T11:32:09Z,TUP,2,sell,stop,14.895999999999999,Stop Loss Update
+2019-08-07T11:32:09Z,SXC,1,sell,stop,6.374499999999999,Initial Stop Loss
+2019-08-07T11:32:10Z,PJT,1,sell,stop,37.43,Initial Stop Loss
+2019-08-07T11:32:11Z,CCJ,1,sell,stop,8.2365,Initial Stop Loss
+2019-08-08T16:36:04Z,NCI,1,Buy,Limit,27.99,Probability
+2019-08-08T16:36:05Z,PDCO,1,Buy,Limit,17.92,Probability
+2019-08-08T16:36:27Z,VST,1,sell,stop,21.553968013770266,Stop Loss Update
+2019-08-08T16:36:39Z,PJT,1,sell,stop,38.6175,Stop Loss Update
+2019-08-08T16:36:51Z,CCJ,1,sell,stop,8.39325,Stop Loss Update
+2019-08-08T18:05:36Z,VST,1,sell,stop,21.64896801377027,Stop Loss Update
