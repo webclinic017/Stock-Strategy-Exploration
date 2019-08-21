@@ -105,6 +105,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
+    filter(Delta >= (1+Target/365)^Projection - 1) %>%
     ungroup() %>%
     distinct()
   
