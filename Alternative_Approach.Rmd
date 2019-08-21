@@ -74,9 +74,9 @@ Combined_Results = Combined_Results %>%
   filter(Date != Sys.Date())
 
 ## Bear/Bull Calculations
-Market_Ind = Market_Direction(Combined_Results)
+Market_Ind = Market_Direction(Combined_Results,Plot = T)
 ## General Fear Calculations
-Fear_Ind = Fear_Direction(Combined_Results,Market_Ind)
+Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = T)
 
 ## Saving Market Indicators
 save(Market_Ind,Fear_Ind,
@@ -461,8 +461,7 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
-BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
-                                  Max_Holding = Max_Holding,
+BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
                                   Max_Loss = Max_Loss,
                                   Projection = Projection,
                                   ID_DF = ID_DF,
@@ -472,10 +471,10 @@ BT_List = BACKTEST_Rule_Generator(Starting_Money = Starting_Money,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 20,
+                                  Itterations = 10,
                                   Target = 0.40,
-                                  PARALLEL = T,
-                                  NCores = 3)
+                                  PARALLEL = F,
+                                  NCores = 1)
 save(BT_List,
      file = paste0(Project_Folder,"/Data/BT.RDATA"))
 load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
@@ -533,7 +532,11 @@ RULES_Summary = RULES %>%
   filter(PD > 0,
          VL > VH) %>%
   ungroup() %>%
-  arrange(desc(PDM))
+  arrange(desc(PD)) %>%
+  rowwise() %>%
+  mutate(Percent_Kept = case_when(
+    Side == "High" ~  sum(ID_DF[[Var]] > Value)/nrow(ID_DF),
+    T ~ sum(ID_DF[[Var]] < Value)/nrow(ID_DF)))
 
 TRADES_OUT = TRADES %>%
   filter(Buy.Date >= "2011-08-02",

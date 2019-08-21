@@ -1,5 +1,4 @@
-BACKTEST_Rule_Generator = function(Starting_Money,
-                                   Max_Holding,
+BACKTEST_Rule_Generator = function(Max_Holding,
                                    Max_Loss,
                                    Projection,
                                    ID_DF,
@@ -36,7 +35,7 @@ BACKTEST_Rule_Generator = function(Starting_Money,
   
   RESULTS = foreach(LOOP = 1:Itterations,
                     .inorder = F,
-                    .errorhandling = "remove",
+                    .errorhandling = "stop",
                     .packages = c("tidyverse",
                                     "quantmod",
                                     "lubridate",
@@ -52,6 +51,8 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                       .verbose = F,
                       .options.snow = opts) %dopar% 
       {
+        Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
+        
         setMKLthreads(threads)
         ## Loop To Ensure Good Start / End Dates
         MR = character(0)
@@ -126,10 +127,13 @@ BACKTEST_Rule_Generator = function(Starting_Money,
         counter = 0
         MH = -9e9
         ML = 9e9
-        p = progress_estimated(length(Dates))
-        for(i in 1:length(Dates)){
+        
+        
+        Days = which(as.character(wday(Dates,label = T)) == "Mon")
+        p = progress_estimated(length(Days))
+        for(i in Days){
           ## Adjusted To Not Include Trained Information
-          Current_Date = as.character(Dates[i]+Delta)
+          Current_Date = as.character(Dates[i])
           
           ## Subsetting to Current Day Performance
           TODAY = ID_DF_2 %>%
@@ -148,11 +152,11 @@ BACKTEST_Rule_Generator = function(Starting_Money,
               filter(Decider == max(Decider)) %>%
               ungroup() %>%
               filter(Delta >= (1+Target/365)^Projection - 1)
-              
+            
             FUTURES = Preds$FUTURES
             SHORTS = Preds$SHORTS
             
-            if(nrow(RESULT) > 0 & counter == 0){
+            if(nrow(RESULT) > 0){
               counter = counter + 1
               History_Table = 
                 Performance_Function(PR_Stage_R3 = PR_Stage_R3,
@@ -170,56 +174,29 @@ BACKTEST_Rule_Generator = function(Starting_Money,
                                      Save_Hist = F,
                                      Load_Hist = F,
                                      History_Location = paste0(Project_Folder,"/data/Back Test.RDATA"))
-            }else{
-              counter = counter + 1
-              Result =  tryCatch({
-                History_Table = 
-                  Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                                       RESULT = RESULT,
-                                       FUTURES = FUTURES,
-                                       SHORTS = SHORTS,
-                                       Starting_Money = Starting_Money,
-                                       Max_Holding = Max_Holding,
-                                       Max_Loss = Max_Loss,
-                                       Fear_Ind = Fear_Ind,
-                                       Market_Ind = Market_Ind,
-                                       Current_Date = Current_Date,
-                                       Projection = Projection,
-                                       Save_Hist = F,
-                                       Load_Hist = F,
-                                       Initial_History = ifelse(counter == 1,T,F),
-                                       History_Location = paste0(Project_Folder,
-                                                                 "/data/Back Test.RDATA"))
-              }, warning = function(w){
-                print(w)
-              }, error = function(e){
-                print(e)
-              }, finally = {
-              })
-              if(all(class(Result) == "data.frame")){
-                History_Table = Result
-              }
+              
+              
+              Profit = sum(History_Table$Profit) + 
+                sum(History_Table$Buy.Price[is.na(History_Table$Sell.Date)] *
+                      History_Table$Pcent.Gain[is.na(History_Table$Sell.Date)] *
+                      History_Table$Number[is.na(History_Table$Sell.Date)])
+              if(Profit > MH){MH = Profit}
+              if(Profit < ML){ML = Profit}
             }
+            p$pause(0.1)$tick()$print()
           }
-          Profit = sum(History_Table$Profit) + 
+        }
+          
+          History_Table = History_Table %>%
+            dplyr::select(Prob,Delta,everything())
+          
+          ## Calculating Overall Profit
+          Method_Profit = sum(History_Table$Profit) + 
             sum(History_Table$Buy.Price[is.na(History_Table$Sell.Date)] *
                   History_Table$Pcent.Gain[is.na(History_Table$Sell.Date)] *
                   History_Table$Number[is.na(History_Table$Sell.Date)])
-          if(Profit > MH){MH = Profit}
-          if(Profit < ML){ML = Profit}
-          p$pause(0.1)$tick()$print()
-        }
-        
-        History_Table = History_Table %>%
-          dplyr::select(Prob,Delta,everything())
-        
-        ## Calculating Overall Profit
-        Method_Profit = sum(History_Table$Profit) + 
-          sum(History_Table$Buy.Price[is.na(History_Table$Sell.Date)] *
-                History_Table$Pcent.Gain[is.na(History_Table$Sell.Date)] *
-                History_Table$Number[is.na(History_Table$Sell.Date)])
-        
-        ## Storing_Results
+          
+          ## Storing_Results
         RUN_OUT = data.frame(Time_Start = Dates[1] + Delta,
                              Time_End = Dates[length(Dates)] + Delta,
                              Starting_Money = Starting_Money,

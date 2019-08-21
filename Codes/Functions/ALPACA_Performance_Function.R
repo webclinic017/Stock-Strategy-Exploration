@@ -25,18 +25,28 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   ## Diversification
   Diversification = function(RESULT){ 
     if(!"try-error" %in% class(Sector_Ind_DF)){
-      CHECK = RESULT %>%
+      ## Running Ordered Diversification Checks
+      TMP = RESULT %>%
         filter(!Sector %in% Sector_Ind_DF$Sector)
-      if(nrow(CHECK) == 0){
-        RESULT = RESULT %>%
+      
+      if(nrow(TMP) == 0){
+        TMP = RESULT %>%
           filter(!Industry %in% Sector_Ind_DF$Industry,
                  !Sector %in% Sector_Ind_DF$Sector)
-      }else if(sum(CHECK$Close) < Buying_Power){
-        RESULT = RESULT %>%
+      }else{
+        return(TMP)
+      }
+      
+      if(nrow(TMP) == 0){
+        TMP = RESULT %>%
           filter(!Industry %in% Sector_Ind_DF$Industry |
                    !Sector %in% Sector_Ind_DF$Sector)
       }else{
-        RESULT = CHECK
+        return(TMP)
+      }
+      
+      if(nrow(TMP) != 0){
+        return(TMP)
       }
     }
     return(RESULT)
@@ -91,11 +101,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
     select(Sector,Industry,Decider,everything())
   
-  ## Prioritizing Sector & Industry Diversification
-  if(!"try-error" %in% class(Sector_Ind_DF)){
-    RESULT = Diversification(RESULT)
-  }
-  
   ## Keeping Best Outlook Within Industry and Sector
   RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
@@ -103,6 +108,13 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     filter(Delta >= (1 + Target/365)^Projection - 1) %>%
     ungroup() %>%
     distinct()
+  
+  ## Prioritizing Sector & Industry Diversification
+  if(!"try-error" %in% class(Sector_Ind_DF)){
+    RESULT = Diversification(RESULT)
+  }
+  
+
   
   ## Defining Purchase Numbers
   K = 0
@@ -162,7 +174,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
       ## Pulling Recent Close Price / Relevant Data
-      Current_Info = get_bars(ticker = STOCK,limit = 1)[[STOCK]]
+      Current_Info = get_bars(ticker = STOCK,
+                              limit = 1)[[STOCK]]
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
@@ -236,7 +249,11 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           Stop_Loss = max(c(
             Buy_Price*(1-Max_Loss),
             Buy_Price - 2*head(PR_Stage_R3$ATR[PR_Stage_R3$Stock == STOCK & 
-                                                 PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1)))
+                                                 PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1),
+            as.numeric(Current_Info$c)*(1-Max_Loss),
+            as.numeric(Current_Info$c) - 2*head(PR_Stage_R3$ATR[PR_Stage_R3$Stock == STOCK & 
+                                                                  PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1)
+            ))
           
           ## Placing Stop Loss Order
           submit_order(ticker = STOCK,
@@ -269,7 +286,9 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           ## Updating Stop Loss if Higher
           if(Stop_Loss > Current_Stop_Loss){
             ## Canceling Exisiting Order
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
+            cancel_order(ticker = STOCK,
+                         order_id = Loss_Order$id,
+                         live = !PAPER)
             Sys.sleep(10)
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),

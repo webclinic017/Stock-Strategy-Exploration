@@ -21,6 +21,7 @@ NClusters = 8
 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
+Target = 0.40
 Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
@@ -256,6 +257,7 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             Max_Holding = Max_Holding,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
+                            Target = Target,
                             PAPER = T)
 
 ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
@@ -267,4 +269,5 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             Max_Holding = Max_Holding_Live,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
+                            Target = Target,
                             PAPER = F)

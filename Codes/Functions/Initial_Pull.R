@@ -66,6 +66,10 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
         filter(Cap_Type == Cap)
   }
   
+  ## Removing Duplicate Tickers
+  Dups = duplicated(Auto_Stocks$Symbol)
+  Auto_Stocks = Auto_Stocks[!Dups,]
+  
   save(Auto_Stocks,
        file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
