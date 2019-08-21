@@ -105,7 +105,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
   RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
-    filter(Delta >= (1 + Target/365)^Projection - 1) %>%
     ungroup() %>%
     distinct()
   
@@ -312,4 +311,60 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       }
     }
   }
+  ## Rebalancing Well Performing Stocks
+  ## Updating Holdings
+  Sys.sleep(10)
+  ## Checking Account Status
+  ACCT_Status = get_account(live = !PAPER)
+  ## Updating Capital 
+  Investment_Value = as.numeric(ACCT_Status$portfolio_value)
+  Buying_Power = as.numeric(ACCT_Status$buying_power)
+  
+  Current_Holdings = get_positions(live = !PAPER) %>%
+    filter(unrealized_plpc > 0) %>%
+    arrange(desc(unrealized_plpc)) %>%
+    filter(as.numeric(market_value) + as.numeric(current_price) < Investment_Value*Max_Holding) %>%
+    filter(as.numeric(current_price) < Buying_Power)
+  
+  ## Purchasing More Stocks if Money Allows
+  ## Defining Purchase Numbers
+  K = 0
+  Remaining_Money = Buying_Power
+  Number = numeric(length = nrow(Current_Holdings))
+  while(K < nrow(Current_Holdings)){
+    K = K + 1
+    counter = 0
+    Price = as.numeric(Current_Holdings$current_price[K])
+    while(Price < Remaining_Money & (counter+1)*Price < Investment_Value*Max_Holding){
+      counter = counter + 1
+      Remaining_Money = Remaining_Money - Price
+    }
+    Number[K] = counter
+  }
+  Numbers = Number[which(Number > 0)]
+  Rebalance = Current_Holdings[which(Number > 0),]
+  
+  ## Skipping if no stocks meet criteria
+  if(nrow(Rebalance) > 0){
+    for(STOCK in 1:nrow(Rebalance)){
+      submit_order(ticker = Rebalance$symbol[STOCK],
+                   qty = as.character(Numbers[STOCK]),
+                   side = "buy",
+                   type = "limit",
+                   time_in_force = "day",
+                   live = !PAPER,
+                   limit_price = as.character(Rebalance$current_price[STOCK]))
+      Report_Out = data.frame(Time = Sys.time(),
+                              Stock = Rebalance$symbol[STOCK],
+                              Qty = as.character(Numbers[STOCK]),
+                              Side = "Buy",
+                              Type = "Limit",
+                              Price = as.character(Rebalance$current_price[STOCK]),
+                              Reason = "Rebalance Strong Performers")
+      write_csv(x = Report_Out,
+                path = Report_CSV,
+                append = T)
+    }
+  } 
+  
 }

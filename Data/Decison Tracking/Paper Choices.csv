@@ -730,3 +730,26 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-21T11:40:25Z,JACK,5,sell,stop,83.372,Stop Loss Update
 2019-08-21T11:40:37Z,GWR,4,sell,stop,109.36417131699329,Stop Loss Update
 2019-08-21T11:40:38Z,CALM,5,sell,stop,39.92294829203866,Initial Stop Loss
+2019-08-21T17:08:36Z,AMD,14,Buy,Limit,30.719999,Probability
+2019-08-21T17:08:48Z,VST,22,sell,stop,22.86175,Initial Stop Loss
+2019-08-21T17:08:49Z,VALE,40,sell,market,10.93,Negative After Projection
+2019-08-21T17:08:51Z,PACB,40,sell,stop,5.5005,Initial Stop Loss
+2019-08-21T17:08:52Z,NTB,15,sell,market,27.71,Negative After Projection
+2019-08-21T17:08:53Z,NTB,15,sell,market,27.71,Projected To Lose Half Of Gain
+2019-08-21T17:08:55Z,JACK,5,sell,stop,83.315,Initial Stop Loss
+2019-08-21T17:08:57Z,GWR,4,sell,stop,109.4391713169933,Initial Stop Loss
+2019-08-21T17:09:08Z,FAST,1,sell,stop,29.345499999999998,Stop Loss Update
+2019-08-21T17:09:10Z,CALM,5,sell,stop,39.567499999999995,Initial Stop Loss
+2019-08-21T17:10:56Z,AMD,14,Buy,Limit,30.719999,Probability
+2019-08-21T17:11:36Z,VST,22,sell,stop,22.895,Stop Loss Update
+2019-08-21T17:11:38Z,PACB,40,sell,stop,5.5005,Initial Stop Loss
+2019-08-21T17:11:39Z,NTB,15,sell,market,27.7,Negative After Projection
+2019-08-21T17:11:40Z,NTB,15,sell,market,27.7,Projected To Lose Half Of Gain
+2019-08-21T17:11:52Z,JACK,5,sell,stop,83.31025,Stop Loss Update
+2019-08-21T17:12:05Z,GWR,4,sell,stop,109.44417131699329,Stop Loss Update
+2019-08-21T17:12:08Z,CALM,5,sell,stop,39.543749999999996,Initial Stop Loss
+2019-08-21T17:22:11Z,HOLI,27,Buy,Limit,16.39,Rebalance Strong Performers
+2019-08-21T17:22:12Z,CALM,10,Buy,Limit,41.57,Rebalance Strong Performers
+2019-08-21T17:22:12Z,FAST,14,Buy,Limit,30.84,Rebalance Strong Performers
+2019-08-21T17:22:13Z,PACB,77,Buy,Limit,5.78,Rebalance Strong Performers
+2019-08-21T17:22:14Z,TXT,9,Buy,Limit,45.31,Rebalance Strong Performers

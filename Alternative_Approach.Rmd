@@ -471,7 +471,7 @@ BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
                                   PR_Stage_R3 = PR_Stage_R3,
                                   PR_Stage_R4 = PR_Stage_R4,
                                   Combined_Results = Combined_Results,
-                                  Itterations = 10,
+                                  Itterations = 5,
                                   Target = 0.40,
                                   PARALLEL = F,
                                   NCores = 1)
