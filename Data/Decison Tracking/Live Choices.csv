@@ -101,3 +101,24 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-20T11:48:18Z,MTW,2,sell,stop,13.831999999999999,Initial Stop Loss
 2019-08-20T18:03:02Z,OSTK,1,sell,stop,18.629595,Stop Loss Update
 2019-08-21T11:41:01Z,VST,1,sell,stop,22.600499999999997,Stop Loss Update
+2019-08-21T18:02:52Z,VST,1,sell,stop,22.9045,Stop Loss Update
+2019-08-21T18:03:04Z,VALE,2,sell,stop,10.402499999999998,Stop Loss Update
+2019-08-22T11:43:49Z,NWS,2,Buy,Limit,14.46,Probability
+2019-08-22T11:44:11Z,VST,1,sell,stop,22.9045,Stop Loss Update
+2019-08-22T11:44:22Z,VALE,2,sell,market,10.86,Negative After Projection
+2019-08-22T19:02:02Z,WLL,3,Buy,Limit,8.71,Probability
+2019-08-22T19:02:02Z,FLR,1,Buy,Limit,17.35,Probability
+2019-08-22T19:02:03Z,PS,1,Buy,Limit,16.030001,Probability
+2019-08-22T19:02:26Z,VST,1,sell,stop,23.008999999999997,Stop Loss Update
+2019-08-22T19:02:38Z,OSTK,1,sell,stop,20.7385,Stop Loss Update
+2019-08-22T19:02:39Z,NWS,2,sell,stop,13.793041875343613,Initial Stop Loss
+2019-08-23T13:27:16Z,FLR,1,Buy,Limit,17.65,Probability
+2019-08-23T13:27:28Z,WLL,3,sell,stop,7.8469999999999995,Initial Stop Loss
+2019-08-23T13:27:39Z,VST,1,sell,stop,23.029672616327932,Stop Loss Update
+2019-08-23T13:27:41Z,PS,1,sell,stop,15.2,Initial Stop Loss
+2019-08-23T13:27:52Z,NWS,2,sell,stop,13.800681741390498,Stop Loss Update
+2019-08-23T13:29:03Z,QEP,8,Buy,Limit,3.85,Probability
+2019-08-23T13:29:04Z,OII,1,Buy,Limit,13.28,Probability
+2019-08-23T13:29:26Z,VST,1,sell,stop,23.029672616327932,Stop Loss Update
+2019-08-23T13:29:38Z,PS,1,sell,stop,15.26536,Stop Loss Update
+2019-08-23T13:29:40Z,FLR,1,sell,stop,16.5585,Initial Stop Loss

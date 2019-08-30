@@ -461,94 +461,71 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
 if(Back_Test){
-BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
-                                  Max_Loss = Max_Loss,
-                                  Projection = Projection,
-                                  ID_DF = ID_DF,
-                                  Fear_Ind = Fear_Ind,
-                                  Market_Ind = Market_Ind,
-                                  Auto_Stocks = Auto_Stocks,
-                                  PR_Stage_R3 = PR_Stage_R3,
-                                  PR_Stage_R4 = PR_Stage_R4,
-                                  Combined_Results = Combined_Results,
-                                  Itterations = 5,
-                                  Target = 0.40,
-                                  PARALLEL = F,
-                                  NCores = 1)
-save(BT_List,
-     file = paste0(Project_Folder,"/Data/BT.RDATA"))
-load(file = paste0(Project_Folder,"/Data/BT.RDATA"))
-
-## Condensing Results Into Dataframes
-for(i in 1:length(BT_List)){
-  TMP = BT_List[[i]]
-  RUN_OUT = TMP$RUN_OUT
-  RULE_OUT = TMP$RULE_OUT %>%
+  BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
+                                    Max_Loss = Max_Loss,
+                                    Projection = Projection,
+                                    ID_DF = ID_DF,
+                                    Fear_Ind = Fear_Ind,
+                                    Market_Ind = Market_Ind,
+                                    Auto_Stocks = Auto_Stocks,
+                                    PR_Stage_R3 = PR_Stage_R3,
+                                    PR_Stage_R4 = PR_Stage_R4,
+                                    Combined_Results = Combined_Results,
+                                    Target = 0.40)
+  
+  RUNS = BT_List$RUN_OUT
+  RULES = BT_List$RULE_OUT
+  TRADES = BT_List$TRADES_OUT
+  
+  ## Summarizing Run Results
+  RUNS_Summary = RUNS %>%
+    mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
+    summarise(Method_Return = mean(Method_Return,trim = 0.05),
+              Market_Return = mean(Market_Return,trim = 0.05),
+              Max_Gain = mean(Max_Gain,trim = 0.05),
+              Max_Loss = mean(Max_Loss,trim = 0.05),
+              Trade_Number = round(mean(Trade_Number)))
+  print(paste0("Typical Market Return ",scales::percent(RUNS_Summary$Market_Return)))
+  print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return)))
+  print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
+  print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
+  print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
+  
+  ## Looking At If Total Rules Exist
+  RULES_Total = Rule_Generator(TRADES)
+  
+  ##
+  RULES_Summary = RULES %>%
+    group_by(Var) %>%
+    summarise_all(mean) %>%
+    mutate(Delta = abs(PL-PH),
+           PDM = (MAX - MP)/MP,
+           PD = Delta/MAX,
+           Side = case_when(
+             PH > PL ~ "High",
+             T ~ "Low"
+           ),
+           Value = case_when(
+             Side == "High" ~ VH,
+             T ~ VL)) %>%
+    filter(PD > 0,
+           VL > VH) %>%
     ungroup() %>%
-    filter(MAX == max(MAX))
-  TRADES_OUT = TMP$TRADES_OUT
-  if(i == 1){
-    RUNS = RUN_OUT
-    RULES = RULE_OUT
-    TRADES = TRADES_OUT
-  }else{
-    RUNS = bind_rows(RUNS,RUN_OUT)
-    RULES = bind_rows(RULES,RULE_OUT)
-    TRADES = bind_rows(TRADES,TRADES_OUT)
-  }
-}
-
-## Summarizing Run Results
-RUNS_Summary = RUNS %>%
-  mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
-  summarise(Method_Return = mean(Method_Return,trim = 0.05),
-            Market_Return = mean(Market_Return,trim = 0.05),
-            Max_Gain = mean(Max_Gain,trim = 0.05),
-            Max_Loss = mean(Max_Loss,trim = 0.05),
-            Trade_Number = round(mean(Trade_Number)))
-print(paste0("Typical Market Return ",scales::percent(RUNS_Summary$Market_Return)))
-print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return)))
-print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
-print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
-print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
-
-## Looking At If Total Rules Exist
-RULES_Total = Rule_Generator(TRADES)
-
-##
-RULES_Summary = RULES %>%
-  group_by(Var) %>%
-  summarise_all(mean) %>%
-  mutate(Delta = abs(PL-PH),
-         PDM = (MAX - MP)/MP,
-         PD = Delta/MAX,
-         Side = case_when(
-           PH > PL ~ "High",
-           T ~ "Low"
-         ),
-         Value = case_when(
-           Side == "High" ~ VH,
-           T ~ VL)) %>%
-  filter(PD > 0,
-         VL > VH) %>%
-  ungroup() %>%
-  arrange(desc(PD)) %>%
-  rowwise() %>%
-  mutate(Percent_Kept = case_when(
-    Side == "High" ~  sum(ID_DF[[Var]] > Value)/nrow(ID_DF),
-    T ~ sum(ID_DF[[Var]] < Value)/nrow(ID_DF)))
-
-TRADES_OUT = TRADES %>%
-  filter(Buy.Date >= "2011-08-02",
-         Buy.Date <= "2012-08-01")
-
-write.csv(TRADES_OUT,
-          file = "C://users//aayorde//desktop//March_18_19_Trades.csv")
-
-TRADES_Summary = TRADES %>%
-  summarise()
-
-
+    arrange(desc(PD)) %>%
+    rowwise() %>%
+    mutate(Percent_Kept = case_when(
+      Side == "High" ~  sum(ID_DF[[Var]] > Value)/nrow(ID_DF),
+      T ~ sum(ID_DF[[Var]] < Value)/nrow(ID_DF)))
+  
+  TRADES_OUT = TRADES %>%
+    filter(Buy.Date >= "2011-08-02",
+           Buy.Date <= "2012-08-01")
+  
+  write.csv(TRADES_OUT,
+            file = "C://users//aayorde//desktop//March_18_19_Trades.csv")
+  
+  TRADES_Summary = TRADES %>%
+    summarise()
 }
 ```
 

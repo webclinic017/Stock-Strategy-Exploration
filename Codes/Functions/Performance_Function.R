@@ -7,25 +7,19 @@ Performance_Function = function(PR_Stage_R3,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
                                 Projection = 15,
+                                Target = 0.40,
                                 Max_Loss = 0.05,
                                 Current_Date,
                                 Fear_Marker,
-                                Initial_History = F,
-                                Load_Hist = T,
-                                Save_Hist = T,
-                                History_Location = paste0(Project_Folder,"/Data//History_Results.RDATA")){
+                                History_Table = NA){
   
   ## Builds Initial History Table
-  if(Initial_History){
+  if("logical" %in% class(History_Table)){
     ## Removes Any Outside of Price Range
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Starting_Money*Max_Holding)
-    MAX = RESULT %>%
-      select(Stock,Date,Volume_PD_Norm:CCI_Delta)
-    colnames(MAX)[3:length(colnames(MAX))] = str_c("MAX_",colnames(MAX)[3:length(colnames(MAX))])
-    RESULT = RESULT %>%
-      left_join(MAX,by = c("Stock", "Date"))
+      filter(Close < Starting_Money*Max_Holding,
+             Delta >= (1+Target/365)^Projection - 1)
     
     K = 0
     Total_Capital = Starting_Money
@@ -63,8 +57,6 @@ Performance_Function = function(PR_Stage_R3,
              Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
-    if(Load_Hist){load(file = History_Location)}
-    
     ## Subsetting Currently Held Stocks
     Checks = which(is.na(History_Table$Sell.Date))
     Ticker_List = History_Table$Stock[Checks]
@@ -77,14 +69,9 @@ Performance_Function = function(PR_Stage_R3,
     Total_Capital = sum(History_Table$Buy.Price[Checks]*History_Table$Number[Checks]) + sum(History_Table$Profit)
     RESULT = RESULT[New_Buys,]
     RESULT = RESULT %>%
-      filter(Close < Total_Capital*Max_Holding)
-    if(nrow(RESULT) > 0){
-      MAX = RESULT %>%
-        select(Stock,Date,Volume_PD_Norm:CCI_Delta)
-      colnames(MAX)[3:length(colnames(MAX))] = str_c("MAX_",colnames(MAX)[3:length(colnames(MAX))])
-      RESULT = RESULT %>%
-        left_join(MAX,by = c("Stock", "Date"))
-    }
+      BUY_POS_FILTER() %>%
+      filter(Close < Total_Capital*Max_Holding,
+             Delta >= (1+Target/365)^Projection - 1)
     
     K = 0
     Number = numeric(length = nrow(RESULT))
@@ -108,22 +95,9 @@ Performance_Function = function(PR_Stage_R3,
       Current_Info = Combined_Results %>%
         filter(Stock == Examine$Stock,
                Date == Current_Date) %>%
-        head(1)
+        head(1) %>%
+        na.omit()
       
-      ## Current Indicators
-      Indicators = PR_Stage_R3 %>%
-        filter(Stock == Examine$Stock) %>%
-        left_join(Market_Ind,by = "Date") %>%
-        left_join(Fear_Ind,by = "Date") %>%
-        mutate(WAD_Delta = WAD - lag(WAD,1),
-               Close_PD = (Close - lag(Close,1))/lag(Close,1),
-               SMI_Delta = (SMI - lag(SMI,1)),
-               SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-               CCI_Delta = (CCI - lag(CCI,1)),
-               VHF_Delta = (VHF - lag(VHF,1)),
-               RSI_Delta = (RSI - lag(RSI,1))) %>%
-        filter(Date == Current_Date)
-        
       
       if(nrow(Current_Info) > 0){
         
@@ -145,10 +119,6 @@ Performance_Function = function(PR_Stage_R3,
         ## Updating Max Price
         if(Current_Info$Close > History_Table$Max.Price[i]){
           History_Table$Max.Price[i] = Current_Info$Close
-          REP = colnames(History_Table)[which(str_detect(colnames(History_Table),"MAX_"))]
-          for(j in REP){
-            History_Table[i,j] = Indicators[1,str_remove(j,"MAX_")]
-          }
         }
         
         ## Updating Stop Loss
@@ -231,8 +201,6 @@ Performance_Function = function(PR_Stage_R3,
       T ~ Pcent.Gain
     ))
   
-  # Saving Pool Results and Reduced Raw Data
-  if(Save_Hist){save(History_Table,file = History_Location)}
   
   return(History_Table)
 }

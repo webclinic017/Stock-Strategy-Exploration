@@ -57,6 +57,7 @@ if(Hour < 12){
   ## Saving Market Indicators
   save(Market_Ind,Fear_Ind,
        file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
+  load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
   
   ## Normalizing OHLCV Values  
   Start = Sys.time()
@@ -260,14 +261,14 @@ ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
                             Target = Target,
                             PAPER = T)
 
-ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                            RESULT = RESULT,
-                            FUTURES = FUTURES,
-                            SHORTS = SHORTS,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding_Live,
-                            Projection = Projection,
-                            Max_Loss = Max_Loss,
-                            Target = Target,
-                            PAPER = F)
+# ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+#                             RESULT = RESULT,
+#                             FUTURES = FUTURES,
+#                             SHORTS = SHORTS,
+#                             Auto_Stocks = Auto_Stocks,
+#                             Project_Folder = Project_Folder,
+#                             Max_Holding = Max_Holding_Live,
+#                             Projection = Projection,
+#                             Max_Loss = Max_Loss,
+#                             Target = Target,
+#                             PAPER = F)
