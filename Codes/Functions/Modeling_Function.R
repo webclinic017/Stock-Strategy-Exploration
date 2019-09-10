@@ -1,100 +1,87 @@
-  Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
+  Modeling_Function = function(ID_DF,Projection,Quant = 0.9,Max_Date){
+    Model_CD_PV_Loop = function(Train_Profit){
+      Model_Profit = glm(formula = Adjusted_Lead~.,
+                         data = Train_Profit,
+                         family = quasibinomial())
+      Model_Profit = EmersonDataScience:::stripGlmLR(Model_Profit)
+      return(Model_Profit)
+    }
     
-    TMP = PR_Stage_R4 %>%
+    ## Defining Target Variable
+    Short = ID_DF %>%
+      group_by(Stock) %>%
+      mutate(Adjusted_Lead = (lead(Close,Projection) - Close)/ATR,
+             Adjusted_Lead = case_when(
+               Adjusted_Lead >= quantile(Adjusted_Lead,Quant,na.rm = T) ~ 1,
+               Adjusted_Lead < quantile(Adjusted_Lead,Quant,na.rm = T) ~ 0
+             )) %>%
+      ungroup() %>%
+      na.omit() %>%
+      filter(!str_detect(Stock,"^\\^"))
+    
+    Mid = Short %>%
+      group_by(Stock) %>%
+      mutate(Adjusted_Lead = (lead(Close,Projection*4) - Close)/ATR,
+             Adjusted_Lead = case_when(
+               Adjusted_Lead >= quantile(Adjusted_Lead,Quant,na.rm = T) ~ 1,
+               Adjusted_Lead < quantile(Adjusted_Lead,Quant,na.rm = T) ~ 0
+             )) %>%
+      ungroup() %>%
+      na.omit()
+    
+    Long = Mid %>%
+      group_by(Stock) %>%
+      mutate(Adjusted_Lead = (lead(Close,Projection*4*4) - Close)/ATR,
+             Adjusted_Lead = case_when(
+               Adjusted_Lead >= quantile(Adjusted_Lead,Quant,na.rm = T) ~ 1,
+               Adjusted_Lead < quantile(Adjusted_Lead,Quant,na.rm = T) ~ 0
+             )) %>%
+      ungroup() %>%
+      na.omit()
+    
+    ## Reducing Model DFs
+    TMP_Short = Short %>%
+      filter(Date <= Max_Date,
+             Date >= Max_Date-365) %>%
+      BUY_POS_FILTER()
+    TMP_Mid = Mid %>%
+      filter(Date <= Max_Date,
+             Date >= Max_Date-365) %>%
+      BUY_POS_FILTER()
+    TMP_Long = Long %>%
       filter(Date <= Max_Date,
              Date >= Max_Date-365) %>%
       BUY_POS_FILTER()
     
-
     ## Reducing Variable Pool
-    Names_Profit = Variable_Importance_Reduction(DF = dplyr::select(TMP,
-                                                             -c(Adjusted_Lead)),
-                                                 Type = 'C',
-                                                 Target = "Target",
-                                                 Plot = F)
-    Names_Futures = Variable_Importance_Reduction(DF = dplyr::select(TMP,
-                                                                     -c(Target)),
-                                                  Type = 'R',
-                                                  Target = "Adjusted_Lead",
-                                                  Plot = F)
+    Names_Short = Variable_Importance_Reduction(DF = TMP_Short,
+                                                Type = 'C',
+                                                Target = "Adjusted_Lead",
+                                                Plot = F)
+    Names_Mid = Variable_Importance_Reduction(DF = TMP_Mid,
+                                              Type = 'C',
+                                              Target = "Adjusted_Lead",
+                                              Plot = F)
+    Names_Long = Variable_Importance_Reduction(DF = TMP_Long,
+                                               Type = 'C',
+                                               Target = "Adjusted_Lead",
+                                               Plot = F)
     
-    Train_Profit = TMP[,c(Names_Profit$Var,"Target")]
-    Train_Futures = TMP[,c(Names_Futures$Var,"Adjusted_Lead")]
+    ## Defining Training Sets
+    Train_Short = TMP_Short[,c(Names_Short$Var,"Adjusted_Lead")]
+    Train_Mid = TMP_Mid[,c(Names_Mid$Var,"Adjusted_Lead")]
+    Train_Long = TMP_Long[,c(Names_Long$Var,"Adjusted_Lead")]
 
+    ## Building Models
+    Model_Short = Model_CD_PV_Loop(Train_Profit = Train_Short)
+    Model_Mid = Model_CD_PV_Loop(Train_Mid)
+    Model_Long = Model_CD_PV_Loop(Train_Long)
     
-    CDM = 5
-    counter = 0
-    while(CDM >= 5){
-      counter = counter + 1
-      print(counter)
-      Model_Profit = glm(formula = Target~.,
-                         data = Train_Profit,
-                         family = quasibinomial())
-      CD = (cooks.distance(Model_Profit)-mean(cooks.distance(Model_Profit),na.rm = T))/
-        sd(cooks.distance(Model_Profit),na.rm = T)
-      CDM = max(CD,na.rm = T)
-      print(CDM)
-      if(CDM >=5){
-        Train_Profit = Train_Profit[-which(CD >= 5),]
-      }
-    }
-    P_Max = 0.05
-    counter = 0
-    while(P_Max >= 0.05){
-      counter = counter + 1
-      print(counter)
-      Model_Profit = glm(formula = Target~.,
-                          data = Train_Profit,
-                          family = gaussian())
-      P_Vals = coef(summary(Model_Profit))[-1,]
-      P_Max = max(P_Vals[,4])
-      print(P_Max)
-      P_Var = rownames(P_Vals)[which.max(P_Vals[,4])]
-      print(P_Var)
-      if(P_Max >= 0.05){
-        Train_Profit = Train_Profit %>%
-          select(-P_Var)
-      }
-    }
-    
-    CDM = 5
-    counter = 0
-    while(CDM >= 5){
-      counter = counter + 1
-      print(counter)
-      Model_Futures = glm(formula = Adjusted_Lead~.,
-                       data = Train_Futures,
-                       family = gaussian())
-      CD = (cooks.distance(Model_Futures)-mean(cooks.distance(Model_Futures),na.rm = T))/
-        sd(cooks.distance(Model_Futures),na.rm = T)
-      CDM = max(CD,na.rm = T)
-      print(CDM)
-      if(CDM >=5){
-        Train_Futures = Train_Futures[-which(CD >= 5),]
-      }
-    }
-    P_Max = 0.05
-    counter = 0
-    while(P_Max >= 0.05){
-      counter = counter + 1
-      print(counter)
-      Model_Futures = glm(formula = Adjusted_Lead~.,
-                          data = Train_Futures,
-                          family = gaussian())
-      P_Vals = coef(summary(Model_Futures))[-1,]
-      P_Max = max(P_Vals[,4])
-      print(P_Max)
-      P_Var = rownames(P_Vals)[which.max(P_Vals[,4])]
-      print(P_Var)
-      if(P_Max >= 0.05){
-        Train_Futures = Train_Futures %>%
-          select(-P_Var)
-      }
-    }
-    
-    
-    return(list(Model_Futures = Model_Futures,
-                Model_Profit = Model_Profit,
-                Names_Profit = Names_Profit,
-                Names_Futures = Names_Futures))
+    ## Returning Values
+    return(list(Names_Short = Names_Short,
+                Model_Short = Model_Short,
+                Names_Mid = Names_Mid,
+                Model_Mid = Model_Mid,
+                Names_Long = Names_Long,
+                Model_Long = Model_Long))
   }

@@ -18,8 +18,7 @@ Performance_Function = function(PR_Stage_R3,
     ## Removes Any Outside of Price Range
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Starting_Money*Max_Holding,
-             Delta >= (1+Target/365)^Projection - 1)
+      filter(Close < Starting_Money*Max_Holding)
     
     K = 0
     Total_Capital = Starting_Money
@@ -40,9 +39,7 @@ Performance_Function = function(PR_Stage_R3,
     
     ## Setting up initial history tracking
     History_Table = RESULT %>%
-      mutate(Market_Status = Market_Ind$Market_Status[which(Market_Ind$Date == Current_Date)],
-             Market_Type = Fear_Ind$Market_Type[which(Fear_Ind$Date == Current_Date)],
-             Number = Numbers,
+      mutate(Number = Numbers,
              Profit = 0,
              Buy.Price = Close,
              Max.Price = Close,
@@ -70,8 +67,7 @@ Performance_Function = function(PR_Stage_R3,
     RESULT = RESULT[New_Buys,]
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Total_Capital*Max_Holding,
-             Delta >= (1+Target/365)^Projection - 1)
+      filter(Close < Total_Capital*Max_Holding)
     
     K = 0
     Number = numeric(length = nrow(RESULT))
@@ -92,7 +88,7 @@ Performance_Function = function(PR_Stage_R3,
     for(i in Checks){
       ## Current Stock Performance
       Examine = History_Table[i,]
-      Current_Info = Combined_Results %>%
+      Current_Info = ID_DF_3 %>%
         filter(Stock == Examine$Stock,
                Date == Current_Date) %>%
         head(1) %>%
@@ -109,12 +105,6 @@ Performance_Function = function(PR_Stage_R3,
                                               History_Table$Buy.Date[i],
                                               tz = "UTC",
                                               units = "days")
-        ## Updating Projection
-        if(Examine$Stock %in% FUTURES$Stock){
-          History_Table$Delta[i] = FUTURES$Delta[FUTURES$Stock == Examine$Stock]
-        }else if(Examine$Stock %in% SHORTS$Stock){
-          History_Table$Delta[i] = SHORTS$Delta[SHORTS$Stock == Examine$Stock]
-        }
         
         ## Updating Max Price
         if(Current_Info$Close > History_Table$Max.Price[i]){
@@ -122,15 +112,15 @@ Performance_Function = function(PR_Stage_R3,
         }
         
         ## Updating Stop Loss
-        if(length(PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                  PR_Stage_R3$Date == Current_Date]) > 0){
+        if(length(ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
+                                  ID_DF_3$Date == Current_Date]) > 0){
           History_Table$Stop.Loss[i] = 
-            ifelse(Current_Info$Close - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                                               PR_Stage_R3$Date == Current_Date] > 
+            ifelse(Current_Info$Close - 2*ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
+                                                               ID_DF_3$Date == Current_Date] > 
                      History_Table$Stop.Loss[i]
                    ,
-                   Current_Info$Close - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
-                                                               PR_Stage_R3$Date == Current_Date],
+                   Current_Info$Close - 2*ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
+                                                               ID_DF_3$Date == Current_Date],
                    History_Table$Stop.Loss[i])
         }
         
@@ -154,11 +144,7 @@ Performance_Function = function(PR_Stage_R3,
                                               NA,
                                               as.character(Current_Date))
         }
-        
-        ## Selling if Projection Is to Lose More Than 1/2 of Gains
-        if(History_Table$Delta[i] + History_Table$Pcent.Gain[i] <= History_Table$Pcent.Gain[i]*0.5){
-          History_Table$Sell.Date[i] = as.character(Current_Date)
-        }
+  
         
       }
       
@@ -172,9 +158,7 @@ Performance_Function = function(PR_Stage_R3,
     
     if(nrow(RESULT) >= 1){
       Additions = RESULT %>%
-        mutate(Market_Status = Market_Ind$Market_Status[which(Market_Ind$Date == Current_Date)],
-               Market_Type = Fear_Ind$Market_Type[which(Fear_Ind$Date == Current_Date)],
-               Number = Numbers,
+        mutate(Number = Numbers,
                Profit = 0,
                Buy.Price = Close,
                Max.Price = Close,

@@ -21,7 +21,6 @@ NClusters = 8
 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
-Target = 0.40
 Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
@@ -198,46 +197,23 @@ if(Hour < 12){
            VHF_Delta = (VHF - lag(VHF,1)),
            RSI_Delta = (RSI - lag(RSI,1)))
   
-  ## Defining Target Variable
-  PR_Stage_R4 = PR_Stage_R3 %>%
-    group_by(Stock) %>%
-    mutate(Adjusted_Lead = lead(Close,Projection),
-           PD_Lead = (Adjusted_Lead - Close)/Close,
-           Target = ifelse(PD_Lead > 0,1,0),
-           Adjusted_Lead = PD_Lead) %>%
-    mutate(WAD_Delta = WAD - lag(WAD,1),
-           Close_PD = (Close - lag(Close,1))/lag(Close,1),
-           SMI_Delta = (SMI - lag(SMI,1)),
-           SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-           CCI_Delta = (CCI - lag(CCI,1)),
-           VHF_Delta = (VHF - lag(VHF,1)),
-           RSI_Delta = (RSI - lag(RSI,1))) %>%
-    ungroup() %>%
-    select(-c(PD_Lead)) %>%
-    na.omit() %>%
-    filter(!str_detect(Stock,"^\\^"))
   
-  ## Training Simple Models
-  Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
-                             Max_Date = max(PR_Stage_R4$Date))
+  Models = Modeling_Function(ID_DF = ID_DF,
+                             Projection = Projection,
+                             Quant = 0.90,
+                             Max_Date = max(ID_DF$Date))
   
-  ## Subsetting to Latest Data
   TODAY = ID_DF %>%
-    filter(Date == max(Date))
+    filter(Date == max(Date)) %>%
+    left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+              by = c("Stock" = "Symbol"))
   
-  ## Appending Forecasts and Probabilities
-  PREDS = Prediction_Function(Models = Models,
-                              TODAY = TODAY,
-                              FinViz = F)
-  
-  ## Separating Projections of Interest
-  RESULT = PREDS$RESULT %>%
-    BUY_POS_FILTER() 
-  FUTURES = PREDS$FUTURES
-  SHORTS = PREDS$SHORTS
-  
+  RESULT = Prediction_Function(Models = Models,
+                               TODAY = TODAY,
+                               FinViz = F) %>%
+    BUY_POS_FILTER()
   ## Saving Results
-  save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
+  save(RESULT,ID_DF,Models,
        file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 }else{
   ## Loading Daily Decision Data
@@ -249,16 +225,13 @@ if(Hour < 12){
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
 ## Running Position Setting Function (Paper and Live)
-ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
+ALPACA_Performance_Function(ID_DF = ID_DF,
                             RESULT = RESULT,
-                            FUTURES = FUTURES,
-                            SHORTS = SHORTS,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding,
                             Projection = Projection,
                             Max_Loss = Max_Loss,
-                            Target = Target,
                             PAPER = T)
 
 # ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,

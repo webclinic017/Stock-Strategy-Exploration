@@ -3,19 +3,23 @@ Prediction_Function = function(Models,
                                FinViz = T,
                                Max_Risk = 0.95){
   
-  Preds = predict(Models$Model_Profit,TODAY,type = "response")
-  Futures = predict(Models$Model_Futures,TODAY)
-  Names_Profit = Models$Names_Profit
-  Names_Futures = Models$Names_Futures
+  Preds_Short = predict(Models$Model_Short,TODAY,type = "response")
+  Preds_Mid = predict(Models$Model_Mid,TODAY,type = "response")
+  Preds_Long = predict(Models$Model_Long,TODAY,type = "response")
+  Names_Short = Models$Names_Short
+  Names_Mid = Models$Names_Mid
+  Names_Long = Models$Names_Long
   
   RESULT = TODAY %>%
-    mutate(Prob = Preds,
-           Delta = Futures,
-           Future = (Close*Delta) + Close,
-           Decider = Prob + Delta,
+    mutate(Prob_Short = Preds_Short,
+           Prob_Mid = Preds_Mid,
+           Prob_Long = Preds_Long,
+           Decider = Prob_Short + Prob_Mid + Prob_Long,
            Stop_Loss = Close - 2*ATR) %>%
-    filter(!str_detect(Stock,"^\\^"),
-           Future > Close) %>%
+    group_by(Sector,Industry) %>%
+    filter(Decider == max(Decider)) %>%
+    ungroup() %>%
+    filter(!str_detect(Stock,"^\\^")) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank)
   
@@ -23,30 +27,5 @@ Prediction_Function = function(Models,
     RESULT = FinViz_Meta_Data(RESULT)
   }
   
-  FUTURES = TODAY %>%
-    mutate(Prob = Preds,
-           Delta = Futures,
-           Future = (Close*Delta) + Close,
-           Decider = Prob + Delta,
-           Stop_Loss = Close - 2*ATR
-           ) %>%
-    filter(!str_detect(Stock,"^\\^")) %>%
-    mutate(Prob_Rank = dense_rank(-Decider)) %>%
-    arrange(Prob_Rank) %>%
-    filter(Future > Close)
-  
-  SHORTS = TODAY %>%
-    mutate(Prob = Preds,
-           Delta = Futures,
-           Future = (Close*Delta) + Close,
-           Decider = Prob + Delta,
-           Stop_Loss = Close - 2*ATR) %>%
-    filter(!str_detect(Stock,"^\\^")) %>%
-    mutate(Prob_Rank = dense_rank(-Decider)) %>%
-    arrange(Prob_Rank) %>%
-    filter(Future < Close)
-  
-  return(list(RESULT = RESULT,
-              FUTURES = FUTURES,
-              SHORTS = SHORTS))
+  return(RESULT)
 }

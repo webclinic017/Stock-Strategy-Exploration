@@ -2,34 +2,29 @@ BACKTEST_Rule_Generator = function(Max_Holding,
                                    Max_Loss,
                                    Projection,
                                    ID_DF,
-                                   Fear_Ind,
-                                   Market_Ind,
-                                   Auto_Stocks,
-                                   PR_Stage_R3,
-                                   PR_Stage_R4,
-                                   Combined_Results,
-                                   Target = 0.40){
+                                   Auto_Stocks){
   Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
   
   ## Loop To Ensure Good Start / End Dates
   MR = character(0)
   while(length(MR) == 0){
-    Start = sample(seq(1,length(unique(PR_Stage_R4$Date)) - 260),1)
-    Delta = as.numeric(max(PR_Stage_R3$Date) - max(PR_Stage_R4$Date))
-    Dates = sort(unique(PR_Stage_R4$Date))[Start:(Start+252)]
-    IP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                  Combined_Results$Date == Dates[1]+ Delta] %>%
-      na.omit()
-    FP = Combined_Results$Close[Combined_Results$Stock == "^GSPC" &
-                                  Combined_Results$Date == Dates[length(Dates)] + Delta] %>%
-      na.omit()
+    Start = sample(seq(1,length(unique(ID_DF$Date)) - 260),1)
+    Dates = sort(unique(ID_DF$Date))[Start:(Start+252)]
+    IP = ID_DF %>%
+      filter(Date == Dates[1]) %>%
+      summarize(Close = mean(Close,trim = 0.25)) %>%
+      as.numeric()
+    FP = ID_DF %>%
+      filter(Date == Dates[length(Dates)]) %>%
+      summarize(Close = mean(Close,trim = 0.25)) %>%
+      as.numeric()
     (MR = scales::percent((FP-IP)/IP))
   }
   
   ## Copy for Liquidity Check
   ID_DF_2 = ID_DF %>%
-    filter(Date <= Dates[1] + Delta,
-           Date >= Dates[1] + Delta-365)
+    filter(Date <= Dates[1],
+           Date >= Dates[1]-365)
   
   ## Removing Junk / Baby Stocks
   CHECK = ID_DF_2 %>%
@@ -53,14 +48,17 @@ BACKTEST_Rule_Generator = function(Max_Holding,
            C_AVG < Starting_Money*Max_Holding,
            DV >= 20000000)
   
-  TODAY_DF = ID_DF %>%
-    filter(Stock %in% CHECK$Stock)
+  ID_DF_3 = ID_DF %>%
+    filter(Stock %in% CHECK$Stock) %>%
+    left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+              by = c("Stock" = "Symbol"))
+  
   
   ## Building Initial Models
-  Models = Modeling_Function(PR_Stage_R4 = filter(PR_Stage_R4,
-                                                  Stock %in% CHECK$Stock,
-                                                  Close < Starting_Money*Max_Holding),
-                             Max_Date = ymd(as.character(Dates[1])))
+  Models = Modeling_Function(ID_DF = ID_DF_3,
+                             Projection = Projection,
+                             Quant = 0.90,
+                             Max_Date = Dates[1])
   
   
   
@@ -77,33 +75,19 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     Current_Date = Dates[i]
     
     ## Subsetting to Current Day Performance
-    TODAY = TODAY_DF %>%
+    TODAY = ID_DF_3 %>%
       filter(Date == Current_Date)
     
     ## Periodically Checking Positions
-    Preds = Prediction_Function(Models,
+    RESULT = Prediction_Function(Models,
                                 TODAY = TODAY,
                                 FinViz = F)
-    RESULT = Preds$RESULT %>%
-      BUY_POS_FILTER() %>%
-      left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-      dplyr::select(Sector,Industry,Decider,everything()) %>%
-      group_by(Sector,Industry) %>%
-      filter(Decider == max(Decider)) %>%
-      ungroup() %>%
-      filter(Delta >= (1+Target/365)^Projection - 1)
-    
-    FUTURES = Preds$FUTURES
-    SHORTS = Preds$SHORTS
     
     if(nrow(RESULT) > 0){
       counter = counter + 1
       if(counter == 1){History_Table = NA}
       History_Table = 
-        Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                             RESULT = RESULT,
-                             FUTURES = FUTURES,
-                             SHORTS = SHORTS,
+        Performance_Function(RESULT = RESULT,
                              Starting_Money = Starting_Money,
                              Max_Holding = Max_Holding,
                              Max_Loss = Max_Loss,
@@ -123,8 +107,6 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     p$pause(0.1)$tick()$print()
   }
   
-  History_Table = History_Table %>%
-    dplyr::select(Prob,Delta,everything())
   
   ## Calculating Overall Profit
   Method_Profit = sum(History_Table$Profit) + 
@@ -133,8 +115,8 @@ BACKTEST_Rule_Generator = function(Max_Holding,
           History_Table$Number[is.na(History_Table$Sell.Date)])
   
   ## Storing_Results
-  RUN_OUT = data.frame(Time_Start = Dates[1] + Delta,
-                       Time_End = Dates[length(Dates)] + Delta,
+  RUN_OUT = data.frame(Time_Start = Dates[1],
+                       Time_End = Dates[length(Dates)],
                        Starting_Money = Starting_Money,
                        Market_Return = MR,
                        Method_Return = (Method_Profit/Starting_Money),

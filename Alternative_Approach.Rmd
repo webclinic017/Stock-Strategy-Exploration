@@ -222,40 +222,23 @@ ID_DF = PR_Stage_R3 %>%
          VHF_Delta = (VHF - lag(VHF,1)),
          RSI_Delta = (RSI - lag(RSI,1)))
 
-## Defining Target Variable
-PR_Stage_R4 = PR_Stage_R3 %>%
-  group_by(Stock) %>%
-  mutate(Adjusted_Lead = lead(Close,Projection),
-         PD_Lead = (Adjusted_Lead - Close)/Close,
-         Target = ifelse(PD_Lead > 0,1,0),
-         Adjusted_Lead = PD_Lead) %>%
-   mutate(WAD_Delta = WAD - lag(WAD,1),
-         Close_PD = (Close - lag(Close,1))/lag(Close,1),
-         SMI_Delta = (SMI - lag(SMI,1)),
-         SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
-         CCI_Delta = (CCI - lag(CCI,1)),
-         VHF_Delta = (VHF - lag(VHF,1)),
-         RSI_Delta = (RSI - lag(RSI,1))) %>%
-  ungroup() %>%
-  select(-c(PD_Lead)) %>%
-  na.omit() %>%
-  filter(!str_detect(Stock,"^\\^"))
-
-Models = Modeling_Function(PR_Stage_R4 = PR_Stage_R4,
-                           Max_Date = max(PR_Stage_R4$Date))
+Models = Modeling_Function(ID_DF = ID_DF,
+                           Projection = Projection,
+                           Quant = 0.90,
+                           Max_Date = max(ID_DF$Date))
 
 TODAY = ID_DF %>%
-  filter(Date == max(Date))
+  filter(Date == max(Date)) %>%
+  left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+            by = c("Stock" = "Symbol"))
 
-PREDS = Prediction_Function(Models = Models,
+RESULT = Prediction_Function(Models = Models,
                             TODAY = TODAY,
-                            FinViz = F)
-RESULT = PREDS$RESULT %>%
+                            FinViz = F) %>%
   BUY_POS_FILTER()
-FUTURES = PREDS$FUTURES
-SHORTS = PREDS$SHORTS
 
-save(RESULT,FUTURES,SHORTS,TODAY,PR_Stage_R4,ID_DF,Models,
+
+save(RESULT,TODAY,ID_DF,Models,
      file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 ```
 
@@ -465,13 +448,7 @@ if(Back_Test){
                                     Max_Loss = Max_Loss,
                                     Projection = Projection,
                                     ID_DF = ID_DF,
-                                    Fear_Ind = Fear_Ind,
-                                    Market_Ind = Market_Ind,
-                                    Auto_Stocks = Auto_Stocks,
-                                    PR_Stage_R3 = PR_Stage_R3,
-                                    PR_Stage_R4 = PR_Stage_R4,
-                                    Combined_Results = Combined_Results,
-                                    Target = 0.40)
+                                    Auto_Stocks = Auto_Stocks)
   
   RUNS = BT_List$RUN_OUT
   RULES = BT_List$RULE_OUT

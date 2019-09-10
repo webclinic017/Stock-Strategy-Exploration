@@ -2,8 +2,6 @@ Rule_Generator = function(History_Table){
   Explore = History_Table %>%
     filter(Pcent.Gain != 0,
            !is.na(Sell.Date)) %>%
-    left_join(Market_Ind) %>%
-    left_join(Fear_Ind) %>%
     mutate(Positive = ifelse(Pcent.Gain > 0,1,0),
            Pcent_Adj = Pcent.Gain/Time.Held,
            Good = case_when(

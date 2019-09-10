@@ -1,7 +1,5 @@
-ALPACA_Performance_Function = function(PR_Stage_R3,
+ALPACA_Performance_Function = function(ID_DF,
                                        RESULT,
-                                       FUTURES,
-                                       SHORTS,
                                        Auto_Stocks,
                                        Project_Folder,
                                        Max_Holding = 0.10,
@@ -98,14 +96,12 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
     BUY_POS_FILTER() %>%
     filter(Close < Investment_Value*Max_Holding,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
     select(Sector,Industry,Decider,everything())
   
   ## Keeping Best Outlook Within Industry and Sector
   RESULT = RESULT %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
-    filter(Delta >= (1+Target/365)^Projection - 1) %>%
     ungroup() %>%
     distinct()
   
@@ -181,15 +177,7 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
       Market_Sell = F
-      
-      ## Updating Future Estimate
-      if(STOCK %in% FUTURES$Stock){
-        Delta = FUTURES$Delta[FUTURES$Stock == STOCK]
-      }else if(STOCK %in% SHORTS$Stock){
-        Delta = SHORTS$Delta[SHORTS$Stock == STOCK]
-      }else{
-        Delta = 0
-      }
+
       
       ## Stop Loss Override Checks
       if(!STOCK %in% Filled_Orders$symbol){
@@ -217,29 +205,6 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
                     append = T)
           Market_Sell = T
         }
-        if(Delta + Pcent_Gain <= Pcent_Gain*0.5){
-          if(nrow(Loss_Order) != 0){
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
-            Sys.sleep(10)
-          }
-          submit_order(ticker = STOCK,
-                       qty = as.character(Quantity),
-                       side = "sell",
-                       type = "market",
-                       time_in_force = "gtc",
-                       live = !PAPER)
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Quantity,
-                                  Side = "sell",
-                                  Type = "market",
-                                  Price = as.numeric(Current_Info$c),
-                                  Reason = "Projected To Lose Half Of Gain")
-          write_csv(x = Report_Out,
-                    path = Report_CSV,
-                    append = T)
-          Market_Sell = T
-        }
       }
       
       ## Calculating Stop Loss
@@ -248,11 +213,11 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           ## Determining Stop Loss
           Stop_Loss = max(c(
             Buy_Price*(1-Max_Loss),
-            Buy_Price - 2*head(PR_Stage_R3$ATR[PR_Stage_R3$Stock == STOCK & 
-                                                 PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1),
+            Buy_Price - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                                 ID_DF$Date == max(ID_DF$Date)],1),
             as.numeric(Current_Info$c)*(1-Max_Loss),
-            as.numeric(Current_Info$c) - 2*head(PR_Stage_R3$ATR[PR_Stage_R3$Stock == STOCK & 
-                                                                  PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1)
+            as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                                                  ID_DF$Date == max(ID_DF$Date)],1)
             ))
           
           ## Placing Stop Loss Order
@@ -280,8 +245,8 @@ ALPACA_Performance_Function = function(PR_Stage_R3,
           ## Determining New Stop Loss
           Stop_Loss = max(c(
             as.numeric(Current_Info$c)*(1-Max_Loss),
-            as.numeric(Current_Info$c) - 2*head(PR_Stage_R3$ATR[PR_Stage_R3$Stock == STOCK & 
-                                                                  PR_Stage_R3$Date == max(PR_Stage_R3$Date)],1)))
+            as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                                                  ID_DF$Date == max(ID_DF$Date)],1)))
           
           ## Updating Stop Loss if Higher
           if(Stop_Loss > Current_Stop_Loss){
