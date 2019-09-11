@@ -20,6 +20,7 @@ Performance_Function = function(PR_Stage_R3,
       BUY_POS_FILTER() %>%
       filter(Close < Starting_Money*Max_Holding)
     
+    
     K = 0
     Total_Capital = Starting_Money
     Remaining_Money = Starting_Money
@@ -54,7 +55,14 @@ Performance_Function = function(PR_Stage_R3,
              Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
-    ## Subsetting Currently Held Stocks
+    ## Selling Stagnent Performers
+    Past_Projection = which(History_Table$Time.Held > Projection &
+                                   !History_Table$Stock %in% RESULT$Stock)
+    if(length(Past_Projection) > 0){
+      History_Table$Sell.Date[Past_Projection] = as.character(Current_Date)
+    }
+   
+     ## Subsetting Currently Held Stocks
     Checks = which(is.na(History_Table$Sell.Date))
     Ticker_List = History_Table$Stock[Checks]
     
@@ -144,7 +152,6 @@ Performance_Function = function(PR_Stage_R3,
                                               NA,
                                               as.character(Current_Date))
         }
-  
         
       }
       
@@ -153,7 +160,9 @@ Performance_Function = function(PR_Stage_R3,
         mutate(Profit = case_when(
           is.na(Sell.Date) ~ Profit,
           T ~ Number*Buy.Price*(1+Pcent.Gain) - Number*Buy.Price
-        ))
+        )) 
+      
+      
     }
     
     if(nrow(RESULT) >= 1){

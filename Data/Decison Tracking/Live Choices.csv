@@ -122,3 +122,10 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-08-23T13:29:26Z,VST,1,sell,stop,23.029672616327932,Stop Loss Update
 2019-08-23T13:29:38Z,PS,1,sell,stop,15.26536,Stop Loss Update
 2019-08-23T13:29:40Z,FLR,1,sell,stop,16.5585,Initial Stop Loss
+2019-09-11T19:51:02Z,YPF,2,Buy,Limit,8.96,Probability
+2019-09-11T19:51:02Z,WLL,2,Buy,Limit,7.93,Probability
+2019-09-11T19:51:03Z,VEDL,2,Buy,Limit,8.02,Probability
+2019-09-11T19:51:03Z,SA,1,Buy,Limit,13.56,Probability
+2019-09-11T19:51:04Z,CNHI,1,Buy,Limit,10.79,Probability
+2019-09-11T19:51:05Z,ET,1,Buy,Limit,13.95,Probability
+2019-09-11T19:51:05Z,TTM,1,Buy,Limit,8.93,Probability

@@ -1,25 +1,19 @@
 Prediction_Function = function(Models,
                                TODAY,
-                               FinViz = T,
-                               Max_Risk = 0.95){
-  
-  Preds_Short = predict(Models$Model_Short,TODAY,type = "response")
-  Preds_Mid = predict(Models$Model_Mid,TODAY,type = "response")
-  Preds_Long = predict(Models$Model_Long,TODAY,type = "response")
-  Names_Short = Models$Names_Short
-  Names_Mid = Models$Names_Mid
-  Names_Long = Models$Names_Long
+                               FinViz = T){
+
+  Preds_Short = predict(Models$Model_Short,
+                        bake(Models$PP,TODAY))$predictions
   
   RESULT = TODAY %>%
-    mutate(Prob_Short = Preds_Short,
-           Prob_Mid = Preds_Mid,
-           Prob_Long = Preds_Long,
-           Decider = Prob_Short + Prob_Mid + Prob_Long,
+    mutate(Decider = Preds_Short,
            Stop_Loss = Close - 2*ATR) %>%
+    filter(!str_detect(Stock,"^\\^")) %>%
+    filter(Decider > 0,
+           Decider < 3) %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
     ungroup() %>%
-    filter(!str_detect(Stock,"^\\^")) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank)
   

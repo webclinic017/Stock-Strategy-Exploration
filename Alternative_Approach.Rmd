@@ -28,7 +28,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW')
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW','ranger')
 load_or_install(Required_Packages)
 
 
@@ -209,28 +209,29 @@ save(PR_Stage_R3,
 ## Loading Indicator Data
 load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 
 ## Initial Data
 ID_DF = PR_Stage_R3 %>%
   left_join(Market_Ind) %>%
   left_join(Fear_Ind) %>%
+  left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+            by = c("Stock" = "Symbol")) %>%
   mutate(WAD_Delta = WAD - lag(WAD,1),
          Close_PD = (Close - lag(Close,1))/lag(Close,1),
          SMI_Delta = (SMI - lag(SMI,1)),
          SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
          CCI_Delta = (CCI - lag(CCI,1)),
          VHF_Delta = (VHF - lag(VHF,1)),
-         RSI_Delta = (RSI - lag(RSI,1)))
+         RSI_Delta = (RSI - lag(RSI,1))) %>%
+  na.omit()
 
 Models = Modeling_Function(ID_DF = ID_DF,
                            Projection = Projection,
-                           Quant = 0.90,
                            Max_Date = max(ID_DF$Date))
 
 TODAY = ID_DF %>%
-  filter(Date == max(Date)) %>%
-  left_join(select(Auto_Stocks,Symbol,Sector,Industry),
-            by = c("Stock" = "Symbol"))
+  filter(Date == max(Date))
 
 RESULT = Prediction_Function(Models = Models,
                             TODAY = TODAY,
@@ -254,8 +255,13 @@ load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 #### Rule Generation
 
 ```{r Standard Rule Generation, include = F}
-Explore = PR_Stage_R4 %>%
-  select_if(is.numeric)
+Explore = ID_DF %>%
+  group_by(Stock) %>%
+  mutate(Adjusted_Lead = (lead(Close,Projection) - Close)/ATR) %>%
+  ungroup() %>%
+  BUY_POS_FILTER() %>%
+  select_if(is.numeric) %>%
+  na.omit()
 Loop_DF = Explore
 Baseline_Return = median(Explore$Adjusted_Lead,na.rm = T)
 
@@ -264,58 +270,45 @@ STORE = data.frame(Var = character(),
                    PL = numeric(),
                    VH = numeric(),
                    PH = numeric())
-Vars = colnames(Explore)[!colnames(Explore) %in% c("Adjusted_Lead","Target","Open","High","Low","Close","Adjusted","Volume")]
+Vars = colnames(Explore)
 
 
 pb = progress_estimated(length(Vars))
-progress <- function(n) pb$pause(0.1)$tick()$print()
-opts <- list(progress = progress)
-c1 = makeCluster(2)
-registerDoSNOW(c1)
-
-STORE = foreach(Var = Vars,
-                .errorhandling = "stop",
-                .packages = Required_Packages,
-                .options.snow = opts) %dopar% 
-  {
-    counter = 0
-    p$pause(0.1)$tick()$print()
-    for(i in as_vector(quantile(as_vector(Loop_DF[,Var]),seq(0,1,length.out = 25),na.rm = T))){
-      counter = counter + 1
-      P_TL = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] < i],na.rm = T)
-      P_TL = ifelse(is.na(P_TL),-999,P_TL)
-      P_TH = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] > i],na.rm = T)
-      P_TH = ifelse(is.na(P_TH),-999,P_TH)
-      if(counter == 1){
+STORE = list()
+for(Var in Vars){
+  counter = 0
+  for(i in as_vector(quantile(as_vector(Loop_DF[,Var]),seq(0.1,0.9,length.out = 10),na.rm = T))){
+    counter = counter + 1
+    P_TL = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] < i],na.rm = T)
+    P_TL = ifelse(is.na(P_TL),-999,P_TL)
+    P_TH = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] > i],na.rm = T)
+    P_TH = ifelse(is.na(P_TH),-999,P_TH)
+    if(counter == 1){
+      PL = P_TL
+      VL = i
+      PH = P_TH
+      VH = i
+    }else{
+      if(P_TL > PL){
         PL = P_TL
         VL = i
+      }
+      if(P_TH > PH){
         PH = P_TH
         VH = i
-      }else{
-        if(P_TL > PL){
-          PL = P_TL
-          VL = i
-        }
-        if(P_TH > PH){
-          PH = P_TH
-          VH = i
-        }
       }
     }
-    TMP = data.frame(
-      Var = Var,
-      VL = round(VL, 4),
-      PL = PL,
-      VH = round(VH, 4),
-      PH = PH
-    )
-    TMP
   }
-
-## Spinning Down Clusters
-registerDoSEQ()
-stopCluster(c1)
-kill_all_Rscript_s()
+  TMP = data.frame(
+    Var = Var,
+    VL = round(VL, 4),
+    PL = PL,
+    VH = round(VH, 4),
+    PH = PH
+  )
+  STORE[[Var]] = TMP
+  pb$pause(0.1)$tick()$print()
+}
 
 STORE = data.table::rbindlist(STORE) %>%
   as.data.frame()
@@ -338,11 +331,11 @@ FINAL = STORE %>%
   Percent = 0)
 for(i in 1:nrow(FINAL)){
   if(FINAL$Side[i] == "Low"){
-    FINAL$Percent[i] =  sum(PR_Stage_R4[,as.character(FINAL$Var[i])] <
-                              FINAL$Value[i])/nrow(PR_Stage_R4)
+    FINAL$Percent[i] =  sum(ID_DF[,as.character(FINAL$Var[i])] <
+                              FINAL$Value[i])/nrow(ID_DF)
   }else{
-    FINAL$Percent[i] =  sum(PR_Stage_R4[,as.character(FINAL$Var[i])] > 
-                              FINAL$Value[i])/nrow(PR_Stage_R4)
+    FINAL$Percent[i] =  sum(ID_DF[,as.character(FINAL$Var[i])] > 
+                              FINAL$Value[i])/nrow(ID_DF)
   }
 }
 FINAL$Decider = 2*FINAL$Increase + FINAL$Percent 
@@ -446,7 +439,8 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 if(Back_Test){
   BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
                                     Max_Loss = Max_Loss,
-                                    Projection = Projection,
+                                    Projection = 5,
+                                    Quant = 0.8,
                                     ID_DF = ID_DF,
                                     Auto_Stocks = Auto_Stocks)
   
@@ -468,6 +462,8 @@ if(Back_Test){
   print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
   print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
   
+  
+  
   ## Looking At If Total Rules Exist
   RULES_Total = Rule_Generator(TRADES)
   
@@ -485,14 +481,14 @@ if(Back_Test){
            Value = case_when(
              Side == "High" ~ VH,
              T ~ VL)) %>%
-    filter(PD > 0,
-           VL > VH) %>%
     ungroup() %>%
-    arrange(desc(PD)) %>%
     rowwise() %>%
     mutate(Percent_Kept = case_when(
-      Side == "High" ~  sum(ID_DF[[Var]] > Value)/nrow(ID_DF),
-      T ~ sum(ID_DF[[Var]] < Value)/nrow(ID_DF)))
+      Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
+      T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
+    arrange(desc(Percent_Kept)) %>%
+    filter(MAX > MP,
+           Percent_Kept > 0.75)
   
   TRADES_OUT = TRADES %>%
     filter(Buy.Date >= "2011-08-02",

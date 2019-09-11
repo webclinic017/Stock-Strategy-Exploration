@@ -189,6 +189,8 @@ if(Hour < 12){
   ID_DF = PR_Stage_R3 %>%
     left_join(Market_Ind) %>%
     left_join(Fear_Ind) %>%
+    left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+              by = c("Stock" = "Symbol")) %>%
     mutate(WAD_Delta = WAD - lag(WAD,1),
            Close_PD = (Close - lag(Close,1))/lag(Close,1),
            SMI_Delta = (SMI - lag(SMI,1)),
@@ -200,18 +202,16 @@ if(Hour < 12){
   
   Models = Modeling_Function(ID_DF = ID_DF,
                              Projection = Projection,
-                             Quant = 0.90,
                              Max_Date = max(ID_DF$Date))
   
   TODAY = ID_DF %>%
-    filter(Date == max(Date)) %>%
-    left_join(select(Auto_Stocks,Symbol,Sector,Industry),
-              by = c("Stock" = "Symbol"))
+    filter(Date == max(Date))
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
                                FinViz = F) %>%
     BUY_POS_FILTER()
+  
   ## Saving Results
   save(RESULT,ID_DF,Models,
        file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
@@ -234,14 +234,11 @@ ALPACA_Performance_Function(ID_DF = ID_DF,
                             Max_Loss = Max_Loss,
                             PAPER = T)
 
-# ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-#                             RESULT = RESULT,
-#                             FUTURES = FUTURES,
-#                             SHORTS = SHORTS,
-#                             Auto_Stocks = Auto_Stocks,
-#                             Project_Folder = Project_Folder,
-#                             Max_Holding = Max_Holding_Live,
-#                             Projection = Projection,
-#                             Max_Loss = Max_Loss,
-#                             Target = Target,
-#                             PAPER = F)
+ALPACA_Performance_Function(ID_DF = ID_DF,
+                            RESULT = RESULT,
+                            Auto_Stocks = Auto_Stocks,
+                            Project_Folder = Project_Folder,
+                            Max_Holding = Max_Holding_Live,
+                            Projection = Projection,
+                            Max_Loss = Max_Loss,
+                            PAPER = F)

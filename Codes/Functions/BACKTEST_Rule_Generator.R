@@ -1,6 +1,7 @@
 BACKTEST_Rule_Generator = function(Max_Holding,
                                    Max_Loss,
                                    Projection,
+                                   Quant,
                                    ID_DF,
                                    Auto_Stocks){
   Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
@@ -57,17 +58,13 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   ## Building Initial Models
   Models = Modeling_Function(ID_DF = ID_DF_3,
                              Projection = Projection,
-                             Quant = 0.90,
+                             Quant = Quant,
                              Max_Date = Dates[1])
-  
-  
   
   ## Initializing Counter / Progress Bar
   counter = 0
   MH = -9e9
   ML = 9e9
-  
-  
   Days = which(as.character(wday(Dates,label = T)) == "Mon")
   p = progress_estimated(length(Days))
   for(i in Days){
