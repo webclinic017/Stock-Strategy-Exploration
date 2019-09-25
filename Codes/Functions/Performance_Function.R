@@ -1,16 +1,11 @@
-Performance_Function = function(PR_Stage_R3,
+Performance_Function = function(ID_DF_3,
                                 RESULT,
-                                FUTURES,
-                                SHORTS,
                                 Fear_Ind,
                                 Market_Ind,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
-                                Projection = 15,
-                                Target = 0.40,
                                 Max_Loss = 0.05,
                                 Current_Date,
-                                Fear_Marker,
                                 History_Table = NA){
   
   ## Builds Initial History Table
@@ -18,7 +13,10 @@ Performance_Function = function(PR_Stage_R3,
     ## Removes Any Outside of Price Range
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Starting_Money*Max_Holding)
+      filter(Close < Starting_Money*Max_Holding) %>%
+      group_by(Sector,Industry) %>%
+      filter(Decider == max(Decider)) %>%
+      ungroup()
     
     
     K = 0
@@ -55,12 +53,6 @@ Performance_Function = function(PR_Stage_R3,
              Sell.Date = NA) %>%
       select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
-    ## Selling Stagnent Performers
-    Past_Projection = which(History_Table$Time.Held > Projection &
-                                   !History_Table$Stock %in% RESULT$Stock)
-    if(length(Past_Projection) > 0){
-      History_Table$Sell.Date[Past_Projection] = as.character(Current_Date)
-    }
    
      ## Subsetting Currently Held Stocks
     Checks = which(is.na(History_Table$Sell.Date))
@@ -75,7 +67,10 @@ Performance_Function = function(PR_Stage_R3,
     RESULT = RESULT[New_Buys,]
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Total_Capital*Max_Holding)
+      filter(Close < Total_Capital*Max_Holding) %>%
+      group_by(Sector,Industry) %>%
+      filter(Decider == max(Decider)) %>%
+      ungroup()
     
     K = 0
     Number = numeric(length = nrow(RESULT))
@@ -146,12 +141,6 @@ Performance_Function = function(PR_Stage_R3,
                                             as.character(Current_Date),
                                             NA)
         
-        ## Selling if Negative After Projection
-        if(History_Table$Time.Held[i] >= Projection){
-          History_Table$Sell.Date[i] = ifelse(History_Table$Pcent.Gain[i] > 0,
-                                              NA,
-                                              as.character(Current_Date))
-        }
         
       }
       

@@ -55,7 +55,7 @@ Max_Holding_Live = 0.20
 Cap = "All" 
 
 ## Timeline For Profit Model (Trading Days)
-Projection = 5
+Projection = 20
 ```
 
 ### {.tabset}
@@ -227,7 +227,6 @@ ID_DF = PR_Stage_R3 %>%
   na.omit()
 
 Models = Modeling_Function(ID_DF = ID_DF,
-                           Projection = Projection,
                            Max_Date = max(ID_DF$Date))
 
 TODAY = ID_DF %>%
@@ -235,7 +234,7 @@ TODAY = ID_DF %>%
 
 RESULT = Prediction_Function(Models = Models,
                             TODAY = TODAY,
-                            FinViz = F) %>%
+                            FinViz = T) %>%
   BUY_POS_FILTER()
 
 
@@ -439,8 +438,6 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
 if(Back_Test){
   BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
                                     Max_Loss = Max_Loss,
-                                    Projection = 5,
-                                    Quant = 0.8,
                                     ID_DF = ID_DF,
                                     Auto_Stocks = Auto_Stocks)
   
@@ -461,11 +458,6 @@ if(Back_Test){
   print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
   print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
   print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
-  
-  
-  
-  ## Looking At If Total Rules Exist
-  RULES_Total = Rule_Generator(TRADES)
   
   ##
   RULES_Summary = RULES %>%

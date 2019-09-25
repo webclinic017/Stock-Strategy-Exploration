@@ -1228,3 +1228,107 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-11T19:49:58Z,AXL,122,sell,stop,8.151,Initial Stop Loss
 2019-09-11T19:50:00Z,ABMD,24,sell,stop,181.6495,Initial Stop Loss
 2019-09-11T19:50:12Z,AA,384,sell,stop,21.12325,Stop Loss Update
+2019-09-12T12:29:38Z,RUBY,497,Buy,Limit,9.79,Probability
+2019-09-12T12:30:01Z,VRTU,133,sell,stop,38.969,Stop Loss Update
+2019-09-12T12:30:12Z,TECK,288,sell,stop,17.841,Stop Loss Update
+2019-09-12T12:30:23Z,SFL,103,sell,stop,13.837903299307722,Stop Loss Update
+2019-09-12T12:30:35Z,PBF,396,sell,stop,24.566999999999997,Stop Loss Update
+2019-09-12T12:30:46Z,GPK,1,sell,stop,13.47607151922627,Stop Loss Update
+2019-09-12T12:30:58Z,EMR,80,sell,stop,62.37726955972539,Stop Loss Update
+2019-09-12T12:31:10Z,CTB,32,sell,stop,25.3745,Stop Loss Update
+2019-09-12T12:31:21Z,CLB,117,sell,stop,44.592999999999996,Stop Loss Update
+2019-09-12T12:31:23Z,BERY,124,sell,market,39.38,Negative After Projection
+2019-09-12T12:31:34Z,BBAR,1,sell,stop,4.218,Stop Loss Update
+2019-09-12T12:31:36Z,AXL,122,sell,stop,8.151,Initial Stop Loss
+2019-09-12T12:31:47Z,ANGI,1,sell,market,8.1,Negative After Projection
+2019-09-12T12:31:48Z,ABMD,24,sell,stop,181.44525,Initial Stop Loss
+2019-09-12T18:02:34Z,WLL,632,Buy,Limit,7.93,Probability
+2019-09-12T18:02:34Z,NKTR,216,Buy,Limit,20.02,Probability
+2019-09-12T18:02:56Z,VST,208,sell,stop,25.390690639741305,Stop Loss Update
+2019-09-12T18:02:57Z,VRTU,133,sell,stop,38.1235,Initial Stop Loss
+2019-09-12T18:02:58Z,TECK,288,sell,stop,18.0595,Initial Stop Loss
+2019-09-12T18:02:59Z,SFL,103,sell,stop,13.787903299307724,Initial Stop Loss
+2019-09-12T18:03:00Z,RUBY,1536,sell,stop,9.290999999999999,Initial Stop Loss
+2019-09-12T18:03:01Z,PBF,396,sell,stop,24.339,Initial Stop Loss
+2019-09-12T18:03:02Z,GPK,1,sell,stop,13.536071519226272,Initial Stop Loss
+2019-09-12T18:03:03Z,EMR,80,sell,stop,62.07236955972539,Initial Stop Loss
+2019-09-12T18:03:03Z,CTB,32,sell,stop,25.0325,Initial Stop Loss
+2019-09-12T18:03:04Z,CLB,117,sell,stop,44.146499999999996,Initial Stop Loss
+2019-09-12T18:03:15Z,BLK,12,sell,stop,417.27434488738896,Stop Loss Update
+2019-09-12T18:03:16Z,BERY,124,sell,market,39.59,Negative After Projection
+2019-09-12T18:03:17Z,BBAR,1,sell,stop,4.2085,Initial Stop Loss
+2019-09-12T18:03:18Z,AXL,122,sell,stop,8.17,Initial Stop Loss
+2019-09-12T18:03:19Z,ANGI,1,sell,market,7.83,Negative After Projection
+2019-09-12T18:03:30Z,AMZN,2,sell,stop,1783.8174117715428,Stop Loss Update
+2019-09-12T18:03:31Z,ABMD,24,sell,stop,177.6975,Initial Stop Loss
+2019-09-12T18:03:42Z,AA,384,sell,stop,21.5745,Stop Loss Update
+2019-09-12T18:03:52Z,AXL,584,Buy,Limit,8.59,Rebalance Strong Performers
+2019-09-12T18:03:52Z,CTB,190,Buy,Limit,26.33,Rebalance Strong Performers
+2019-09-12T18:03:53Z,GPK,325,Buy,Limit,14.14,Rebalance Strong Performers
+2019-09-13T18:02:46Z,WLL,632,sell,stop,7.1915,Initial Stop Loss
+2019-09-13T18:02:58Z,TECK,288,sell,stop,18.164,Stop Loss Update
+2019-09-13T18:03:10Z,PBF,396,sell,stop,24.339,Stop Loss Update
+2019-09-13T18:03:11Z,NKTR,216,sell,stop,19.095,Initial Stop Loss
+2019-09-13T18:03:22Z,GPK,326,sell,stop,13.686071519226271,Stop Loss Update
+2019-09-13T18:03:33Z,EMR,80,sell,stop,63.09726955972539,Stop Loss Update
+2019-09-13T18:03:44Z,CTB,222,sell,stop,25.127499999999998,Stop Loss Update
+2019-09-13T18:03:56Z,CLB,117,sell,stop,44.384,Stop Loss Update
+2019-09-13T18:04:07Z,BLK,12,sell,stop,422.784344887389,Stop Loss Update
+2019-09-13T18:04:18Z,BKNG,2,sell,stop,1981.4878946332317,Stop Loss Update
+2019-09-13T18:04:19Z,BERY,124,sell,stop,38.313595,Initial Stop Loss
+2019-09-13T18:04:20Z,AXL,706,sell,stop,8.607,Initial Stop Loss
+2019-09-13T18:04:21Z,ABMD,24,sell,stop,179.02749999999997,Initial Stop Loss
+2019-09-13T18:04:32Z,AA,384,sell,stop,22.077999999999996,Stop Loss Update
+2019-09-16T18:02:36Z,YPF,583,Buy,Limit,8.85,Probability
+2019-09-16T18:02:37Z,ELS,39,Buy,Limit,130.240005,Probability
+2019-09-16T18:02:59Z,WLL,632,sell,stop,11.1055,Stop Loss Update
+2019-09-16T18:03:11Z,VST,208,sell,stop,25.6283906397413,Stop Loss Update
+2019-09-16T18:03:23Z,SFL,103,sell,stop,13.787903299307724,Stop Loss Update
+2019-09-16T18:03:34Z,NKTR,216,sell,stop,20.025999999999996,Stop Loss Update
+2019-09-16T18:03:47Z,CLB,117,sell,stop,48.791999999999994,Stop Loss Update
+2019-09-16T18:03:49Z,BERY,124,sell,stop,38.04749999999999,Initial Stop Loss
+2019-09-16T18:03:50Z,AXL,706,sell,stop,8.36,Initial Stop Loss
+2019-09-16T18:03:51Z,ABMD,24,sell,stop,181.15075,Initial Stop Loss
+2019-09-16T18:04:02Z,NKTR,203,Buy,Limit,21.07,Rebalance Strong Performers
+2019-09-17T18:02:35Z,YPF,572,Buy,Limit,8.85,Probability
+2019-09-17T18:02:36Z,ELS,38,Buy,Limit,130.240005,Probability
+2019-09-17T18:02:58Z,VST,208,sell,stop,25.943390639741303,Stop Loss Update
+2019-09-17T18:03:10Z,SFL,103,sell,market,14.24,Negative After Projection
+2019-09-17T18:03:23Z,BKNG,2,sell,stop,1994.1328946332317,Stop Loss Update
+2019-09-17T18:03:24Z,BERY,124,sell,market,39.525,Negative After Projection
+2019-09-17T18:03:24Z,AXL,706,sell,stop,7.84225,Initial Stop Loss
+2019-09-17T18:03:26Z,ABMD,24,sell,stop,181.51649999999998,Initial Stop Loss
+2019-09-17T18:03:36Z,ABMD,26,Buy,Limit,190.92,Rebalance Strong Performers
+2019-09-17T18:03:37Z,GPK,357,Buy,Limit,14.16,Rebalance Strong Performers
+2019-09-18T18:03:12Z,ELS,38,Buy,Limit,130.240005,Probability
+2019-09-18T18:03:24Z,YPF,572,sell,stop,8.284,Initial Stop Loss
+2019-09-18T18:03:26Z,NKTR,203,sell,stop,18.9715,Initial Stop Loss
+2019-09-18T18:03:39Z,BLK,12,sell,stop,424.115044887389,Stop Loss Update
+2019-09-18T18:03:40Z,BERY,124,sell,market,39.17,Negative After Projection
+2019-09-18T18:03:40Z,AXL,706,sell,market,8.03,Negative After Projection
+2019-09-18T18:03:41Z,ABMD,50,sell,stop,179.05124999999998,Initial Stop Loss
+2019-09-18T18:03:52Z,NKTR,252,Buy,Limit,19.97,Rebalance Strong Performers
+2019-09-19T18:02:27Z,ELS,38,Buy,Limit,130.240005,Probability
+2019-09-19T18:02:49Z,YPF,572,sell,stop,8.739999999999998,Stop Loss Update
+2019-09-19T18:03:01Z,NKTR,455,sell,stop,19.285,Stop Loss Update
+2019-09-19T18:03:12Z,BLK,12,sell,stop,425.96434488738896,Stop Loss Update
+2019-09-19T18:03:13Z,BERY,124,sell,market,38.73,Negative After Projection
+2019-09-19T18:03:14Z,AXL,706,sell,market,8.115,Negative After Projection
+2019-09-19T18:03:15Z,ABMD,26,sell,stop,182.79899999999998,Initial Stop Loss
+2019-09-20T18:02:24Z,ELS,38,Buy,Limit,130.240005,Probability
+2019-09-20T18:02:47Z,VST,208,sell,stop,25.998390639741302,Stop Loss Update
+2019-09-20T18:02:58Z,GPK,683,sell,stop,13.846071519226271,Stop Loss Update
+2019-09-20T18:03:00Z,BERY,124,sell,market,38.81,Negative After Projection
+2019-09-20T18:03:00Z,AXL,706,sell,market,7.9,Negative After Projection
+2019-09-20T18:03:11Z,ABMD,26,sell,stop,183.30249999999998,Stop Loss Update
+2019-09-23T18:02:19Z,ELS,38,Buy,Limit,130.240005,Probability
+2019-09-23T18:02:42Z,VST,208,sell,stop,26.0733906397413,Stop Loss Update
+2019-09-23T18:02:54Z,BLK,12,sell,stop,428.484344887389,Stop Loss Update
+2019-09-23T18:02:55Z,BERY,124,sell,market,39.38,Negative After Projection
+2019-09-23T18:02:56Z,AXL,706,sell,market,8.025,Negative After Projection
+2019-09-23T18:03:07Z,ABMD,26,sell,market,185.795,Negative After Projection
+2019-09-24T18:02:28Z,RUBY,504,Buy,Limit,9.79,Probability
+2019-09-24T18:02:28Z,ELS,37,Buy,Limit,130.240005,Probability
+2019-09-24T18:02:51Z,GPK,683,sell,market,14.085,Negative After Projection
+2019-09-24T18:02:52Z,BERY,124,sell,market,39.19,Negative After Projection
+2019-09-24T18:02:53Z,AXL,706,sell,market,7.39,Negative After Projection

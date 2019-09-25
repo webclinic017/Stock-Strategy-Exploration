@@ -1,9 +1,9 @@
-  Modeling_Function = function(ID_DF,Projection,Max_Date){
+  Modeling_Function = function(ID_DF,Max_Date){
     
     ## Defining Target Variable
     Short = ID_DF %>%
       group_by(Stock) %>%
-      mutate(Adjusted_Lead = (lead(Close,Projection) - Close)/ATR) %>%
+      mutate(Adjusted_Lead = (lead(MA50,50) - MA50)/MA50) %>%
       filter(Date <= Max_Date,
              Date >= Max_Date-365) %>%
       BUY_POS_FILTER() %>%
@@ -17,9 +17,10 @@
                                                 Target = "Adjusted_Lead",
                                                 Plot = F)
     ## Defining Training Sets
-    keep = sample(x = 1:nrow(Short),size = round(nrow(Short)*0.80),replace = F)
-    Train_Short = Short[keep,c(Names_Short$Var,"Adjusted_Lead")]
-    Test_Short = Short[-keep,c(Names_Short$Var,"Adjusted_Lead")]
+    Stocks = unique(Short$Stock)
+    keep = sample(x = 1:length(Stocks),size = round(length(Stocks)*0.80),replace = F)
+    Train_Short = Short[Short$Stock %in% Stocks[keep],c(Names_Short$Var,"Adjusted_Lead")]
+    Test_Short = Short[!Short$Stock %in% Stocks[keep],c(Names_Short$Var,"Adjusted_Lead")]
     
     ## Preprocessing
     PP = recipe(Adjusted_Lead~.,
@@ -32,31 +33,38 @@
     Test_PP = bake(PP,Test_Short)
     
     ## Building Models
+    CD_Stop = F
+    while(!CD_Stop){
+      mod = lm(Adjusted_Lead~.,
+               data = Train_PP)
+      CDs = cooks.distance(mod)
+      if(sum(CDs > 1,na.rm = T) >= 1){
+        Train_PP = Train_PP[CDs < 1,]
+      }else{
+        CD_Stop = T
+      }
+    }
     P_Stop = F
     while(!P_Stop){
       mod = lm(Adjusted_Lead~.,
                data = Train_PP)
       P_Vals = coef(summary(mod))[-1,4]
-      P_Max = max(P_Vals)
-      if(P_Max > 0.001){
-        Train_PP[,names(P_Vals)[which(P_Vals == P_Max)]] = NULL
+      if(max(P_Vals,na.rm = T) >= 0.001){
+        Var = names(P_Vals)[which.max(P_Vals)]
+        Train_PP = Train_PP %>%
+          select(-Var)
       }else{
         P_Stop = T
       }
     }
     
-    ## Training Fancy Model
-    mod2 = ranger(Adjusted_Lead~.,
-                  splitrule = "maxstat",
-                  min.node.size = 25,
-                  data = Train_PP)
-    preds = predict(mod2,Test_PP)$predictions
-    R2 = MLmetrics::R2_Score(y_pred = preds,y_true = Test_PP$Adjusted_Lead)
+    preds = predict(mod,Test_PP)
+    RMSE = MLmetrics::RMSE(y_pred = preds,y_true = Test_PP$Adjusted_Lead)
     
-    ## Returning Values
+     ## Returning Values
     return(list(Names_Short = Names_Short,
-                Model_Short = mod2,
+                Model_Short = mod,
                 PP = PP,
-                R2 = R2))
+                RMSE = RMSE))
     }
     

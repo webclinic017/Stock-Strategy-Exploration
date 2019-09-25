@@ -1,7 +1,5 @@
 BACKTEST_Rule_Generator = function(Max_Holding,
                                    Max_Loss,
-                                   Projection,
-                                   Quant,
                                    ID_DF,
                                    Auto_Stocks){
   Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
@@ -50,15 +48,11 @@ BACKTEST_Rule_Generator = function(Max_Holding,
            DV >= 20000000)
   
   ID_DF_3 = ID_DF %>%
-    filter(Stock %in% CHECK$Stock) %>%
-    left_join(select(Auto_Stocks,Symbol,Sector,Industry),
-              by = c("Stock" = "Symbol"))
+    filter(Stock %in% CHECK$Stock)
   
   
   ## Building Initial Models
   Models = Modeling_Function(ID_DF = ID_DF_3,
-                             Projection = Projection,
-                             Quant = Quant,
                              Max_Date = Dates[1])
   
   ## Initializing Counter / Progress Bar
@@ -79,19 +73,19 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     RESULT = Prediction_Function(Models,
                                 TODAY = TODAY,
                                 FinViz = F)
+    if(counter == 0){History_Table = NA}
     
     if(nrow(RESULT) > 0){
       counter = counter + 1
-      if(counter == 1){History_Table = NA}
       History_Table = 
-        Performance_Function(RESULT = RESULT,
+        Performance_Function(ID_DF_3 = ID_DF_3,
+                             RESULT = RESULT,
+                             Fear_Ind = Fear_Ind,
+                             Market_Ind = Market_Ind,
                              Starting_Money = Starting_Money,
                              Max_Holding = Max_Holding,
                              Max_Loss = Max_Loss,
-                             Fear_Ind = Fear_Ind,
-                             Market_Ind = Market_Ind,
                              Current_Date = Current_Date,
-                             Projection = Projection,
                              History_Table = History_Table)
       
       Profit = sum(History_Table$Profit) + 
