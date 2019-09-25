@@ -25,9 +25,6 @@ Max_Loss = 0.05
 Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
-## Timeline For Profit Model (Trading Days)
-Projection = 5
-
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = "All" 
 
@@ -202,7 +199,6 @@ if(Hour < 12){
   
   
   Models = Modeling_Function(ID_DF = ID_DF,
-                             Projection = Projection,
                              Max_Date = max(ID_DF$Date))
   
   TODAY = ID_DF %>%
@@ -231,7 +227,6 @@ ALPACA_Performance_Function(ID_DF = ID_DF,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding,
-                            Projection = Projection,
                             Max_Loss = Max_Loss,
                             PAPER = T)
 
@@ -240,6 +235,5 @@ ALPACA_Performance_Function(ID_DF = ID_DF,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding_Live,
-                            Projection = Projection,
                             Max_Loss = Max_Loss,
                             PAPER = F)

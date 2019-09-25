@@ -1332,3 +1332,21 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-24T18:02:51Z,GPK,683,sell,market,14.085,Negative After Projection
 2019-09-24T18:02:52Z,BERY,124,sell,market,39.19,Negative After Projection
 2019-09-24T18:02:53Z,AXL,706,sell,market,7.39,Negative After Projection
+2019-09-25T04:34:24Z,AMBA,74,Buy,Limit,66.300003,Probability
+2019-09-25T04:34:24Z,CONN,185,Buy,Limit,26.700001,Probability
+2019-09-25T04:34:25Z,RH,29,Buy,Limit,166.949997,Probability
+2019-09-25T04:34:26Z,SAIA,53,Buy,Limit,92.080002,Probability
+2019-09-25T04:34:26Z,CMPR,39,Buy,Limit,126.410004,Probability
+2019-09-25T04:34:26Z,DBD,354,Buy,Limit,13.95,Probability
+2019-09-25T04:34:27Z,CSTM,365,Buy,Limit,13.54,Probability
+2019-09-25T04:34:27Z,TGT,45,Buy,Limit,108.970001,Probability
+2019-09-25T04:34:27Z,WDC,76,Buy,Limit,64.300003,Probability
+2019-09-25T04:34:28Z,SPXC,123,Buy,Limit,40.009998,Probability
+2019-09-25T04:34:29Z,CVCO,24,Buy,Limit,201.070007,Probability
+2019-09-25T04:34:29Z,TTMI,407,Buy,Limit,12.13,Probability
+2019-09-25T04:34:29Z,CRS,88,Buy,Limit,55.880001,Probability
+2019-09-25T04:34:30Z,CONE,58,Buy,Limit,74.019997,Probability
+2019-09-25T04:34:30Z,EGOV,1,Buy,Limit,21.709999,Probability
+2019-09-25T04:34:47Z,EMR,80,sell,stop,61.197269559725385,Initial Stop Loss
+2019-09-25T04:34:48Z,BERY,124,sell,stop,38,Initial Stop Loss
+2019-09-25T04:34:49Z,AXL,706,sell,stop,7.833799575070821,Initial Stop Loss

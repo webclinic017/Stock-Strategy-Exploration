@@ -446,18 +446,7 @@ if(Back_Test){
   TRADES = BT_List$TRADES_OUT
   
   ## Summarizing Run Results
-  RUNS_Summary = RUNS %>%
-    mutate(Market_Return = as.numeric(str_remove(Market_Return,"%"))/100) %>%
-    summarise(Method_Return = mean(Method_Return,trim = 0.05),
-              Market_Return = mean(Market_Return,trim = 0.05),
-              Max_Gain = mean(Max_Gain,trim = 0.05),
-              Max_Loss = mean(Max_Loss,trim = 0.05),
-              Trade_Number = round(mean(Trade_Number)))
-  print(paste0("Typical Market Return ",scales::percent(RUNS_Summary$Market_Return)))
-  print(paste0("Typical Method Return ",scales::percent(RUNS_Summary$Method_Return)))
-  print(paste0("Typical Max ",scales::percent(RUNS_Summary$Max_Gain)))
-  print(paste0("Typical Min ",scales::percent(RUNS_Summary$Max_Loss)))
-  print(paste0("Typical Trade Number ",(RUNS_Summary$Trade_Number)))
+  glimpse(RUNS)
   
   ##
   RULES_Summary = RULES %>%
@@ -480,7 +469,7 @@ if(Back_Test){
       T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
     arrange(desc(Percent_Kept)) %>%
     filter(MAX > MP,
-           Percent_Kept > 0.75)
+           Percent_Kept > 0.95)
   
   TRADES_OUT = TRADES %>%
     filter(Buy.Date >= "2011-08-02",

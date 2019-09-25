@@ -4,8 +4,8 @@
     Short = ID_DF %>%
       group_by(Stock) %>%
       mutate(Adjusted_Lead = (lead(MA50,50) - MA50)/MA50) %>%
-      filter(Date <= Max_Date,
-             Date >= Max_Date-365) %>%
+      filter(Date <= Max_Date-50,
+             Date >= Max_Date-365-50) %>%
       BUY_POS_FILTER() %>%
       ungroup() %>%
       na.omit() %>%

@@ -3,7 +3,6 @@ ALPACA_Performance_Function = function(ID_DF,
                                        Auto_Stocks,
                                        Project_Folder,
                                        Max_Holding = 0.10,
-                                       Projection = 15,
                                        Max_Loss = 0.05,
                                        Target = 0.40,
                                        PAPER = T){
@@ -64,14 +63,6 @@ ALPACA_Performance_Function = function(ID_DF,
   ## Pulling Existing Orders
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
     filter(status == "new"))
-  
-  ## Pulling Orders Filled Within Projection Period
-  Filled_Orders = try(get_orders(status = 'closed',
-                                 from = Sys.Date() - Projection,
-                                 live = !PAPER) %>%
-    filter(status == "filled",
-           type == "limit") %>%
-    mutate(filled_at = ymd_hms(filled_at)))
   
   ## Pulling Filled Sell Orders During Wash Sale Window
   Wash_Sale_Record = try(get_orders(status = 'closed',
@@ -161,7 +152,6 @@ ALPACA_Performance_Function = function(ID_DF,
     Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                            filter(status == "new"))
     Filled_Orders = try(get_orders(status = 'all',
-                                   from = Sys.Date() - Projection,
                                    live = !PAPER) %>%
                           filter(status == "filled",
                                  type == "limit") %>%
@@ -177,35 +167,7 @@ ALPACA_Performance_Function = function(ID_DF,
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
       Market_Sell = F
-
       
-      ## Stop Loss Override Checks
-      if(!STOCK %in% Filled_Orders$symbol){
-        ## Selling if Negative After Projection Time Frame
-        if(Pcent_Gain < 0){
-          if(nrow(Loss_Order) != 0){
-            cancel_order(ticker = STOCK,order_id = Loss_Order$id,live = !PAPER)
-            Sys.sleep(10)
-          }
-          submit_order(ticker = STOCK,
-                       qty = as.character(Quantity),
-                       side = "sell",
-                       type = "market",
-                       time_in_force = "gtc",
-                       live = !PAPER)
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Quantity,
-                                  Side = "sell",
-                                  Type = "market",
-                                  Price = as.numeric(Current_Info$c),
-                                  Reason = "Negative After Projection")
-          write_csv(x = Report_Out,
-                    path = Report_CSV,
-                    append = T)
-          Market_Sell = T
-        }
-      }
       
       ## Calculating Stop Loss
       if(!Market_Sell){
