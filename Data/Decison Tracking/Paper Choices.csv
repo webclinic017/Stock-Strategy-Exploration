@@ -1350,3 +1350,7 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-25T04:34:47Z,EMR,80,sell,stop,61.197269559725385,Initial Stop Loss
 2019-09-25T04:34:48Z,BERY,124,sell,stop,38,Initial Stop Loss
 2019-09-25T04:34:49Z,AXL,706,sell,stop,7.833799575070821,Initial Stop Loss
+2019-09-25T11:39:32Z,RUBY,504,sell,stop,8.759,Initial Stop Loss
+2019-09-25T11:39:32Z,EMR,80,sell,stop,61.46601497633583,Initial Stop Loss
+2019-09-25T11:39:34Z,BERY,124,sell,stop,38.010318042964606,Initial Stop Loss
+2019-09-25T11:39:34Z,AXL,706,sell,stop,7.833799575070821,Initial Stop Loss

@@ -135,3 +135,11 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-12T18:04:06Z,RUBY,2,sell,stop,9.3005,Initial Stop Loss
 2019-09-13T18:04:56Z,RUBY,2,sell,stop,9.5095,Initial Stop Loss
 2019-09-16T18:04:25Z,YPF,2,sell,stop,8.57375,Stop Loss Update
+2019-09-25T11:39:46Z,UNFI,1,Buy,Limit,12.11,Probability
+2019-09-25T11:39:46Z,COOP,1,Buy,Limit,11.04,Probability
+2019-09-25T11:39:46Z,TV,1,Buy,Limit,10.54,Probability
+2019-09-25T11:39:46Z,CORT,1,Buy,Limit,14.29,Probability
+2019-09-25T11:39:47Z,TTMI,1,Buy,Limit,12.26,Probability
+2019-09-25T11:39:47Z,PLAB,1,Buy,Limit,10.96,Probability
+2019-09-25T11:39:47Z,SBH,1,Buy,Limit,14.67,Probability
+2019-09-25T11:39:47Z,QUAD,1,Buy,Limit,10.29,Probability

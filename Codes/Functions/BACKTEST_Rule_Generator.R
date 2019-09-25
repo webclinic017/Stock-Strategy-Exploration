@@ -53,7 +53,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   
   ## Building Initial Models
   Models = Modeling_Function(ID_DF = ID_DF_3,
-                             Max_Date = Dates[1])
+                             Max_Date = Dates[1]-50)
   
   ## Initializing Counter / Progress Bar
   counter = 0

@@ -467,7 +467,7 @@ if(Back_Test){
     mutate(Percent_Kept = case_when(
       Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
       T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
-    arrange(desc(Percent_Kept)) %>%
+    arrange(desc(PDM)) %>%
     filter(MAX > MP,
            Percent_Kept > 0.95)
   
