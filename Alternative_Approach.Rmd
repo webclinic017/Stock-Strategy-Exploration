@@ -28,7 +28,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW','ranger')
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW','ranger','roll')
 load_or_install(Required_Packages)
 
 
@@ -95,34 +95,92 @@ PR_Stage = PR_Appendage(Combined_Results,
 Sys.time() - Start
 
 ## Compairing Performance to Major Indexs
-Major_Indexs = c("^GSPC","^IXIC","^DJI")
- Total_Alpha_Slope = PR_Stage %>%
-    filter(!Stock %in% Major_Indexs) %>%
-    select(Date,Close_Slope_50_Norm) %>%
-    group_by(Date) %>%
-    summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Sector_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Sector) %>%
-    summarise(Sector_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Industry_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Industry) %>%
-    summarise(Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Sector_Industry_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Sector,Industry) %>%
-    summarise(Sector_Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Cap_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Cap_Type) %>%
-    summarise(Cap_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
+BAC_Function = function(PR_Stage,Total_Alpha_Slope,Group_Columns,width = 50){
+  if(all(Group_Columns == "Stock")){
+    TMP = PR_Stage %>%
+      mutate(Return = Close_Slope_50_Norm) %>%
+      inner_join(Total_Alpha_Slope,by = "Date") %>%
+      na.omit()
+  }else{
+    TMP = PR_Stage %>%
+      left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+      group_by_at(vars(Date,Group_Columns)) %>%
+      summarise(Return = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+      inner_join(Total_Alpha_Slope,by = "Date") %>%
+      na.omit() %>%
+      ungroup()
+  }
   
+  Group_DF = TMP %>%
+    select(Group_Columns) %>%
+    distinct()
+  
+  counter = 0
+  p = progress_estimated(nrow(Group_DF))
+  for(i in 1:nrow(Group_DF)){
+    counter = counter + 1
+    TMP2 = TMP
+    for(j in 1:ncol(Group_DF)){
+      TMP2 = TMP2 %>%
+        filter_at(colnames(Group_DF)[j],any_vars(. == as_vector(Group_DF[i,j])))
+    }
+    Y = as.matrix(TMP2$Return)
+    X = as.matrix(TMP2$Total_Alpha)
+    
+    Results = roll_lm(x = X,
+                      y = Y,
+                      width = width,
+                      intercept = T,
+                      na_restore = T)
+    Alpha = Results$coefficients[,1]
+    Beta = Results$coefficients[,2]
+    Cor = Results$r.squared
+    Output = data.frame(Alpha = Alpha,
+                        Beta = Beta,
+                        Cor = Cor)
+    colnames(Output) = str_c(colnames(Output),"_",str_c(Group_Columns,collapse = "_"))
+    Output = Output %>%
+      bind_cols(TMP2) %>%
+      select(-Return,-Total_Alpha) %>%
+      na.omit()
+    if(counter == 1){
+      Total_Out = Output
+    }else{
+      Total_Out = bind_rows(Total_Out,Output)
+    }
+    p$pause(0.1)$tick()$print()
+  }
+  return(Total_Out)
+}
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Total_Alpha_Slope = PR_Stage %>%
+  filter(!Stock %in% Major_Indexs) %>%
+  select(Date,Close_Slope_50_Norm) %>%
+  group_by(Date) %>%
+  summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+  ungroup() %>%
+  na.omit()
+Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                  Total_Alpha_Slope = Total_Alpha_Slope,
+                                  Group_Columns = "Sector",
+                                  width = 50)
+Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                    Total_Alpha_Slope = Total_Alpha_Slope,
+                                    Group_Columns = "Industry",
+                                    width = 50)
+Sector_Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                           Total_Alpha_Slope = Total_Alpha_Slope,
+                                           Group_Columns = c("Sector","Industry"),
+                                           width = 50)
+Cap_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                               Total_Alpha_Slope = Total_Alpha_Slope,
+                               Group_Columns = "Cap_Type",
+                               width = 50)
+Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                               Total_Alpha_Slope = Total_Alpha_Slope,
+                               Group_Columns = "Stock",
+                               width = 50)
+
 ## Appending Results
 PR_Stage_R2 = PR_Stage %>%
   left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
@@ -131,23 +189,20 @@ PR_Stage_R2 = PR_Stage %>%
   left_join(Industry_Alpha_Slope) %>%  
   left_join(Sector_Industry_Alpha_Slope) %>%
   left_join(Cap_Alpha_Slope) %>%
+  left_join(Stock_Alpha_Slope) %>%
   na.omit() %>%
-  mutate(Pseudo_Alpha_Total = (Close_Slope_50_Norm - Total_Alpha)/Total_Alpha,
-         Pseudo_Alpha_Sector = (Close_Slope_50_Norm - Sector_Alpha)/Sector_Alpha,
-         Pseudo_Alpha_Industry = (Close_Slope_50_Norm - Industry_Alpha)/Industry_Alpha,
-         Psuedo_Alpha_Cap = (Close_Slope_50_Norm - Cap_Alpha)/Cap_Alpha) %>%
   filter_all(all_vars(!is.infinite(.))) %>%
   filter(Open > 0,
-        Open < 5000,
-        High > 0,
-        High < 5000,
-        Low > 0,
-        Low < 5000,
-        Close > 0,
-        Close < 5000,
-        Adjusted > 0,
-        Adjusted < 5000,
-        Volume > 0) %>%
+         Open < 5000,
+         High > 0,
+         High < 5000,
+         Low > 0,
+         Low < 5000,
+         Close > 0,
+         Close < 5000,
+         Adjusted > 0,
+         Adjusted < 5000,
+         Volume > 0) %>%
   select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
   na.omit()
 
@@ -211,11 +266,27 @@ load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
 
+Alpha_Beta_Function = function(DF,Col,Ret){
+  form = paste0(Col,"~Total_Alpha")
+  mod = lm(formula(form),
+           data = as.data.frame(DF))
+  Alpha = as.numeric(coef(mod)[1])
+  Beta = as.numeric(coef(mod)[2])
+  Cor = as.numeric(summary(mod)$r.squared)
+  if(Ret == "A"){
+    return(Alpha)
+  }else if(Ret == "B"){
+    return(Beta)
+  }else{
+    return(Cor)
+  }
+}
+
 ## Initial Data
 ID_DF = PR_Stage_R3 %>%
   left_join(Market_Ind) %>%
   left_join(Fear_Ind) %>%
-  left_join(select(Auto_Stocks,Symbol,Sector,Industry),
+  left_join(select(Auto_Stocks,Symbol,Sector,Industry,Cap_Type),
             by = c("Stock" = "Symbol")) %>%
   mutate(WAD_Delta = WAD - lag(WAD,1),
          Close_PD = (Close - lag(Close,1))/lag(Close,1),
@@ -435,52 +506,52 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
         - Only if result is additional profit
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
-if(Back_Test){
-  BT_List = BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
-                                    Max_Loss = Max_Loss,
-                                    ID_DF = ID_DF,
-                                    Auto_Stocks = Auto_Stocks)
-  
-  RUNS = BT_List$RUN_OUT
-  RULES = BT_List$RULE_OUT
-  TRADES = BT_List$TRADES_OUT
-  
-  ## Summarizing Run Results
-  glimpse(RUNS)
-  
-  ##
-  RULES_Summary = RULES %>%
-    group_by(Var) %>%
-    summarise_all(mean) %>%
-    mutate(Delta = abs(PL-PH),
-           PDM = (MAX - MP)/MP,
-           PD = Delta/MAX,
-           Side = case_when(
-             PH > PL ~ "High",
-             T ~ "Low"
-           ),
-           Value = case_when(
-             Side == "High" ~ VH,
-             T ~ VL)) %>%
-    ungroup() %>%
-    rowwise() %>%
-    mutate(Percent_Kept = case_when(
-      Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
-      T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
-    arrange(desc(PDM)) %>%
-    filter(MAX > MP,
-           Percent_Kept > 0.95)
-  
-  TRADES_OUT = TRADES %>%
-    filter(Buy.Date >= "2011-08-02",
-           Buy.Date <= "2012-08-01")
-  
-  write.csv(TRADES_OUT,
-            file = "C://users//aayorde//desktop//March_18_19_Trades.csv")
-  
-  TRADES_Summary = TRADES %>%
-    summarise()
+Runs = 100
+p = progress_estimated(Runs)
+Results = list()
+for(i in 1:Runs){
+  Results[[i]] = try(BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
+                                             Max_Loss = Max_Loss,
+                                             ID_DF = ID_DF,
+                                             Auto_Stocks = Auto_Stocks,
+                                             Progress = F))
+  p$pause(0.1)$tick()$print()
 }
+save(Results,
+     file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+keep = sapply(Results,class) == "list"
+Results = Results[keep]
+RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
+TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
+
+## Summarizing Run Results
+psych::describe(RUNS[,3:ncol(RUNS)])
+
+## Reducing Rule Set
+RULES_Summary = RULES %>%
+  mutate(Delta = abs(PL-PH),
+         PDM = (MAX - MP)/abs(MP),
+         PD = Delta/MAX,
+         Side = case_when(
+           PH > PL ~ "High",
+           T ~ "Low"
+         ),
+         Value = case_when(
+           Side == "High" ~ VH,
+           T ~ VL)) %>%
+  filter(MAX > MP,
+         PDM > 0.05) %>%
+  group_by(Var,Side) %>%
+  summarise_all(mean) %>%
+  rowwise() %>%
+  mutate(Percent_Kept = case_when(
+    Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
+    T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
+  arrange(desc(PDM)) %>%
+  filter(Percent_Kept > 0.95) %>%
+  ungroup()
 ```
 
 #### Performance History

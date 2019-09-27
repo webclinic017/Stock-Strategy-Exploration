@@ -1,7 +1,8 @@
 BACKTEST_Rule_Generator = function(Max_Holding,
                                    Max_Loss,
                                    ID_DF,
-                                   Auto_Stocks){
+                                   Auto_Stocks,
+                                   Progress = T){
   Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
   
   ## Loop To Ensure Good Start / End Dates
@@ -60,7 +61,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   MH = -9e9
   ML = 9e9
   Days = which(as.character(wday(Dates,label = T)) == "Mon")
-  p = progress_estimated(length(Days))
+  if(Progress){p = progress_estimated(length(Days))}
   for(i in Days){
     ## Adjusted To Not Include Trained Information
     Current_Date = Dates[i]
@@ -95,7 +96,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
       if(Profit > MH){MH = Profit}
       if(Profit < ML){ML = Profit}
     }
-    p$pause(0.1)$tick()$print()
+    if(Progress){p$pause(0.1)$tick()$print()}
   }
   
   

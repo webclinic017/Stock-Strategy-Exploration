@@ -143,3 +143,22 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-25T11:39:47Z,PLAB,1,Buy,Limit,10.96,Probability
 2019-09-25T11:39:47Z,SBH,1,Buy,Limit,14.67,Probability
 2019-09-25T11:39:47Z,QUAD,1,Buy,Limit,10.29,Probability
+2019-09-26T11:37:06Z,TMHC,1,Buy,Limit,25.459999,Probability
+2019-09-26T11:37:07Z,HUN,1,Buy,Limit,23.09,Probability
+2019-09-26T11:37:07Z,KNL,1,Buy,Limit,25.48,Probability
+2019-09-26T11:37:07Z,MRTN,1,Buy,Limit,21.450001,Probability
+2019-09-26T11:37:18Z,UNFI,1,sell,stop,11.6185,Initial Stop Loss
+2019-09-26T11:37:19Z,TV,1,sell,stop,9.956,Initial Stop Loss
+2019-09-26T11:37:20Z,TTMI,1,sell,stop,11.837,Initial Stop Loss
+2019-09-26T11:37:21Z,SBH,1,sell,stop,14.2595,Initial Stop Loss
+2019-09-26T11:37:21Z,QUAD,1,sell,stop,9.937000000000001,Initial Stop Loss
+2019-09-26T11:37:22Z,PLAB,1,sell,stop,10.554499999999999,Initial Stop Loss
+2019-09-26T11:37:23Z,CORT,1,sell,stop,13.936499999999999,Initial Stop Loss
+2019-09-26T11:37:24Z,COOP,1,sell,stop,10.6305,Initial Stop Loss
+2019-09-27T11:38:46Z,CROX,1,Buy,Limit,27.950001,Probability
+2019-09-27T11:39:00Z,TMHC,1,sell,stop,24.690589232084218,Initial Stop Loss
+2019-09-27T11:39:11Z,SBH,1,sell,stop,14.3735,Stop Loss Update
+2019-09-27T11:39:23Z,PLAB,1,sell,stop,10.7445,Stop Loss Update
+2019-09-27T11:39:24Z,MRTN,1,sell,stop,20.387,Initial Stop Loss
+2019-09-27T11:39:24Z,KNL,1,sell,stop,24.215463180609305,Initial Stop Loss
+2019-09-27T11:39:25Z,HUN,1,sell,stop,21.8595,Initial Stop Loss
