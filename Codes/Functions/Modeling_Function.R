@@ -13,6 +13,8 @@
     
     ## Reducing Variable Pool
     Names_Short = Variable_Importance_Reduction(DF = Short,
+                                                Pval_Cut = 0.001,
+                                                Cor_Cut = 0.90,
                                                 Type = 'R',
                                                 Target = "Adjusted_Lead",
                                                 Plot = F)
@@ -31,6 +33,15 @@
       prep(Train_Short)
     Train_PP = bake(PP,Train_Short)
     Test_PP = bake(PP,Test_Short)
+    
+    Names_Short_2 = Variable_Importance_Reduction(DF = Train_PP,
+                                                  Pval_Cut = 0.001,
+                                                  Cor_Cut = 0.90,
+                                                  Type = "R",
+                                                  Target = "Adjusted_Lead",
+                                                  Plot = F)
+    
+    Train_PP = Train_PP[,c(Names_Short_2$Var,"Adjusted_Lead")]
     
     ## Building Models
     CD_Stop = F
