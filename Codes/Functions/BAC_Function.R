@@ -4,7 +4,7 @@ BAC_Function = function(PR_Stage,Total_Alpha_Slope,Group_Columns,width = 50){
       mutate(Return = Close_Slope_50_Norm) %>%
       inner_join(Total_Alpha_Slope,by = "Date") %>%
       na.omit() %>%
-      select(Date,Stock,Return)
+      select(Date,Stock,Return,Total_Alpha)
   }else{
     TMP = PR_Stage %>%
       left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
