@@ -28,7 +28,7 @@ knitr::opts_knit$set(root.dir = Project_Folder)
 library(EmersonDataScience)
 
 ## Loading and Installing Packages if necessacary
-Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW','ranger','roll')
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR",'doSNOW','ranger','roll','quantmod')
 load_or_install(Required_Packages)
 
 
@@ -82,6 +82,89 @@ Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = T)
 save(Market_Ind,Fear_Ind,
      file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 ```
+  
+```{r Drawdown Calculations}
+DrawDown_Calculator = function(DF,Grouping){
+  Stats_Calculator = function(DF,Splits,i,Grouping){
+    TMP = DF
+    for(j in 1:ncol(Splits)){
+      TMP = TMP[TMP[,colnames(Splits)[j]] == Splits[i,j],]
+    }
+    TMP = TMP %>%
+      mutate(SMA5 = SMA(Adjusted,n = 5))
+  }
+  
+  Splits = DF %>%
+    select(Grouping) %>%
+    distinct()
+  p = progress_estimated(nrow(Splits))
+  for(i in 1:nrow(Splits)){
+    TMP = DF
+    for(j in 1:ncol(Splits)){
+      TMP = TMP[TMP[,colnames(Splits)[j]] == Splits[i,j],]
+    }
+    TMP = TMP %>%
+      mutate(SMA5 = SMA(Adjusted,n = 5))
+    
+    Peaks = findPeaks(TMP$SMA5)
+    Valleys = findValleys(TMP$SMA5)
+    if(length(Peaks) != length(Valleys)){
+      Lengths = c(length(Peaks),length(Valleys))
+      Reduce = which.max(Lengths)
+      if(Reduce == 1){
+        Peaks = Peaks[-1]
+      }else{
+        Valleys = Valleys[-1]
+      }
+    }
+    while(Peaks[1] > Valleys[1]){
+      Valleys = Valleys[-1]
+      Peaks = Peaks[1:(length(Peaks)-1)]
+    }
+    Stats_DF = data.frame(
+      DD_Time = Valleys - Peaks,
+      DD_Amount = (TMP$SMA5[Valleys] - TMP$SMA5[Peaks])/TMP$SMA5[Peaks],
+      RC_Time = lead(Peaks,1) - Valleys,
+      RC_Amount = (lead(TMP$SMA5[Peaks],1) - TMP$SMA5[Valleys])/TMP$SMA5[Valleys]
+    ) %>%
+      summarise_all(c("median","mean","mad","sd"),na.rm = T)
+    colnames(Stats_DF) = str_c(colnames(Stats_DF),"_",str_c(Grouping,collapse = "_"))
+  }
+  
+  
+}
+
+Stocks = unique(Combined_Results$Stock)
+for(i in 1:length(Stocks)){
+  TMP = Combined_Results %>%
+    filter(Stock == Stocks[i]) %>%
+    mutate(SMA5 = SMA(Adjusted))
+  Peaks = findPean = ks(TMP$SMA5)
+  Valleys = findValleys(TMP$SMA5)
+  if(length(Peaks) != length(Valleys)){
+    Lengths = c(length(Peaks),length(Valleys))
+    Reduce = which.max(Lengths)
+    if(Reduce == 1){
+      Peaks = Peaks[-1]
+    }else{
+      Valleys = Valleys[-1]
+    }
+  }
+  if(Peaks[1] > Valleys[1]){
+    Valleys = Valleys[-1]
+    Peaks = Peaks[1:(length(Peaks)-1)]
+  }
+  Stats_DF = data.frame(
+    DD_Time = Valleys - Peaks,
+    DD_Amount = (TMP$SMA5[Valleys] - TMP$SMA5[Peaks])/TMP$SMA5[Peaks],
+    RC_Time = lead(Peaks,1) - Valleys,
+    RC_Amount = (lead(TMP$SMA5[Peaks],1) - TMP$SMA5[Valleys])/TMP$SMA5[Valleys]
+  ) %>%
+    summarise_all(c("median","mean","mad","sd"),na.rm = T)
+}
+
+```
+  
   
 ```{r Appending Stats and Indicators,include = F,eval = !TEST}
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))

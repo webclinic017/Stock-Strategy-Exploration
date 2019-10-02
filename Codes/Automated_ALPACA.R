@@ -78,42 +78,38 @@ if(Hour < 12){
     select(Date,Close_Slope_50_Norm) %>%
     group_by(Date) %>%
     summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    ungroup() %>%
     na.omit()
-  Sector_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Sector) %>%
-    summarise(Sector_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Industry_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Industry) %>%
-    summarise(Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Sector_Industry_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Sector,Industry) %>%
-    summarise(Sector_Industry_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  Cap_Alpha_Slope = PR_Stage %>%
-    left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
-    group_by(Date,Cap_Type) %>%
-    summarise(Cap_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
-    na.omit()
-  
+  Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                    Total_Alpha_Slope = Total_Alpha_Slope,
+                                    Group_Columns = "Sector",
+                                    width = 50)
+  Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                      Total_Alpha_Slope = Total_Alpha_Slope,
+                                      Group_Columns = "Industry",
+                                      width = 50)
+  Sector_Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                             Total_Alpha_Slope = Total_Alpha_Slope,
+                                             Group_Columns = c("Sector","Industry"),
+                                             width = 50)
+  Cap_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                 Total_Alpha_Slope = Total_Alpha_Slope,
+                                 Group_Columns = "Cap_Type",
+                                 width = 50)
+  Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                   Total_Alpha_Slope = Total_Alpha_Slope,
+                                   Group_Columns = "Stock",
+                                   width = 50)
   ## Appending Results
   PR_Stage_R2 = PR_Stage %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
     left_join(Total_Alpha_Slope) %>%
     left_join(Sector_Alpha_Slope) %>%
-    left_join(Industry_Alpha_Slope) %>% 
+    left_join(Industry_Alpha_Slope) %>%  
     left_join(Sector_Industry_Alpha_Slope) %>%
     left_join(Cap_Alpha_Slope) %>%
+    left_join(Stock_Alpha_Slope) %>%
     na.omit() %>%
-    mutate(Pseudo_Alpha_Total = (Close_Slope_50_Norm - Total_Alpha)/Total_Alpha,
-           Pseudo_Alpha_Sector = (Close_Slope_50_Norm - Sector_Alpha)/Sector_Alpha,
-           Pseudo_Alpha_Industry = (Close_Slope_50_Norm - Industry_Alpha)/Industry_Alpha,
-           Psuedo_Alpha_Sector_Industry = (Close_Slope_50_Norm - Sector_Industry_Alpha)/Sector_Industry_Alpha,
-           Psuedo_Alpha_Cap = (Close_Slope_50_Norm - Cap_Alpha)/Cap_Alpha) %>%
     filter_all(all_vars(!is.infinite(.))) %>%
     filter(Open > 0,
            Open < 5000,
@@ -146,29 +142,29 @@ if(Hour < 12){
   Stocks = unique(Last_Time$Stock)
   
   ## Spinning Up Clusters
-  c1 = makeCluster(NClusters)
-  registerDoParallel(c1)
+  pb <- progress_estimated(length(Stocks))
+  progress <- function(n) pb$pause(0.1)$tick()$print()
+  opts <- list(progress = progress)
+  library(doSNOW)
+  c1 = makeCluster(8,outfile = "")
+  registerDoSNOW(c1)
   
   ## Parallel Execution
   Results = foreach(i = 1:length(Stocks),
-                    .inorder = F,
                     .errorhandling = "remove",
+                    .inorder = F,
                     .packages = c("tidyverse",
                                   "quantmod",
                                   "lubridate",
                                   "TTR"),
-                    .verbose = F) %dopar% {
+                    .verbose = F,
+                    .options.snow = opts) %dopar% {
                       ## Subsetting Data
                       TMP = PR_Stage_R2 %>%
                         filter(Stock == Stocks[i])
                       
-                      ## Prevents Error During Stat Appendage (Technical Indicators)
-                      if(nrow(TMP) < 1000){
-                        stop("Not Enough Data")
-                      }else{
-                        ## Calculating Technical Indicators
-                        Stat_Appendage_Function(DF = TMP)
-                      }
+                      ## Calculating Technical Indicators
+                      Stat_Appendage_Function(DF = TMP)
                     }
   
   ## Spinning Down Clusters
