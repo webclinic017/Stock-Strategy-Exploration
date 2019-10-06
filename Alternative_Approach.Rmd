@@ -52,7 +52,7 @@ Max_Holding = 0.10
 Max_Holding_Live = 0.20
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "All" 
+Cap = "Small" 
 
 ## Timeline For Profit Model (Trading Days)
 Projection = 20
@@ -314,7 +314,8 @@ TODAY = ID_DF %>%
 
 RESULT = Prediction_Function(Models = Models,
                             TODAY = TODAY,
-                            FinViz = F) %>%
+                            FinViz = F,
+                            DCF = T) %>%
   BUY_POS_FILTER()
 
 
@@ -515,7 +516,7 @@ DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
         - Only if result is additional profit
 
 ```{r Historical Back Test, echo = F, message=F,warning=F}
-Runs = 100
+Runs = 10
 p = progress_estimated(Runs)
 Results = list()
 for(i in 1:Runs){
@@ -563,56 +564,5 @@ RULES_Summary = RULES %>%
   ungroup()
 ```
 
-#### Performance History
 
-```{r Perf History, echo = F,message = F,warning=F}
-History_Table = Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                                     RESULT = RESULT,
-                                     FUTURES = FUTURES,
-                                     SHORTS = SHORTS,
-                                     Starting_Money = Investment_Value,
-                                     Max_Holding = Max_Holding,
-                                     Max_Stocks = Max_Stocks,
-                                     Max_Loss = Max_Loss,
-                                     Projection = Projection,
-                                     Current_Date = getmode(TODAY$Date),
-                                     Initial_History = Initial_History)
-## Interactive Table of Buy History
-DT::datatable(data = mutate_if(History_Table,is.numeric,round,3),
-              filter = list(position = 'top',
-                            autoWidth = T),
-              rownames = F)
-```
-
-#### Alpaca Paper Trading
-
-```{r Alpaca Paper, echo = F,message = F,warning=F}
-## Running Position Setting Function
-ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                            RESULT = RESULT,
-                            FUTURES = FUTURES,
-                            SHORTS = SHORTS,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding,
-                            Projection = Projection,
-                            Max_Loss = Max_Loss,
-                            PAPER = T)
-```
-
-#### Alpaca Live Trading
-
-```{r Alpaca Live,echo = F,message = F,warning=F}
-## Running Position Setting Function
-ALPACA_Performance_Function(PR_Stage_R3 = PR_Stage_R3,
-                            RESULT = RESULT,
-                            FUTURES = FUTURES,
-                            SHORTS = SHORTS,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding_Live,
-                            Projection = Projection,
-                            Max_Loss = Max_Loss,
-                            PAPER = F)
-```
 

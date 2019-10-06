@@ -26,7 +26,7 @@ Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "All" 
+Cap = "Small" 
 
 Hour = hour(Sys.time())
 
@@ -50,7 +50,7 @@ if(Hour < 12){
   Market_Ind = Market_Direction(Combined_Results,Plot = F)
   ## General Fear Calculations
   Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = F)
-  
+
   ## Saving Market Indicators
   save(Market_Ind,Fear_Ind,
        file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
@@ -196,13 +196,14 @@ if(Hour < 12){
   
   Models = Modeling_Function(ID_DF = ID_DF,
                              Max_Date = max(ID_DF$Date))
+  print(Models$RMSE)
   
   TODAY = ID_DF %>%
     filter(Date == max(Date))
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
-                               FinViz = F) %>%
+                               FinViz = T) %>%
     BUY_POS_FILTER()
   
   ## Saving Results

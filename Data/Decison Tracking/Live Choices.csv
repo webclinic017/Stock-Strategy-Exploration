@@ -162,3 +162,26 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-09-27T11:39:24Z,MRTN,1,sell,stop,20.387,Initial Stop Loss
 2019-09-27T11:39:24Z,KNL,1,sell,stop,24.215463180609305,Initial Stop Loss
 2019-09-27T11:39:25Z,HUN,1,sell,stop,21.8595,Initial Stop Loss
+2019-09-30T11:39:32Z,SBH,1,sell,stop,14.402,Stop Loss Update
+2019-09-30T11:39:35Z,CROX,1,sell,stop,26.524,Initial Stop Loss
+2019-10-01T11:40:05Z,ERF,1,Buy,Limit,7.44,Probability
+2019-10-01T11:40:26Z,TMHC,1,sell,stop,24.80443636848078,Stop Loss Update
+2019-10-01T11:40:37Z,QUAD,1,sell,stop,9.984499999999999,Stop Loss Update
+2019-10-01T11:40:49Z,HUN,1,sell,stop,22.097,Stop Loss Update
+2019-10-02T13:00:19Z,BITA,2,Buy,Limit,15,Probability
+2019-10-02T13:00:19Z,INMD,1,Buy,Limit,22.51,Probability
+2019-10-02T13:00:41Z,SBH,1,sell,stop,14.591999999999999,Stop Loss Update
+2019-10-02T13:00:43Z,ERF,1,sell,stop,7.068,Initial Stop Loss
+2019-10-02T13:00:54Z,CROX,1,sell,stop,27.17,Stop Loss Update
+2019-10-03T22:50:50Z,STWD,1,Buy,Limit,23.870001,Probability
+2019-10-03T22:50:50Z,JBL,1,Buy,Limit,34.630001,Probability
+2019-10-03T22:50:50Z,ENIA,4,Buy,Limit,9.26,Probability
+2019-10-03T22:51:02Z,INMD,1,sell,stop,21.3845,Initial Stop Loss
+2019-10-03T22:51:13Z,CROX,1,sell,stop,27.322,Stop Loss Update
+2019-10-04T16:43:39Z,WSR,2,Buy,Limit,13.33,Probability
+2019-10-04T16:43:39Z,CASH,1,Buy,Limit,32.290001,Probability
+2019-10-04T16:43:39Z,CMTL,1,Buy,Limit,30.5,Probability
+2019-10-04T16:43:40Z,BKE,1,Buy,Limit,20.23,Probability
+2019-10-04T16:43:52Z,TMHC,1,sell,stop,24.955789746921383,Initial Stop Loss
+2019-10-04T16:43:53Z,INMD,1,sell,stop,22.392165,Initial Stop Loss
+2019-10-04T16:43:54Z,CROX,1,sell,stop,27.15575,Initial Stop Loss
