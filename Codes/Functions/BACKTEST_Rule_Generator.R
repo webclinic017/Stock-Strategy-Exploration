@@ -6,7 +6,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   Starting_Money = rnorm(n = 1,mean = 1000,sd = 250)
   
   ## Loop To Ensure Good Start / End Dates
-  MR = character(0)
+  MR = numeric(0)
   while(length(MR) == 0){
     Start = sample(seq(1,length(unique(ID_DF$Date)) - 260),1)
     Dates = sort(unique(ID_DF$Date))[Start:(Start+252)]
@@ -18,7 +18,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
       filter(Date == Dates[length(Dates)]) %>%
       summarize(Close = mean(Close,trim = 0.25)) %>%
       as.numeric()
-    (MR = scales::percent((FP-IP)/IP))
+    MR = (FP-IP)/IP - 0.02
   }
   
   ## Copy for Liquidity Check
@@ -72,9 +72,14 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     
     ## Periodically Checking Positions
     RESULT = Prediction_Function(Models,
-                                TODAY = TODAY,
-                                FinViz = F)
-    if(counter == 0){History_Table = NA}
+                                 TODAY = TODAY,
+                                 FinViz = F,
+                                 DCF = F)
+    
+    if(counter == 0){
+      History_Table = NA
+      Return_Portfolio = numeric(0)
+      Return_Market = numeric(0)}
     
     if(nrow(RESULT) > 0){
       counter = counter + 1
@@ -93,12 +98,27 @@ BACKTEST_Rule_Generator = function(Max_Holding,
         sum(History_Table$Buy.Price[is.na(History_Table$Sell.Date)] *
               History_Table$Pcent.Gain[is.na(History_Table$Sell.Date)] *
               History_Table$Number[is.na(History_Table$Sell.Date)])
+      Inst_Return = Profit/Starting_Money
+      
+      CP = ID_DF %>%
+        filter(Date == Current_Date) %>%
+        summarize(Close = mean(Close,trim = 0.25)) %>%
+        as.numeric()
+      Inst_Market_Return = (CP-IP)/IP
+      
+      Return_Portfolio = c(Return_Portfolio,Inst_Return)
+      Return_Market = c(Return_Market,Inst_Market_Return)
       if(Profit > MH){MH = Profit}
       if(Profit < ML){ML = Profit}
     }
     if(Progress){p$pause(0.1)$tick()$print()}
   }
   
+  Sigma_B = sd(diff(Return_Market),na.rm = T)
+  Sigma_D = sd(diff(Return_Portfolio),na.rm = T)
+  Mu_D = mean(diff(Return_Portfolio) - diff(Return_Market),na.rm = T)
+  
+  M2 = 1 / (Mu_D * Sigma_B/Sigma_D - (exp(log(1.02)/(1/(7/365))) - 1))
   
   ## Calculating Overall Profit
   Method_Profit = sum(History_Table$Profit) + 
@@ -110,8 +130,9 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   RUN_OUT = data.frame(Time_Start = Dates[1],
                        Time_End = Dates[length(Dates)],
                        Starting_Money = Starting_Money,
-                       Market_Return = MR,
-                       Method_Return = (Method_Profit/Starting_Money),
+                       Market_Return = MR - 0.02,
+                       Method_Return = (Method_Profit/Starting_Money) - 0.02,
+                       M2 = M2,
                        Max_Gain = (MH/Starting_Money),
                        Max_Loss = (ML/Starting_Money),
                        Trade_Number = nrow(History_Table),

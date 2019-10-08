@@ -1466,3 +1466,39 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-10-04T16:47:49Z,ABCB,115,sell,stop,37.33165197662559,Initial Stop Loss
 2019-10-04T16:48:00Z,CMTL,1,Buy,Limit,30.95,Rebalance Strong Performers
 2019-10-04T16:48:00Z,SEMG,1,Buy,Limit,16.4,Rebalance Strong Performers
+2019-10-07T10:57:14Z,IPAR,65,Buy,Limit,70.949997,Probability
+2019-10-07T10:57:14Z,SHOO,134,Buy,Limit,34.43,Probability
+2019-10-07T10:57:14Z,MLHR,100,Buy,Limit,45.91,Probability
+2019-10-07T10:57:25Z,VST,208,sell,stop,25.574,Initial Stop Loss
+2019-10-07T10:57:26Z,TGT,45,sell,stop,103.645,Initial Stop Loss
+2019-10-07T10:57:36Z,SEMG,262,sell,stop,15.599,Stop Loss Update
+2019-10-07T10:57:47Z,POOL,22,sell,stop,191.70049999999998,Stop Loss Update
+2019-10-07T10:57:47Z,MEI,137,sell,stop,30.608999999999998,Initial Stop Loss
+2019-10-07T10:57:58Z,FRO,533,sell,stop,9.747,Stop Loss Update
+2019-10-07T10:58:09Z,DGX,42,sell,stop,99.50299999999999,Stop Loss Update
+2019-10-07T10:58:19Z,CMTL,145,sell,stop,29.5735,Stop Loss Update
+2019-10-07T10:58:20Z,BKE,1,sell,stop,19.066499999999998,Initial Stop Loss
+2019-10-07T10:58:20Z,BERY,124,sell,stop,38,Initial Stop Loss
+2019-10-07T10:58:20Z,AXL,706,sell,stop,7.833799575070821,Initial Stop Loss
+2019-10-07T10:58:31Z,AIN,53,sell,stop,81.02550000000001,Stop Loss Update
+2019-10-07T10:58:41Z,ABCB,115,sell,stop,37.758676978295185,Stop Loss Update
+2019-10-07T10:58:52Z,MEI,143,Buy,Limit,32.23,Rebalance Strong Performers
+2019-10-07T10:58:52Z,CMTL,149,Buy,Limit,31.11,Rebalance Strong Performers
+2019-10-07T10:58:52Z,ABCB,116,Buy,Limit,39.65,Rebalance Strong Performers
+2019-10-07T10:58:52Z,DGX,44,Buy,Limit,104.75,Rebalance Strong Performers
+2019-10-07T10:58:52Z,SEMG,190,Buy,Limit,16.42,Rebalance Strong Performers
+2019-10-08T11:00:09Z,HMN,2,Buy,Limit,45.299999,Probability
+2019-10-08T11:00:20Z,VST,208,sell,stop,25.65,Initial Stop Loss
+2019-10-08T11:00:21Z,TGT,45,sell,stop,102.82799999999999,Initial Stop Loss
+2019-10-08T11:00:21Z,SHOO,134,sell,stop,32.6705,Initial Stop Loss
+2019-10-08T11:00:22Z,SEMG,452,sell,stop,15.555073008849556,Initial Stop Loss
+2019-10-08T11:00:22Z,POOL,22,sell,stop,191.539,Initial Stop Loss
+2019-10-08T11:00:22Z,MLHR,100,sell,stop,43.06999662208754,Initial Stop Loss
+2019-10-08T11:00:23Z,IPAR,65,sell,stop,68.04556785970615,Initial Stop Loss
+2019-10-08T11:00:23Z,FRO,533,sell,stop,10.545,Initial Stop Loss
+2019-10-08T11:00:24Z,DGX,86,sell,stop,99.408,Initial Stop Loss
+2019-10-08T11:00:24Z,CMTL,294,sell,stop,30.115,Initial Stop Loss
+2019-10-08T11:00:25Z,BERY,124,sell,stop,38,Initial Stop Loss
+2019-10-08T11:00:25Z,AXL,706,sell,stop,7.833799575070821,Initial Stop Loss
+2019-10-08T11:00:26Z,AIN,53,sell,stop,81.491,Initial Stop Loss
+2019-10-08T11:00:26Z,ABCB,231,sell,stop,37.85683284719247,Initial Stop Loss

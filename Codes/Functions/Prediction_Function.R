@@ -1,7 +1,7 @@
 Prediction_Function = function(Models,
                                TODAY,
                                FinViz = T,
-                               DCF = T){
+                               DCF = F){
 
   Preds_Short = predict(Models$Model_Short,
                         as.data.frame(bake(Models$PP,TODAY)))

@@ -315,7 +315,7 @@ TODAY = ID_DF %>%
 RESULT = Prediction_Function(Models = Models,
                             TODAY = TODAY,
                             FinViz = F,
-                            DCF = T) %>%
+                            DCF = F) %>%
   BUY_POS_FILTER()
 
 
@@ -330,95 +330,6 @@ load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Ind
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
-```
-
-#### Rule Generation
-
-```{r Standard Rule Generation, include = F}
-Explore = ID_DF %>%
-  group_by(Stock) %>%
-  mutate(Adjusted_Lead = (lead(Close,Projection) - Close)/ATR) %>%
-  ungroup() %>%
-  BUY_POS_FILTER() %>%
-  select_if(is.numeric) %>%
-  na.omit()
-Loop_DF = Explore
-Baseline_Return = median(Explore$Adjusted_Lead,na.rm = T)
-
-STORE = data.frame(Var = character(),
-                   VL = numeric(),
-                   PL = numeric(),
-                   VH = numeric(),
-                   PH = numeric())
-Vars = colnames(Explore)
-
-
-pb = progress_estimated(length(Vars))
-STORE = list()
-for(Var in Vars){
-  counter = 0
-  for(i in as_vector(quantile(as_vector(Loop_DF[,Var]),seq(0.1,0.9,length.out = 10),na.rm = T))){
-    counter = counter + 1
-    P_TL = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] < i],na.rm = T)
-    P_TL = ifelse(is.na(P_TL),-999,P_TL)
-    P_TH = median(Loop_DF$Adjusted_Lead[Loop_DF[,Var] > i],na.rm = T)
-    P_TH = ifelse(is.na(P_TH),-999,P_TH)
-    if(counter == 1){
-      PL = P_TL
-      VL = i
-      PH = P_TH
-      VH = i
-    }else{
-      if(P_TL > PL){
-        PL = P_TL
-        VL = i
-      }
-      if(P_TH > PH){
-        PH = P_TH
-        VH = i
-      }
-    }
-  }
-  TMP = data.frame(
-    Var = Var,
-    VL = round(VL, 4),
-    PL = PL,
-    VH = round(VH, 4),
-    PH = PH
-  )
-  STORE[[Var]] = TMP
-  pb$pause(0.1)$tick()$print()
-}
-
-STORE = data.table::rbindlist(STORE) %>%
-  as.data.frame()
-
-FINAL = STORE %>%
-  filter(PL > Baseline_Return | PH > Baseline_Return) %>%
-  rowwise() %>%
-  mutate(Profit = max(c(PL,PH),na.rm = T)) %>%
-  rowwise() %>%
-  mutate(Side = case_when(
-    PL > PH ~ "Low",
-    T ~ "High"
-  ),
-  Value =  case_when(
-    PL > PH ~ VL,
-    T ~ VH
-  ),
-  Increase = Profit - Baseline_Return,
-  IP = scales::percent(Increase),
-  Percent = 0)
-for(i in 1:nrow(FINAL)){
-  if(FINAL$Side[i] == "Low"){
-    FINAL$Percent[i] =  sum(ID_DF[,as.character(FINAL$Var[i])] <
-                              FINAL$Value[i])/nrow(ID_DF)
-  }else{
-    FINAL$Percent[i] =  sum(ID_DF[,as.character(FINAL$Var[i])] > 
-                              FINAL$Value[i])/nrow(ID_DF)
-  }
-}
-FINAL$Decider = 2*FINAL$Increase + FINAL$Percent 
 ```
 
 

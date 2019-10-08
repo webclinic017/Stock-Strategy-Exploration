@@ -185,3 +185,13 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-10-04T16:43:52Z,TMHC,1,sell,stop,24.955789746921383,Initial Stop Loss
 2019-10-04T16:43:53Z,INMD,1,sell,stop,22.392165,Initial Stop Loss
 2019-10-04T16:43:54Z,CROX,1,sell,stop,27.15575,Initial Stop Loss
+2019-10-07T10:58:53Z,SHOO,1,Buy,Limit,34.43,Probability
+2019-10-07T10:59:14Z,TMHC,1,sell,stop,25.10966205071271,Stop Loss Update
+2019-10-07T10:59:25Z,INMD,1,sell,stop,23.293999999999997,Stop Loss Update
+2019-10-07T10:59:35Z,CROX,1,sell,stop,27.36,Stop Loss Update
+2019-10-07T10:59:36Z,BKE,1,sell,stop,19.066499999999998,Initial Stop Loss
+2019-10-08T16:44:17Z,INMD,1,sell,stop,22.477,Initial Stop Loss
+2019-10-08T16:44:44Z,TMHC,1,sell,stop,24.92468618994752,Stop Loss Update
+2019-10-08T16:44:45Z,SHOO,1,sell,stop,32.641999999999996,Initial Stop Loss
+2019-10-08T16:44:46Z,INMD,1,sell,stop,22.5055,Initial Stop Loss
+2019-10-08T16:44:47Z,CROX,1,sell,stop,28.219749999999998,Initial Stop Loss
