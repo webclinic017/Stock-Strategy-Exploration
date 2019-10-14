@@ -137,9 +137,9 @@ ALPACA_Performance_Function = function(ID_DF,
                               Type = "Limit",
                               Price = as.character(RESULT$Close[STOCK]),
                               Reason = "Probability")
-      write_csv(x = Report_Out,
+      try(write_csv(x = Report_Out,
                 path = Report_CSV,
-                append = T)
+                append = T))
     }
   } 
   
@@ -197,9 +197,9 @@ ALPACA_Performance_Function = function(ID_DF,
                                   Type = "stop",
                                   Price = Stop_Loss,
                                   Reason = "Initial Stop Loss")
-          write_csv(x = Report_Out,
+          try(write_csv(x = Report_Out,
                     path = Report_CSV,
-                    append = T)
+                    append = T))
         }else{
           ## Pulling Current Stop Loss
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
@@ -231,9 +231,9 @@ ALPACA_Performance_Function = function(ID_DF,
                                     Type = "stop",
                                     Price = Stop_Loss,
                                     Reason = "Stop Loss Update")
-            write_csv(x = Report_Out,
+            try(write_csv(x = Report_Out,
                       path = Report_CSV,
-                      append = T)
+                      append = T))
           }
         }
       }
@@ -289,9 +289,9 @@ ALPACA_Performance_Function = function(ID_DF,
                               Type = "Limit",
                               Price = as.character(Rebalance$current_price[STOCK]),
                               Reason = "Rebalance Strong Performers")
-      write_csv(x = Report_Out,
+      try(write_csv(x = Report_Out,
                 path = Report_CSV,
-                append = T)
+                append = T))
     }
   } 
   
