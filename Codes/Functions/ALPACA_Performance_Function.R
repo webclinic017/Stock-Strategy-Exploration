@@ -216,7 +216,7 @@ ALPACA_Performance_Function = function(ID_DF,
             cancel_order(ticker = STOCK,
                          order_id = Loss_Order$id,
                          live = !PAPER)
-            Sys.sleep(10)
+            Sys.sleep(30)
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
                          side = "sell",
