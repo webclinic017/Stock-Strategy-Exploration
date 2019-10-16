@@ -4,7 +4,6 @@ ALPACA_Performance_Function = function(ID_DF,
                                        Project_Folder,
                                        Max_Holding = 0.10,
                                        Max_Loss = 0.05,
-                                       Target = 0.40,
                                        PAPER = T){
   ## Setting API Keys
   if(PAPER){
@@ -147,7 +146,6 @@ ALPACA_Performance_Function = function(ID_DF,
   Ticker_List = c(Current_Holdings$symbol)
   if(!is_empty(Ticker_List)){
     ## Updating Holdings
-    Sys.sleep(10)
     Current_Holdings = get_positions(live = !PAPER)
     Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                            filter(status == "new"))
@@ -166,52 +164,58 @@ ALPACA_Performance_Function = function(ID_DF,
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
-      Market_Sell = F
       
       
       ## Calculating Stop Loss
-      if(!Market_Sell){
-        if(nrow(Loss_Order) == 0){
-          ## Determining Stop Loss
-          Stop_Loss = max(c(
-            Buy_Price*(1-Max_Loss),
-            Buy_Price - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                                 ID_DF$Date == max(ID_DF$Date)],1),
-            as.numeric(Current_Info$c)*(1-Max_Loss),
-            as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                                                  ID_DF$Date == max(ID_DF$Date)],1)
-            ))
-          
-          ## Placing Stop Loss Order
-          submit_order(ticker = STOCK,
-                       qty = as.character(Quantity),
-                       side = "sell",
-                       type = "stop",
-                       time_in_force = "gtc",
-                       stop_price = as.character(Stop_Loss),
-                       live = !PAPER)
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Quantity,
-                                  Side = "sell",
-                                  Type = "stop",
-                                  Price = Stop_Loss,
-                                  Reason = "Initial Stop Loss")
-          try(write_csv(x = Report_Out,
-                    path = Report_CSV,
-                    append = T))
-        }else{
-          ## Pulling Current Stop Loss
-          Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
-          
-          ## Determining New Stop Loss
-          Stop_Loss = max(c(
-            as.numeric(Current_Info$c)*(1-Max_Loss),
-            as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                                                  ID_DF$Date == max(ID_DF$Date)],1)))
-          
-          ## Updating Stop Loss if Higher
-          if(Stop_Loss > Current_Stop_Loss){
+      if(nrow(Loss_Order) == 0){
+        ## Determining Stop Loss
+        Stop_Loss = max(c(
+          Buy_Price*(1-Max_Loss),
+          Buy_Price - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                         ID_DF$Date == max(ID_DF$Date)],1),
+          as.numeric(Current_Info$c)*(1-Max_Loss),
+          as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                                          ID_DF$Date == max(ID_DF$Date)],1)
+        ))
+        
+        ## Placing Stop Loss Order
+        submit_order(ticker = STOCK,
+                     qty = as.character(Quantity),
+                     side = "sell",
+                     type = "stop",
+                     time_in_force = "gtc",
+                     stop_price = as.character(Stop_Loss),
+                     live = !PAPER)
+        Report_Out = data.frame(Time = Sys.time(),
+                                Stock = STOCK,
+                                Qty = Quantity,
+                                Side = "sell",
+                                Type = "stop",
+                                Price = Stop_Loss,
+                                Reason = "Initial Stop Loss")
+        try(write_csv(x = Report_Out,
+                      path = Report_CSV,
+                      append = T))
+      }else{
+        ## Pulling Current Stop Loss
+        Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
+        
+        ## Determining New Stop Loss
+        Stop_Loss = max(c(
+          as.numeric(Current_Info$c)*(1-Max_Loss),
+          as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
+                                                          ID_DF$Date == max(ID_DF$Date)],1)))
+        
+        ## Updating Stop Loss if Higher
+        if(Stop_Loss > Current_Stop_Loss){
+          if(!PAPER){
+            ## Updating Exisiting Order
+            patch_order(order_id = Loss_Order$id,
+                        qty = as.character(Quantity),
+                        time_in_force = "gtc",
+                        stop_price = as.character(Stop_Loss),
+                        live = !PAPER)
+          }else{
             ## Canceling Exisiting Order
             cancel_order(ticker = STOCK,
                          order_id = Loss_Order$id,
@@ -224,75 +228,76 @@ ALPACA_Performance_Function = function(ID_DF,
                          time_in_force = "gtc",
                          stop_price = as.character(Stop_Loss),
                          live = !PAPER)
-            Report_Out = data.frame(Time = Sys.time(),
-                                    Stock = STOCK,
-                                    Qty = Quantity,
-                                    Side = "sell",
-                                    Type = "stop",
-                                    Price = Stop_Loss,
-                                    Reason = "Stop Loss Update")
-            try(write_csv(x = Report_Out,
-                      path = Report_CSV,
-                      append = T))
           }
+          ## Wrtining Update To Tracking File
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "stop",
+                                  Price = Stop_Loss,
+                                  Reason = "Stop Loss Update")
+          try(write_csv(x = Report_Out,
+                        path = Report_CSV,
+                        append = T))
         }
       }
     }
-  }
-  ## Rebalancing Well Performing Stocks
-  ## Updating Holdings
-  Sys.sleep(10)
-  ## Checking Account Status
-  ACCT_Status = get_account(live = !PAPER)
-  ## Updating Capital 
-  Investment_Value = as.numeric(ACCT_Status$portfolio_value)
-  Buying_Power = as.numeric(ACCT_Status$buying_power)
-  
-  Current_Holdings = get_positions(live = !PAPER) %>%
-    filter(unrealized_plpc > 0) %>%
-    arrange(desc(unrealized_plpc)) %>%
-    filter(as.numeric(market_value) + as.numeric(current_price) < Investment_Value*Max_Holding) %>%
-    filter(as.numeric(current_price) < Buying_Power)
-  
-  ## Purchasing More Stocks if Money Allows
-  ## Defining Purchase Numbers
-  K = 0
-  Remaining_Money = Buying_Power
-  Number = numeric(length = nrow(Current_Holdings))
-  while(K < nrow(Current_Holdings)){
-    K = K + 1
-    counter = 0
-    Price = as.numeric(Current_Holdings$current_price[K])
-    while(Price < Remaining_Money & (counter+1)*Price < Investment_Value*Max_Holding){
-      counter = counter + 1
-      Remaining_Money = Remaining_Money - Price
+    
+    ## Rebalancing Well Performing Stocks
+    ## Updating Holdings
+    Sys.sleep(10)
+    ## Checking Account Status
+    ACCT_Status = get_account(live = !PAPER)
+    ## Updating Capital 
+    Investment_Value = as.numeric(ACCT_Status$portfolio_value)
+    Buying_Power = as.numeric(ACCT_Status$buying_power)
+    ## Checking Current Holdings
+    Current_Holdings = get_positions(live = !PAPER) %>%
+      filter(unrealized_plpc > 0) %>%
+      arrange(desc(unrealized_plpc)) %>%
+      filter(as.numeric(market_value) + as.numeric(current_price) < Investment_Value*Max_Holding) %>%
+      filter(as.numeric(current_price) < Buying_Power)
+    
+    ## Purchasing More Stocks if Money Allows
+    ## Defining Purchase Numbers
+    K = 0
+    Remaining_Money = Buying_Power
+    Number = numeric(length = nrow(Current_Holdings))
+    while(K < nrow(Current_Holdings)){
+      K = K + 1
+      counter = 0
+      Price = as.numeric(Current_Holdings$current_price[K])
+      while(Price < Remaining_Money & (counter+1)*Price < Investment_Value*Max_Holding){
+        counter = counter + 1
+        Remaining_Money = Remaining_Money - Price
+      }
+      Number[K] = counter
     }
-    Number[K] = counter
+    Numbers = Number[which(Number > 0)]
+    Rebalance = Current_Holdings[which(Number > 0),]
+    
+    ## Skipping if no stocks meet criteria
+    if(nrow(Rebalance) > 0){
+      for(STOCK in 1:nrow(Rebalance)){
+        submit_order(ticker = Rebalance$symbol[STOCK],
+                     qty = as.character(Numbers[STOCK]),
+                     side = "buy",
+                     type = "limit",
+                     time_in_force = "day",
+                     live = !PAPER,
+                     limit_price = as.character(Rebalance$current_price[STOCK]))
+        Report_Out = data.frame(Time = Sys.time(),
+                                Stock = Rebalance$symbol[STOCK],
+                                Qty = as.character(Numbers[STOCK]),
+                                Side = "Buy",
+                                Type = "Limit",
+                                Price = as.character(Rebalance$current_price[STOCK]),
+                                Reason = "Rebalance Strong Performers")
+        try(write_csv(x = Report_Out,
+                      path = Report_CSV,
+                      append = T))
+      }
+    } 
   }
-  Numbers = Number[which(Number > 0)]
-  Rebalance = Current_Holdings[which(Number > 0),]
-  
-  ## Skipping if no stocks meet criteria
-  if(nrow(Rebalance) > 0){
-    for(STOCK in 1:nrow(Rebalance)){
-      submit_order(ticker = Rebalance$symbol[STOCK],
-                   qty = as.character(Numbers[STOCK]),
-                   side = "buy",
-                   type = "limit",
-                   time_in_force = "day",
-                   live = !PAPER,
-                   limit_price = as.character(Rebalance$current_price[STOCK]))
-      Report_Out = data.frame(Time = Sys.time(),
-                              Stock = Rebalance$symbol[STOCK],
-                              Qty = as.character(Numbers[STOCK]),
-                              Side = "Buy",
-                              Type = "Limit",
-                              Price = as.character(Rebalance$current_price[STOCK]),
-                              Reason = "Rebalance Strong Performers")
-      try(write_csv(x = Report_Out,
-                path = Report_CSV,
-                append = T))
-    }
-  } 
-  
 }
