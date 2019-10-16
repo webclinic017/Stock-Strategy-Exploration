@@ -5,7 +5,7 @@ library(EmersonDataScience)
 ## Loading and Installing Packages if necessacary
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
-                      ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","AlpacaforR","lubridate",
+                      ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
                       "ranger",'roll')
 load_or_install(Required_Packages)
 
