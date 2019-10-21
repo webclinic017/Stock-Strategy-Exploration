@@ -285,15 +285,33 @@ get_orders <- function(ticker = NULL, status = "open", from = NULL, silent = FAL
 #' Or you can submit a limit order:
 #' submit_order(ticker = "AAPL", qty = "100", side = "buy", type = "limit", limit_price = "120")
 #' @export
-submit_order <- function(ticker, qty, side, type, time_in_force = "day", limit_price = NULL, stop_price = NULL, live = FALSE){
+submit_order <- function(ticker, 
+                         qty, 
+                         side, 
+                         type, 
+                         time_in_force = "day", 
+                         limit_price = NULL, 
+                         stop_price = NULL,
+                         live = FALSE){
   #Set URL & Headers
   url = get_url(live)
   headers = get_headers()
 
 
   #Create body with order details, most common is a named list
-  bodyl <- list(symbol=ticker, qty=qty, side = side, type = type, time_in_force = time_in_force, limit_price = limit_price, stop_price = stop_price)
-
+  bodyl <- list(
+    symbol = ticker,
+    qty = qty,
+    side = side,
+    type = type,
+    time_in_force = time_in_force,
+    limit_price = limit_price,
+    stop_price = stop_price
+  )
+  if(!live & side == "buy" & type == "limit" & time_in_force = "day"){
+    bodyl$extended_hours = TRUE
+  }
+  
 
   #Send Request
   orders = httr::POST(url = paste0(url,"/v2/orders"), body = bodyl, encode = "json",headers)
