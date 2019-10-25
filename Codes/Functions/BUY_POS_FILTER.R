@@ -1,12 +1,24 @@
 BUY_POS_FILTER = function(DF){
-  DF = DF %>%
-    filter(Beta_Stock < 3.58250e+00,
-           chaikin_AD < 1.152566e+08,
-           chaikin_AD > -1.43387e+08,
-           Close_Slope_50_Norm < 0.0045,
-           SMI_Sig_Delta > -7.6514,
-           VHF_Delta > -0.1037,
-           Volume_PD_Norm > -0.6635,
-           WAD > -69.4433)
+DF = DF[DF[['Alpha_Industry']] < 0.0029,]
+DF = DF[DF[['Alpha_Sector_Industry']] < 0.0032,]
+DF = DF[DF[['Beta_Sector_Industry']] > -0.82685,]
+DF = DF[DF[['Close_PD_50_200_Norm']] < 0.273,]
+DF = DF[DF[['Z_Beta_Sector_Industry']] > -2.4412,]
+DF = DF[DF[['Price_Range_15_SD_Norm']] > 0.6531,]
+DF = DF[DF[['Alpha_Sector']] < 0.0012,]
+DF = DF[DF[['Volume']] < 2338425.54165,]
+DF = DF[DF[['Z_Beta_Industry']] > -2.2663,]
+DF = DF[DF[['Alpha_Stock']] < 0.0044,]
+DF = DF[DF[['Volatility_Satchell']] < 0.94715,]
+DF = DF[DF[['Close_PD_200_Norm']] < 0.6386,]
+DF = DF[DF[['Chaikin_Volatility']] < 0.9033,]
+DF = DF[DF[['VHF_Delta']] < 0.0533,]
+DF = DF[DF[['Close_Slope_200_Norm']] < 0.0045,]
+DF = DF[DF[['chaikin_AD']] > -66626144.37,]
+DF = DF[DF[['P_Beta_Sector']] < 0.0456,]
+DF = DF[DF[['Total_Alpha']] > -0.0033,]
+DF = DF[DF[['R.squared_Stock']] > 0.0018,]
+DF = DF[DF[['Delta']] < 0.1,]
+DF = DF[DF[['Market_Delta_50']] < -0.0098,]
   return(DF)
 }

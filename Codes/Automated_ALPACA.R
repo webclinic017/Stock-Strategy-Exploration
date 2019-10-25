@@ -6,7 +6,7 @@ library(EmersonDataScience)
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll')
+                      "ranger",'roll','Boruta','glmnet')
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -26,7 +26,7 @@ Max_Holding = 0.05
 Max_Holding_Live = 0.20
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "Small" 
+Cap = "All" 
 
 Hour = hour(Sys.time())
 
@@ -46,13 +46,13 @@ if(Hour < 12){
   Combined_Results = Combined_Results %>%
     filter(Date != Sys.Date())
   
-  ## Bear/Bull Calculations
-  Market_Ind = Market_Direction(Combined_Results,Plot = F)
-  ## General Fear Calculations
-  Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = F)
+  # ## Bear/Bull Calculations
+  Market_Ind = Market_Direction(Combined_Results,Plot = F) %>%
+    select(-c(Close,Indicator)) %>%
+    na.omit()
 
-  ## Saving Market Indicators
-  save(Market_Ind,Fear_Ind,
+  # ## Saving Market Indicators
+  save(Market_Ind,
        file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
   
@@ -92,10 +92,6 @@ if(Hour < 12){
                                              Total_Alpha_Slope = Total_Alpha_Slope,
                                              Group_Columns = c("Sector","Industry"),
                                              width = 50)
-  Cap_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
-                                 Total_Alpha_Slope = Total_Alpha_Slope,
-                                 Group_Columns = "Cap_Type",
-                                 width = 50)
   Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                    Total_Alpha_Slope = Total_Alpha_Slope,
                                    Group_Columns = "Stock",
@@ -107,7 +103,6 @@ if(Hour < 12){
     left_join(Sector_Alpha_Slope) %>%
     left_join(Industry_Alpha_Slope) %>%  
     left_join(Sector_Industry_Alpha_Slope) %>%
-    left_join(Cap_Alpha_Slope) %>%
     left_join(Stock_Alpha_Slope) %>%
     na.omit() %>%
     filter_all(all_vars(!is.infinite(.))) %>%
@@ -119,8 +114,6 @@ if(Hour < 12){
            Low < 5000,
            Close > 0,
            Close < 5000,
-           Adjusted > 0,
-           Adjusted < 5000,
            Volume > 0) %>%
     select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
     na.omit()
@@ -179,12 +172,13 @@ if(Hour < 12){
        file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   
-  ## Initial Data
+  ## Initial Data ##
   ID_DF = PR_Stage_R3 %>%
-    left_join(Market_Ind) %>%
-    left_join(Fear_Ind) %>%
     left_join(select(Auto_Stocks,Symbol,Sector,Industry),
               by = c("Stock" = "Symbol")) %>%
+    left_join(Market_Ind) %>%
+    mutate(Sector = as.factor(Sector),
+           Industry = as.factor(Industry)) %>%
     mutate(WAD_Delta = WAD - lag(WAD,1),
            Close_PD = (Close - lag(Close,1))/lag(Close,1),
            SMI_Delta = (SMI - lag(SMI,1)),
@@ -193,7 +187,7 @@ if(Hour < 12){
            VHF_Delta = (VHF - lag(VHF,1)),
            RSI_Delta = (RSI - lag(RSI,1)))
   
-  
+  ## Building Models ##
   Models = Modeling_Function(ID_DF = ID_DF,
                              Max_Date = max(ID_DF$Date))
   print(Models$RMSE)
@@ -213,9 +207,9 @@ if(Hour < 12){
 }else{
   ## Loading Daily Decision Data
   load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+  load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
-  load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
 }  
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
@@ -235,3 +229,74 @@ ALPACA_Performance_Function(ID_DF = ID_DF,
                             Max_Holding = Max_Holding_Live,
                             Max_Loss = Max_Loss,
                             PAPER = F)
+
+## Running Back Test To Check For New Rules ##
+Runs = 10
+p = progress_estimated(Runs)
+Results = list()
+for(i in 1:Runs){
+  Results[[i]] = try(BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
+                                             Max_Loss = Max_Loss,
+                                             ID_DF = ID_DF,
+                                             Auto_Stocks = Auto_Stocks,
+                                             Progress = F))
+  p$pause(0.1)$tick()$print()
+}
+save(Results,
+     file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+keep = sapply(Results,class) == "list"
+Results = Results[keep]
+RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
+TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
+
+## Summarizing Run Results
+psych::describe(RUNS[,3:ncol(RUNS)])
+
+## Reducing Rule Set
+RULES_Summary = RULES %>%
+  mutate(Delta = abs(PL-PH),
+         PDM = (MAX - MP)/abs(MP),
+         PD = Delta/MAX,
+         Side = case_when(
+           PH > PL ~ "High",
+           T ~ "Low"
+         ),
+         Value = case_when(
+           Side == "High" ~ VH,
+           T ~ VL)) %>%
+  filter(MAX > MP,
+         PDM > 0.05) %>%
+  group_by(Var,Side) %>%
+  summarise_all(mean) %>%
+  rowwise() %>%
+  mutate(Percent_Kept = case_when(
+    Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
+    T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
+  arrange(desc(PDM)) %>%
+  filter(Percent_Kept > 0.95) %>%
+  ungroup()
+
+## Updating Rules List
+if(nrow(RULES_Summary) > 0){
+  Rule_File = file(str_c(Project_Folder,"/Codes/Functions/BUY_POS_FILTER.R")) 
+  (TXT = readLines(Rule_File,warn = F))
+  for(i in 1:nrow(RULES_Summary)){
+    (TMP = RULES_Summary[i,])
+    rule = str_c("DF = DF[DF[['",TMP$Var,"']] ",
+                 ifelse(TMP$Side == "Low","< ","> "),
+                 TMP$Value,",]")
+    TXT_Top = TXT[1]
+    TXT_Bottom = TXT[which(str_detect(str_trim(TXT),"^return")):length(TXT)]
+    TXT_Middle = setdiff(setdiff(TXT,TXT_Top),TXT_Bottom)
+    if(is_empty(TXT_Middle)){
+      TXT = c(TXT_Top,rule,TXT_Bottom)
+    }else{
+      TXT = c(TXT_Top,sort(c(TXT_Middle,rule)),TXT_Bottom)
+    }
+  }
+  writeLines(text = TXT,
+             con = Rule_File)
+  source(Rule_File)
+}

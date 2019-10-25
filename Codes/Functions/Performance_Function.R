@@ -1,7 +1,5 @@
 Performance_Function = function(ID_DF_3,
                                 RESULT,
-                                Fear_Ind,
-                                Market_Ind,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
                                 Max_Loss = 0.05,
@@ -51,7 +49,7 @@ Performance_Function = function(ID_DF_3,
              Pcent.Gain = 0,
              Time.Held = NA,
              Sell.Date = NA) %>%
-      select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
+      select(Stock,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
    
      ## Subsetting Currently Held Stocks
@@ -169,7 +167,7 @@ Performance_Function = function(ID_DF_3,
                Pcent.Gain = (Close - Buy.Price)/Buy.Price,
                Time.Held = NA,
                Sell.Date = NA) %>%
-        select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
+        select(Stock,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
       History_Table = bind_rows(History_Table,
                                 Additions[,colnames(History_Table)])
     }

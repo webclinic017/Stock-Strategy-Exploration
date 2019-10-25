@@ -37,10 +37,19 @@ BAC_Function = function(PR_Stage,Total_Alpha_Slope,Group_Columns,width = 50){
                       intercept = T,
                       na_restore = T)
     Alpha = Results$coefficients[,1]
+    Z_Alpha = Alpha/Results$std.error[,1]
+    P_Alpha = exp(-0.717 * Z_Alpha - 0.416 * Z_Alpha * Z_Alpha)
     Beta = Results$coefficients[,2]
+    Z_Beta = Beta/Results$std.error[,2]
+    P_Beta = exp(-0.717 * Z_Beta - 0.416 * Z_Beta * Z_Beta)
+    
     Cor = Results$r.squared
     Output = data.frame(Alpha = Alpha,
+                        Z_Alpha = Z_Alpha,
+                        P_Alpha = P_Alpha,
                         Beta = Beta,
+                        Z_Beta = Z_Beta,
+                        P_Beta = P_Beta,
                         Cor = Cor)
     colnames(Output) = str_c(colnames(Output),"_",str_c(Group_Columns,collapse = "_"))
     Output = Output %>%

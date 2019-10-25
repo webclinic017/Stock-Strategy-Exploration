@@ -1,4 +1,10 @@
-Initial_Pull = function(Cap = "Small",PAPER = T) {
+Initial_Pull = function(Cap = "All",
+                        Source = "A",
+                        PAPER = T) {
+  if(!Source %in% c("Y","A")){
+    stop("Source must be either 'Y' (Yahoo) or 'A' (Alpaca) in Initial_Pull function.")
+  }
+  
   ## Updating Stock List
   Auto_Stocks = stockSymbols() %>%
     filter(!is.na(Industry),
@@ -19,21 +25,10 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
   ## Pulling Available
   Alpaca_Stocks = get_assets() %>%
     filter(status == "active",
-           tradable)
-  
-  ETF_Stocks = read.csv(paste0(Project_Folder,"/Data/ETF List.csv")) %>%
-    mutate(Symbol = str_extract(Name,"(?<=\\()[:alpha:]+(?=\\))"),
-           Sector = str_extract(Category,'(?<=--).+$'),
-           Industry = str_remove(Category,'--.+$')) %>%
-    mutate(Industry = case_when(
-      is.na(Industry) ~ "ETF",
-      T ~ Industry
-    ),
-    Sector = case_when(
-      is.na(Sector) ~ "ETF",
-      T ~ Sector)) %>%
-    filter(Symbol %in% Alpaca_Stocks$symbol) %>%
-    select(-Name,-Category)
+           tradable,
+           marginable,
+           shortable,
+           easy_to_borrow)
   
   Auto_Stocks = Auto_Stocks %>%
     mutate(Multiplier = str_extract(MarketCap,"\\w$"),
@@ -57,8 +52,7 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
                               "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
                               "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
                               "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$|^DEACU$",
-                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$"))) %>%
-    bind_rows(ETF_Stocks)
+                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$")))
   
   ## Filtering to Specific 
   if(Cap != "All"){
@@ -90,24 +84,75 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
  
    for (j in 1:2){
     Dump = list()
+    
     p = progress_estimated(n = nrow(Total_Stocks), min_time = 3)
     for (i in 1:nrow(Total_Stocks)) {
       p$pause(0.1)$tick()$print()
       ticker = as.character(Total_Stocks$Symbol[i])
       
       if(j == 1){
-        stockData = try(getSymbols(ticker,
-                                   src = "yahoo",
-                                   from = Sys.Date() - 257,
-                                   auto.assign = FALSE) %>%
-                          as.data.frame() %>%
-                          mutate(Date = ymd(rownames(.))))
+        if(Source == "Y"){
+          stockData = try(getSymbols(ticker,
+                                     src = "yahoo",
+                                     from = Sys.Date() - 365,
+                                     auto.assign = FALSE) %>%
+                            as.data.frame() %>%
+                            mutate(Date = ymd(rownames(.))) %>%
+                            select(-6))
+        }
+        if(Source == "A"){
+          stockData = try(get_bars(ticker,
+                                   from = Sys.Date() - 365) %>%
+                            select("Open" = o,
+                                   "High" = h,
+                                   "Low" = l,
+                                   "Close" = c,
+                                   "Volume" = v,
+                                   "Date" = d) %>%
+                            mutate(Date = ymd(Date)),
+                          silent = T)
+        }
       }else{
-        stockData = try(getSymbols(ticker,
-                                   src = "yahoo",
-                                   auto.assign = FALSE) %>%
-                          as.data.frame() %>%
-                          mutate(Date = ymd(rownames(.))))
+        if(Source == "Y"){
+          stockData = try(getSymbols(ticker,
+                                     src = "yahoo",
+                                     auto.assign = FALSE) %>%
+                            as.data.frame() %>%
+                            mutate(Date = ymd(rownames(.))) %>%
+                            select(-6))
+        }
+        if(Source == "A"){
+          stockData = try(get_bars(ticker,
+                                   from = Sys.Date() - 365*5) %>%
+                            select("Open" = o,
+                                   "High" = h,
+                                   "Low" = l,
+                                   "Close" = c,
+                                   "Volume" = v,
+                                   "Date" = d) %>%
+                            mutate(Date = ymd(Date)),
+                          silent = T)
+          Stop = F
+          if(!"try-error" %in% class(stockData)){
+            while(nrow(stockData)/1000 == round(nrow(stockData)/1000) & !Stop){
+              TMP = try(get_bars(ticker,
+                                 from = min(stockData$Date) - 365*5,
+                                 to = min(stockData$Date)-1) %>%
+                          select("Open" = o,
+                                 "High" = h,
+                                 "Low" = l,
+                                 "Close" = c,
+                                 "Volume" = v,
+                                 "Date" = d) %>%
+                          mutate(Date = ymd(Date)))
+              if("try-error" %in% class(TMP)){
+                Stop = T
+              }else{
+               stockData = rbind(TMP,stockData) 
+              }
+            }
+          }  
+        }
       }
       if ("try-error" %in% class(stockData)) {
         Dump[[i]] = stockData
@@ -117,7 +162,6 @@ Initial_Pull = function(Cap = "Small",PAPER = T) {
                                 "Low",
                                 "Close",
                                 "Volume",
-                                "Adjusted",
                                 "Date")
         stockData$Stock = ticker
         Dump[[i]] = stockData

@@ -83,7 +83,7 @@ PR_Appendage = function(Combined_Results = NULL,
                                            align = "right"),
              Price_Range_15_SD_Norm = Price_Range_15_SMA/Price_Range_15_SD) %>%
       na.omit() %>%
-      select(Stock,Date,Open,High,Low,Close,Adjusted,Volume,contains("Norm")) %>%
+      select(Stock,Date,Open,High,Low,Close,Volume,contains("Norm")) %>%
       as.data.frame()
     
     return(DF)

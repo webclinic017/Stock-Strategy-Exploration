@@ -43,10 +43,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
            H == 0,
            L == 0,
            C == 0,
-           V == 0,
-           V_AVG >= 400000,
-           C_AVG < Starting_Money*Max_Holding,
-           DV >= 20000000)
+           V == 0)
   
   ID_DF_3 = ID_DF %>%
     filter(Stock %in% CHECK$Stock)
@@ -54,7 +51,8 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   
   ## Building Initial Models
   Models = Modeling_Function(ID_DF = ID_DF_3,
-                             Max_Date = Dates[1]-50)
+                             Max_Date = Dates[1]-50-20)
+  print(Models$RMSE)
   
   ## Initializing Counter / Progress Bar
   counter = 0
@@ -86,8 +84,6 @@ BACKTEST_Rule_Generator = function(Max_Holding,
       History_Table = 
         Performance_Function(ID_DF_3 = ID_DF_3,
                              RESULT = RESULT,
-                             Fear_Ind = Fear_Ind,
-                             Market_Ind = Market_Ind,
                              Starting_Money = Starting_Money,
                              Max_Holding = Max_Holding,
                              Max_Loss = Max_Loss,

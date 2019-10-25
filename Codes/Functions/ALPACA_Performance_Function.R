@@ -49,7 +49,7 @@ ALPACA_Performance_Function = function(ID_DF,
   }
   
   ## Checking Account Status
-  ACCT_Status = get_account(live = !PAPER)
+  (ACCT_Status = get_account(live = !PAPER))
   
   ## Pulling Holinds
   Current_Holdings = get_positions(live = !PAPER)
@@ -95,10 +95,15 @@ ALPACA_Performance_Function = function(ID_DF,
     ungroup() %>%
     distinct()
   
-  ## Prioritizing Sector & Industry Diversification
+  ## Prioritizing Sector & Industry Diversification ##
   if(!"try-error" %in% class(Sector_Ind_DF)){
     RESULT = Diversification(RESULT)
   }
+  
+  #### Running Daily Rebalance Check For High Performers ####
+  
+  
+  ########
   
 
   

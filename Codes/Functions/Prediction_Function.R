@@ -4,16 +4,19 @@ Prediction_Function = function(Models,
                                DCF = F){
 
   Preds_Short = predict(Models$Model_Short,
-                        as.data.frame(bake(Models$PP,TODAY)))
+                        s = Models$s,
+                        as.matrix(TODAY[,setdiff(rownames(coef(Models$Model_Short)),"(Intercept)")]))
   
   RESULT = TODAY %>%
     mutate(Expected_Return = Preds_Short) %>%
     filter(Expected_Return > exp(log(1.02)/(1/(50/365))) - 1,
            Alpha_Stock > 0) %>%
     mutate(Decider = Expected_Return/Beta_Stock + Alpha_Stock,
-           Stop_Loss = Close - 2*ATR) %>%
+           Stop_Loss = Close - 2*ATR,
+           Risk_Ratio = Decider / ((Close - Stop_Loss)/Close)) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
-    filter(Decider > 0) %>%
+    filter(Decider > 0,
+           Risk_Ratio > 2) %>%
     mutate(Prob_Rank = dense_rank(-Decider)) %>%
     arrange(Prob_Rank) %>%
     select(Prob_Rank,Decider,everything())
@@ -22,7 +25,7 @@ Prediction_Function = function(Models,
     DCFs = mapply(DCF_Update,RESULT$Stock,SIMPLIFY = T)
     RESULT = RESULT %>%
       mutate(DCF = DCFs,
-             DCF_Expected_Return = (DCF-Adjusted)/Adjusted) %>%
+             DCF_Expected_Return = (DCF-Close)/Close) %>%
       filter(DCF_Expected_Return > exp(log(1.02)/(1/(50/365))) - 1,
              DCF_Expected_Return < 1) %>%
       mutate(Decider = DCF_Expected_Return/Beta_Stock + Alpha_Stock) %>%
