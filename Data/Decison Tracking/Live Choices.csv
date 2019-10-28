@@ -266,3 +266,21 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-10-24T11:06:08Z,CROX,1,sell,stop,31.654,Stop Loss Update
 2019-10-24T11:06:09Z,ACCO,1,sell,stop,9.634198462208106,Stop Loss Update
 2019-10-25T11:53:37Z,ENIA,3,Buy,Limit,9.46,Probability
+2019-10-28T11:51:14Z,ENB,1,Buy,Limit,36.48,Probability
+2019-10-28T11:51:15Z,TMHC,1,sell,stop,24.43454851161882,Initial Stop Loss
+2019-10-28T11:51:16Z,SHOO,1,sell,stop,32.6430100319721,Initial Stop Loss
+2019-10-28T11:51:16Z,PRIM,3,sell,stop,19.095,Initial Stop Loss
+2019-10-28T11:51:17Z,IRT,2,sell,stop,14.265757537384989,Initial Stop Loss
+2019-10-28T11:51:17Z,ENIA,3,sell,stop,9.121032214533962,Initial Stop Loss
+2019-10-28T11:51:18Z,CROX,1,sell,stop,26.524,Initial Stop Loss
+2019-10-28T11:51:18Z,ACCO,1,sell,stop,9.25294577364402,Initial Stop Loss
+2019-10-28T11:51:20Z,ENB,1,Buy,Limit,36.59,Probability
+2019-10-28T11:53:54Z,FNF,1,Buy,Limit,45.99,Probability
+2019-10-28T11:56:58Z,TMHC,1,sell,stop,26.25951396127448,Stop Loss Update
+2019-10-28T11:56:59Z,SHOO,1,sell,stop,34.21615940111467,Initial Stop Loss
+2019-10-28T11:57:00Z,PRIM,3,sell,stop,19.8645,Initial Stop Loss
+2019-10-28T11:57:01Z,IRT,2,sell,stop,14.552126525675373,Initial Stop Loss
+2019-10-28T11:57:02Z,ENIA,3,sell,stop,9.10838797504877,Initial Stop Loss
+2019-10-28T11:57:03Z,CROX,1,sell,stop,31.9865,Initial Stop Loss
+2019-10-28T11:57:03Z,ACCO,1,sell,stop,9.588556890205169,Initial Stop Loss
+2019-10-28T11:57:14Z,TMHC,1,Buy,Limit,27.3,Rebalance Strong Performers

@@ -202,7 +202,7 @@ if(Hour < 12){
     BUY_POS_FILTER()
   
   ## Saving Results
-  save(RESULT,ID_DF,Models,
+  save(RESULT,TODAY,Models,
        file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
 }else{
   ## Loading Daily Decision Data
@@ -214,7 +214,7 @@ if(Hour < 12){
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
 ## Running Position Setting Function (Paper and Live)
-ALPACA_Performance_Function(ID_DF = ID_DF,
+ALPACA_Performance_Function(TODAY = TODAY,
                             RESULT = RESULT,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
@@ -222,7 +222,7 @@ ALPACA_Performance_Function(ID_DF = ID_DF,
                             Max_Loss = Max_Loss,
                             PAPER = T)
 
-ALPACA_Performance_Function(ID_DF = ID_DF,
+ALPACA_Performance_Function(TODAY = TODAY,
                             RESULT = RESULT,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,

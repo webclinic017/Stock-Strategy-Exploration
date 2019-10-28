@@ -292,6 +292,8 @@ submit_order <- function(ticker,
                          time_in_force = "day", 
                          limit_price = NULL, 
                          stop_price = NULL,
+                         extended_hours = F,
+                         client_order_id = NULL,
                          live = FALSE){
   #Set URL & Headers
   url = get_url(live)
@@ -308,8 +310,11 @@ submit_order <- function(ticker,
     limit_price = limit_price,
     stop_price = stop_price
   )
-  if(!live & side == "buy" & type == "limit" & time_in_force == "day"){
+  if(extended_hours){
     bodyl$extended_hours = TRUE
+  }
+  if(!is.null(client_order_id)){
+    bodyl$client_order_id = client_order_id
   }
   
 

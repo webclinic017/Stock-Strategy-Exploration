@@ -1,4 +1,4 @@
-ALPACA_Performance_Function = function(ID_DF,
+ALPACA_Performance_Function = function(TODAY,
                                        RESULT,
                                        Auto_Stocks,
                                        Project_Folder,
@@ -57,11 +57,13 @@ ALPACA_Performance_Function = function(ID_DF,
   ## Appending Sector / Industry Info
   Sector_Ind_DF = try(Current_Holdings %>%
     left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
-    select(Sector,Industry))
+    select(Sector,Industry),
+    silent = T)
   
   ## Pulling Existing Orders
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
-    filter(status == "new"))
+    filter(status == "new"),
+    silent = T)
   
   ## Pulling Filled Sell Orders During Wash Sale Window
   Wash_Sale_Record = try(get_orders(status = 'closed',
@@ -69,11 +71,12 @@ ALPACA_Performance_Function = function(ID_DF,
                                     live = !PAPER) %>%
                            filter(status == "filled",
                                   type == "stop_limit" | type == "stop" | type == "market") %>%
-                           mutate(filled_at = ymd_hms(filled_at)))
+                           mutate(filled_at = ymd_hms(filled_at)),
+                         silent = T)
   
   ## Updating Capital 
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
-  Buying_Power = as.numeric(ACCT_Status$buying_power)
+  Buying_Power = as.numeric(ACCT_Status$cash)
   
   ## Checking 30 Day Wash Rule
   if(!"try-error" %in% class(Wash_Sale_Record)){
@@ -133,7 +136,14 @@ ALPACA_Performance_Function = function(ID_DF,
                    type = "limit",
                    time_in_force = "day",
                    live = !PAPER,
-                   limit_price = as.character(RESULT$Close[STOCK]))
+                   extended_hours = T,
+                   limit_price = as.character(RESULT$Close[STOCK]),
+                   client_order_id = str_c("T",
+                                           round(RESULT$Expected_Return[STOCK],4),
+                                           "S",
+                                           round(RESULT$Stop_Loss[STOCK],4),
+                                           "D",
+                                           Sys.Date()))
       Report_Out = data.frame(Time = Sys.time(),
                               Stock = RESULT$Stock[STOCK],
                               Qty = as.character(Numbers[STOCK]),
@@ -155,16 +165,17 @@ ALPACA_Performance_Function = function(ID_DF,
     Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                            filter(status == "new"))
     Filled_Orders = try(get_orders(status = 'all',
+                                   from = Sys.Date() - 70,
                                    live = !PAPER) %>%
                           filter(status == "filled",
-                                 type == "limit") %>%
+                                 type == "limit" | type == 'stop_limit') %>%
                           mutate(filled_at = ymd_hms(filled_at)))
     
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
       ## Pulling Recent Close Price / Relevant Data
       Current_Info = get_bars(ticker = STOCK,
-                              limit = 1)[[STOCK]]
+                              limit = 1)
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
@@ -176,20 +187,21 @@ ALPACA_Performance_Function = function(ID_DF,
         ## Determining Stop Loss
         Stop_Loss = max(c(
           Buy_Price*(1-Max_Loss),
-          Buy_Price - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                         ID_DF$Date == max(ID_DF$Date)],1),
+          Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                         TODAY$Date == max(TODAY$Date)],1),
           as.numeric(Current_Info$c)*(1-Max_Loss),
-          as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                                          ID_DF$Date == max(ID_DF$Date)],1)
+          as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                          TODAY$Date == max(TODAY$Date)],1)
         ))
         
         ## Placing Stop Loss Order
         submit_order(ticker = STOCK,
                      qty = as.character(Quantity),
                      side = "sell",
-                     type = "stop",
+                     type = "stop_limit",
                      time_in_force = "gtc",
                      stop_price = as.character(Stop_Loss),
+                     limit_price = as.character(Stop_Loss),
                      live = !PAPER)
         Report_Out = data.frame(Time = Sys.time(),
                                 Stock = STOCK,
@@ -208,8 +220,8 @@ ALPACA_Performance_Function = function(ID_DF,
         ## Determining New Stop Loss
         Stop_Loss = max(c(
           as.numeric(Current_Info$c)*(1-Max_Loss),
-          as.numeric(Current_Info$c) - 2*head(ID_DF$ATR[ID_DF$Stock == STOCK & 
-                                                          ID_DF$Date == max(ID_DF$Date)],1)))
+          as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                          TODAY$Date == max(TODAY$Date)],1)))
         
         ## Updating Stop Loss if Higher
         if(Stop_Loss > Current_Stop_Loss){
@@ -219,6 +231,7 @@ ALPACA_Performance_Function = function(ID_DF,
                         qty = as.character(Quantity),
                         time_in_force = "gtc",
                         stop_price = as.character(Stop_Loss),
+                        limit_price = as.character(Stop_Loss),
                         live = !PAPER)
           }else{
             ## Canceling Exisiting Order
@@ -229,9 +242,10 @@ ALPACA_Performance_Function = function(ID_DF,
             submit_order(ticker = STOCK,
                          qty = as.character(Quantity),
                          side = "sell",
-                         type = "stop",
+                         type = "stop_limit",
                          time_in_force = "gtc",
                          stop_price = as.character(Stop_Loss),
+                         limit_price = as.character(Stop_Loss),
                          live = !PAPER)
           }
           ## Wrtining Update To Tracking File
