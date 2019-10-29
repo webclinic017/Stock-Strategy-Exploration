@@ -6,7 +6,6 @@ Modeling_Function = function(ID_DF,Max_Date){
     mutate(Adjusted_Lead = (lead(MA50,50) - MA50)/MA50) %>%
     filter(Date <= Max_Date,
            Date >= Max_Date-365) %>%
-    BUY_POS_FILTER() %>%
     ungroup() %>%
     na.omit() %>%
     filter(!str_detect(Stock,"^\\^"))

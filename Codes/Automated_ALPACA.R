@@ -239,7 +239,7 @@ for(i in 1:Runs){
                                              Max_Loss = Max_Loss,
                                              ID_DF = ID_DF,
                                              Auto_Stocks = Auto_Stocks,
-                                             Progress = F))
+                                             Progress = T))
   p$pause(0.1)$tick()$print()
 }
 save(Results,
@@ -247,6 +247,9 @@ save(Results,
 load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
 keep = sapply(Results,class) == "list"
 Results = Results[keep]
+RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+Keep = RUNS$Trade_Number > 20
+Results = Results[Keep]
 RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
 RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
 TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
@@ -267,7 +270,8 @@ RULES_Summary = RULES %>%
            Side == "High" ~ VH,
            T ~ VL)) %>%
   filter(MAX > MP,
-         PDM > 0.05) %>%
+         PDM > 0.05,
+         VH < VL) %>%
   group_by(Var,Side) %>%
   summarise_all(mean) %>%
   rowwise() %>%

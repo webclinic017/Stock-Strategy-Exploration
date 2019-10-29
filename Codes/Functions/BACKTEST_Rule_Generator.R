@@ -8,7 +8,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
   ## Loop To Ensure Good Start / End Dates
   MR = numeric(0)
   while(length(MR) == 0){
-    Start = sample(seq(1,length(unique(ID_DF$Date)) - 260),1)
+    Start = sample(seq(252,length(unique(ID_DF$Date)) - 252),1)
     Dates = sort(unique(ID_DF$Date))[Start:(Start+252)]
     IP = ID_DF %>%
       filter(Date == Dates[1]) %>%
@@ -21,36 +21,8 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     MR = (FP-IP)/IP - 0.02
   }
   
-  ## Copy for Liquidity Check
-  ID_DF_2 = ID_DF %>%
-    filter(Date <= Dates[1],
-           Date >= Dates[1]-365)
-  
-  ## Removing Junk / Baby Stocks
-  CHECK = ID_DF_2 %>%
-    group_by(Stock) %>%
-    na.locf() %>%
-    na.omit() %>%
-    summarise(O = sum(Open == 0),
-              H = sum(High == 0),
-              L = sum(Low == 0),
-              C = sum(Close == 0),
-              V = sum(Volume < 100),
-              V_AVG = median(Volume),
-              C_AVG = median(Close),
-              DV = V_AVG * C_AVG) %>%
-    filter(O == 0,
-           H == 0,
-           L == 0,
-           C == 0,
-           V == 0)
-  
-  ID_DF_3 = ID_DF %>%
-    filter(Stock %in% CHECK$Stock)
-  
-  
-  ## Building Initial Models
-  Models = Modeling_Function(ID_DF = ID_DF_3,
+  ## Building Initial Models ##
+  Models = Modeling_Function(ID_DF = ID_DF,
                              Max_Date = Dates[1]-50-20)
   print(Models$RMSE)
   
@@ -65,7 +37,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     Current_Date = Dates[i]
     
     ## Subsetting to Current Day Performance
-    TODAY = ID_DF_3 %>%
+    TODAY = ID_DF %>%
       filter(Date == Current_Date)
     
     ## Periodically Checking Positions
@@ -82,7 +54,7 @@ BACKTEST_Rule_Generator = function(Max_Holding,
     if(nrow(RESULT) > 0){
       counter = counter + 1
       History_Table = 
-        Performance_Function(ID_DF_3 = ID_DF_3,
+        Performance_Function(ID_DF = ID_DF,
                              RESULT = RESULT,
                              Starting_Money = Starting_Money,
                              Max_Holding = Max_Holding,

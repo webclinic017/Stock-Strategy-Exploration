@@ -56,14 +56,14 @@ ALPACA_Performance_Function = function(TODAY,
   
   ## Appending Sector / Industry Info
   Sector_Ind_DF = try(Current_Holdings %>%
-    left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
-    select(Sector,Industry),
-    silent = T)
+                        left_join(Auto_Stocks,by = c("symbol" = "Symbol")) %>%
+                        select(Sector,Industry),
+                      silent = T)
   
   ## Pulling Existing Orders
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
-    filter(status == "new"),
-    silent = T)
+                         filter(status == "new"),
+                       silent = T)
   
   ## Pulling Filled Sell Orders During Wash Sale Window
   Wash_Sale_Record = try(get_orders(status = 'closed',
@@ -108,7 +108,7 @@ ALPACA_Performance_Function = function(TODAY,
   
   ########
   
-
+  
   
   ## Defining Purchase Numbers
   K = 0
@@ -152,8 +152,8 @@ ALPACA_Performance_Function = function(TODAY,
                               Price = as.character(RESULT$Close[STOCK]),
                               Reason = "Probability")
       try(write_csv(x = Report_Out,
-                path = Report_CSV,
-                append = T))
+                    path = Report_CSV,
+                    append = T))
     }
   } 
   
@@ -262,61 +262,5 @@ ALPACA_Performance_Function = function(TODAY,
         }
       }
     }
-    
-    ## Rebalancing Well Performing Stocks
-    ## Updating Holdings
-    Sys.sleep(10)
-    ## Checking Account Status
-    ACCT_Status = get_account(live = !PAPER)
-    ## Updating Capital 
-    Investment_Value = as.numeric(ACCT_Status$portfolio_value)
-    Buying_Power = as.numeric(ACCT_Status$buying_power)
-    ## Checking Current Holdings
-    Current_Holdings = get_positions(live = !PAPER) %>%
-      filter(unrealized_plpc > 0) %>%
-      arrange(desc(unrealized_plpc)) %>%
-      filter(as.numeric(market_value) + as.numeric(current_price) < Investment_Value*Max_Holding) %>%
-      filter(as.numeric(current_price) < Buying_Power)
-    
-    ## Purchasing More Stocks if Money Allows
-    ## Defining Purchase Numbers
-    K = 0
-    Remaining_Money = Buying_Power
-    Number = numeric(length = nrow(Current_Holdings))
-    while(K < nrow(Current_Holdings)){
-      K = K + 1
-      counter = 0
-      Price = as.numeric(Current_Holdings$current_price[K])
-      while(Price < Remaining_Money & (counter+1)*Price < Investment_Value*Max_Holding){
-        counter = counter + 1
-        Remaining_Money = Remaining_Money - Price
-      }
-      Number[K] = counter
-    }
-    Numbers = Number[which(Number > 0)]
-    Rebalance = Current_Holdings[which(Number > 0),]
-    
-    ## Skipping if no stocks meet criteria
-    if(nrow(Rebalance) > 0){
-      for(STOCK in 1:nrow(Rebalance)){
-        submit_order(ticker = Rebalance$symbol[STOCK],
-                     qty = as.character(Numbers[STOCK]),
-                     side = "buy",
-                     type = "limit",
-                     time_in_force = "day",
-                     live = !PAPER,
-                     limit_price = as.character(Rebalance$current_price[STOCK]))
-        Report_Out = data.frame(Time = Sys.time(),
-                                Stock = Rebalance$symbol[STOCK],
-                                Qty = as.character(Numbers[STOCK]),
-                                Side = "Buy",
-                                Type = "Limit",
-                                Price = as.character(Rebalance$current_price[STOCK]),
-                                Reason = "Rebalance Strong Performers")
-        try(write_csv(x = Report_Out,
-                      path = Report_CSV,
-                      append = T))
-      }
-    } 
-  }
+  } 
 }

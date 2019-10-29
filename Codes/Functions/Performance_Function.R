@@ -1,4 +1,4 @@
-Performance_Function = function(ID_DF_3,
+Performance_Function = function(ID_DF,
                                 RESULT,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
@@ -89,7 +89,7 @@ Performance_Function = function(ID_DF_3,
     for(i in Checks){
       ## Current Stock Performance
       Examine = History_Table[i,]
-      Current_Info = ID_DF_3 %>%
+      Current_Info = ID_DF %>%
         filter(Stock == Examine$Stock,
                Date == Current_Date) %>%
         head(1) %>%
@@ -113,15 +113,15 @@ Performance_Function = function(ID_DF_3,
         }
         
         ## Updating Stop Loss
-        if(length(ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
-                                  ID_DF_3$Date == Current_Date]) > 0){
+        if(length(ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
+                                  ID_DF$Date == Current_Date]) > 0){
           History_Table$Stop.Loss[i] = 
-            ifelse(Current_Info$Close - 2*ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
-                                                               ID_DF_3$Date == Current_Date] > 
+            ifelse(Current_Info$Close - 2*ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
+                                                               ID_DF$Date == Current_Date] > 
                      History_Table$Stop.Loss[i]
                    ,
-                   Current_Info$Close - 2*ID_DF_3$ATR[ID_DF_3$Stock == Examine$Stock & 
-                                                               ID_DF_3$Date == Current_Date],
+                   Current_Info$Close - 2*ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
+                                                               ID_DF$Date == Current_Date],
                    History_Table$Stop.Loss[i])
         }
         
