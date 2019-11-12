@@ -1,83 +1,77 @@
-  Modeling_Function = function(PR_Stage_R4,Max_Date = max(PR_Stage_R4$Date)){
-    
-    stripGlmLR = function(cm) {
-      cm$y = c()
-      cm$model = c()
-      
-      cm$residuals = c()
-      cm$fitted.values = c()
-      cm$effects = c()
-      cm$qr$qr = c()
-      cm$linear.predictors = c()
-      cm$weights = c()
-      cm$prior.weights = c()
-      cm$data = c()
-      
-      
-      cm$family$variance = c()
-      cm$family$dev.resids = c()
-      cm$family$aic = c()
-      cm$family$validmu = c()
-      cm$family$simulate = c()
-      attr(cm$terms,".Environment") = c()
-      attr(cm$formula,".Environment") = c()
-      
-      cm
-    }
-    
-    
-    PR_Stage_R4 = PR_Stage_R4 %>%
-      filter(Date <= Max_Date,
-             Date >= Max_Date-365) %>%
-      BUY_POS_FILTER()
-    
-   
-    
-    ## Reducing Variable Pool
-    Names_Profit = Variable_Importance_Reduction(DF = select(PR_Stage_R4,
-                                                             -c(Adjusted_Lead)),
-                                                 Type = 'C',
-                                                 Target = "Target")
-    Names_Futures = Variable_Importance_Reduction(DF = select(PR_Stage_R4,-c(Target)),
-                                                  Type = 'R',
-                                                  Target = "Adjusted_Lead")
-    
-    ## Reducing Data
-    LL = function(x){median(x,na.rm = T) - 5*mad(x,na.rm = T)}
-    UL = function(x){median(x,na.rm = T) + 5*mad(x,na.rm = T)}
-    PR_Stage_R5 = PR_Stage_R4 %>%
-      select(Stock,
-             Date,
-             Adjusted,
-             Names_Profit$Var,
-             Names_Futures$Var,
-             Target,
-             Adjusted_Lead)
-    
-    ## Defining Filter Columns
-    Filter = PR_Stage_R5 %>%
-      select(Names_Profit$Var,Names_Futures$Var,Adjusted_Lead) %>% 
-      colnames()
-    
-    ## Removing Outliers
-    for(i in Filter){
-      Column = as_vector(PR_Stage_R5[,i])
-      Keep = Column <= UL(Column) & Column >= LL(Column)
-      PR_Stage_R5 = PR_Stage_R5[Keep,]
-    }
-    
-    Train_Profit = PR_Stage_R5[,c(Names_Profit$Var,"Target")]
-    Train_Futures = PR_Stage_R5[,c(Names_Futures$Var,"Adjusted_Lead")]
-
-    
-    Model_Profit = stripGlmLR(glm(Target~.^2,
-                       data = Train_Profit,
-                       family = "quasibinomial"))
-    Model_Futures = stripGlmLR(glm(Adjusted_Lead~.^2,
-                       data = Train_Futures))
-    
-    return(list(Model_Futures = Model_Futures,
-                Model_Profit = Model_Profit,
-                Names_Profit = Names_Profit,
-                Names_Futures = Names_Futures))
+Modeling_Function = function(ID_DF,Max_Date){
+  
+  ## Defining Target Variable
+  DF = ID_DF %>%
+    group_by(Stock) %>%
+    mutate(Adjusted_Lead = (lead(MA50,50) - MA50)/MA50) %>%
+    filter(Date <= Max_Date,
+           Date >= Max_Date-365) %>%
+    ungroup() %>%
+    na.omit() %>%
+    filter(!str_detect(Stock,"^\\^"))
+  Target = "Adjusted_Lead"
+  
+  # Defining Formula
+  TMP = as.numeric(as_vector(DF[,Target]))
+  Factors = DF %>%
+    select_if(is.factor)
+  
+  # Reducing to Numeric Predictors
+  DF_mod = na.omit(DF) %>%
+    select(-Stock,-Date) 
+  DF_mod = DF_mod[,setdiff(colnames(DF_mod),colnames(Factors))]
+  
+  # Linear Combos
+  combos = findLinearCombos(DF_mod)
+  if(!is_empty(combos$remove)){
+    DF_mod = DF_mod[,-combos$remove]
   }
+  
+  
+  # Highly Correlated
+  DF_cor = cor(DF_mod)
+  highlyCor = findCorrelation(DF_cor)
+  if(!is_empty(highlyCor)){
+    DF_mod = DF_mod[,-highlyCor]
+  }
+  
+  # Near Zero Variance
+  nzv = nearZeroVar(DF_mod[sample(x = nrow(DF_mod),
+                                  size = 10000,
+                                  replace = T),])
+  if(!is_empty(nzv)){
+    DF_mod = DF_mod[,-nzv]
+  }
+  DF_mod$Adjusted_Lead = NULL
+  
+  # Adding Target Variable ##
+  Y = TMP
+  X = as.matrix(DF_mod)
+  
+  ## Training Elastic Net ##
+  cv_output = cv.glmnet(
+    x = X,
+    y = Y,
+    nfolds = 100,
+    alpha = 1
+  )
+  best_lam = cv_output$lambda.1se
+  mod = glmnet(x = X,
+               y = Y,
+               alpha = 1,
+               lambda = best_lam)
+  print(coef(mod))
+  preds = predict(mod,
+                  s = best_lam,
+                  newx = X)
+  Preds2 = predict(mod,
+                   s = best_lam,
+                   newx = as.matrix(DF[,setdiff(rownames(coef(mod)),"(Intercept)")]))
+  all(preds == Preds2)
+  RMSE = MLmetrics::RMSE(preds,Y)
+  
+  ## Returning Values ##
+  return(list(Model_Short = mod,
+              s = best_lam,
+              RMSE = RMSE))
+}
