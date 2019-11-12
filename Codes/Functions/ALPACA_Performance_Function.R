@@ -21,29 +21,28 @@ ALPACA_Performance_Function = function(TODAY,
   ## Diversification
   Diversification = function(RESULT){ 
     if(!"try-error" %in% class(Sector_Ind_DF)){
-      ## Running Ordered Diversification Checks
+      ## Sector & Industry Filter
       TMP = RESULT %>%
-        filter(!Sector %in% Sector_Ind_DF$Sector)
-      
-      if(nrow(TMP) == 0){
-        TMP = RESULT %>%
-          filter(!Industry %in% Sector_Ind_DF$Industry,
-                 !Sector %in% Sector_Ind_DF$Sector)
-      }else{
-        return(TMP)
-      }
-      
-      if(nrow(TMP) == 0){
-        TMP = RESULT %>%
-          filter(!Industry %in% Sector_Ind_DF$Industry |
-                   !Sector %in% Sector_Ind_DF$Sector)
-      }else{
-        return(TMP)
-      }
+        filter(!Industry %in% Sector_Ind_DF$Industry,
+               !Sector %in% Sector_Ind_DF$Sector)
       
       if(nrow(TMP) != 0){
         return(TMP)
       }
+       
+      ## Sector Filter
+      TMP = RESULT %>%
+        filter(!Sector %in% Sector_Ind_DF$Sector)
+      
+      if(nrow(TMP) != 0){
+        return(TMP)
+      }
+      
+      ## Sector or Industry Filter
+      TMP = RESULT %>%
+        filter(!Industry %in% Sector_Ind_DF$Industry |
+                 !Sector %in% Sector_Ind_DF$Sector)
+      return(TMP)
     }
     return(RESULT)
   }
@@ -102,13 +101,6 @@ ALPACA_Performance_Function = function(TODAY,
   if(!"try-error" %in% class(Sector_Ind_DF)){
     RESULT = Diversification(RESULT)
   }
-  
-  #### Running Daily Rebalance Check For High Performers ####
-  
-  
-  ########
-  
-  
   
   ## Defining Purchase Numbers
   K = 0
