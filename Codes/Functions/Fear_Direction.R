@@ -49,7 +49,7 @@ Fear_Direction = function(Combined_Results,Market_Ind,Plot = T){
       Stock == "^VXN" ~ "NASDAQ Fear Index"
     )) %>%
     group_by(Stock) %>%
-    mutate(SMA50 = rollapply(Close,
+    mutate(SMA50 = rollapply(Adjusted,
                              width = 50,
                              FUN = mean,
                              na.rm = T,
@@ -71,12 +71,12 @@ Fear_Direction = function(Combined_Results,Market_Ind,Plot = T){
                                  ordered = F)
   
   if(Plot){
-    p2 = ggplot(VOLT_DF,aes(x = Date,y = Close)) +
+    p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
       geom_point(aes(color = Market_Status)) +
       geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
       scale_x_date(breaks = scales::pretty_breaks(9)) +
       labs(x = "Date",
-           y = "Close",
+           y = "Adjusted",
            title = "Market Fear of Past 6 Months",
            subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Current Date = ",Current_Type$Date,
                              " :: Type for Past ",Current_Type$Days," Days"),

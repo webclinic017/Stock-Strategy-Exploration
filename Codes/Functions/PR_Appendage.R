@@ -1,6 +1,5 @@
 PR_Appendage = function(Combined_Results = NULL,
-                        parallel = T,
-                        NCores = detectCores()){
+                        parallel = T){
   
   Loop_Function = function(Combined_Results,
                            Stock_Loop){
@@ -83,7 +82,7 @@ PR_Appendage = function(Combined_Results = NULL,
                                            align = "right"),
              Price_Range_15_SD_Norm = Price_Range_15_SMA/Price_Range_15_SD) %>%
       na.omit() %>%
-      select(Stock,Date,Open,High,Low,Close,Volume,contains("Norm")) %>%
+      select(Stock,Date,Open,High,Low,Close,Adjusted,Volume,contains("Norm")) %>%
       as.data.frame()
     
     return(DF)
@@ -111,8 +110,7 @@ PR_Appendage = function(Combined_Results = NULL,
                                             Stock_Loop)
       }
     }else{
-      NCores = min(c(detectCores(),NCores))
-      c1 = makeCluster(NCores)
+      c1 = makeCluster(detectCores())
       registerDoParallel(c1)
       Window_Results = foreach(i = 1:length(Tickers),
                                .inorder = F,
