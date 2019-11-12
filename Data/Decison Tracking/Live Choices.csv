@@ -297,6 +297,7 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-10-29T11:47:57Z,ENIA,3,sell,stop,9.287742692771642,Stop Loss Update
 2019-10-29T11:47:58Z,CROX,1,sell,stop,32.623000000000005,Stop Loss Update
 <<<<<<< HEAD
+<<<<<<< HEAD
 2019-10-30T11:48:32Z,GNTX,1,Buy,Limit,28.55,Probability
 2019-10-30T11:48:33Z,SHOO,1,sell,stop,38.86449999999999,Stop Loss Update
 2019-10-30T11:48:33Z,PRIM,3,sell,stop,20.168499999999998,Stop Loss Update
@@ -331,5 +332,7 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2019-11-12T12:48:18Z,SHOO,1,sell,stop,41.26613815258596,Stop Loss Update
 2019-11-12T12:48:19Z,PMT,2,sell,stop,22.19259673349231,Initial Stop Loss
 2019-11-12T12:48:20Z,CBZ,2,sell,stop,25.609643318945103,Initial Stop Loss
+=======
+>>>>>>> parent of a5b61b9... initial commit post merge
 =======
 >>>>>>> parent of a5b61b9... initial commit post merge
