@@ -1,7 +1,23 @@
 Rule_Generator = function(History_Table){
   Explore = History_Table %>%
+    filter(Pcent.Gain != 0,
+           !is.na(Sell.Date)) %>%
+    left_join(Market_Ind) %>%
+    left_join(Fear_Ind) %>%
+    mutate(Positive = ifelse(Pcent.Gain > 0,1,0),
+           Pcent_Adj = Pcent.Gain/Time.Held,
+           Good = case_when(
+             Max.Price > Buy.Price ~ 1,
+             T ~ 0
+           ),
+           SL = case_when(
+             Pcent.Gain == -Max_Loss ~ 1,
+             T ~ 0
+           )) %>%
     select_if(is.numeric) %>%
-    select(-contains("MAX_"))
+    select(-contains("MAX_")) %>%
+    filter(!is.infinite(Pcent_Adj)) %>%
+    select(Good,Pcent_Adj,Positive,SL,everything())
   
   STORE = data.frame(Var = character(),
                      VL = numeric(),

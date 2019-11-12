@@ -1,21 +1,29 @@
-Performance_Function = function(ID_DF,
+Performance_Function = function(PR_Stage_R3,
                                 RESULT,
+                                FUTURES,
+                                SHORTS,
                                 Starting_Money = 10000,
                                 Max_Holding = 0.10,
+                                Projection = 15,
                                 Max_Loss = 0.05,
                                 Current_Date,
-                                History_Table = NA){
+                                Fear_Marker,
+                                Initial_History = F,
+                                Load_Hist = T,
+                                Save_Hist = T,
+                                History_Location = paste0(Project_Folder,"/Data//History_Results.RDATA")){
   
   ## Builds Initial History Table
-  if("logical" %in% class(History_Table)){
+  if(Initial_History){
     ## Removes Any Outside of Price Range
     RESULT = RESULT %>%
       BUY_POS_FILTER() %>%
-      filter(Close < Starting_Money*Max_Holding) %>%
-      group_by(Sector,Industry) %>%
-      filter(Decider == max(Decider)) %>%
-      ungroup()
-    
+      filter(Close < Starting_Money*Max_Holding)
+    MAX = RESULT %>%
+      select(Stock,Date,Volume_PD_Norm:CCI_Delta)
+    colnames(MAX)[3:length(colnames(MAX))] = str_c("MAX_",colnames(MAX)[3:length(colnames(MAX))])
+    RESULT = RESULT %>%
+      left_join(MAX,by = c("Stock", "Date"))
     
     K = 0
     Total_Capital = Starting_Money
@@ -36,7 +44,9 @@ Performance_Function = function(ID_DF,
     
     ## Setting up initial history tracking
     History_Table = RESULT %>%
-      mutate(Number = Numbers,
+      mutate(Market_Status = Market_Ind$Market_Status[which(Market_Ind$Date == Current_Date)],
+             Market_Type = Fear_Ind$Market_Type[which(Fear_Ind$Date == Current_Date)],
+             Number = Numbers,
              Profit = 0,
              Buy.Price = Close,
              Max.Price = Close,
@@ -49,10 +59,11 @@ Performance_Function = function(ID_DF,
              Pcent.Gain = 0,
              Time.Held = NA,
              Sell.Date = NA) %>%
-      select(Stock,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
+      select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
   }else{
-   
-     ## Subsetting Currently Held Stocks
+    if(Load_Hist){load(file = History_Location)}
+    
+    ## Subsetting Currently Held Stocks
     Checks = which(is.na(History_Table$Sell.Date))
     Ticker_List = History_Table$Stock[Checks]
     
@@ -64,11 +75,14 @@ Performance_Function = function(ID_DF,
     Total_Capital = sum(History_Table$Buy.Price[Checks]*History_Table$Number[Checks]) + sum(History_Table$Profit)
     RESULT = RESULT[New_Buys,]
     RESULT = RESULT %>%
-      BUY_POS_FILTER() %>%
-      filter(Close < Total_Capital*Max_Holding) %>%
-      group_by(Sector,Industry) %>%
-      filter(Decider == max(Decider)) %>%
-      ungroup()
+      filter(Close < Total_Capital*Max_Holding)
+    if(nrow(RESULT) > 0){
+      MAX = RESULT %>%
+        select(Stock,Date,Volume_PD_Norm:CCI_Delta)
+      colnames(MAX)[3:length(colnames(MAX))] = str_c("MAX_",colnames(MAX)[3:length(colnames(MAX))])
+      RESULT = RESULT %>%
+        left_join(MAX,by = c("Stock", "Date"))
+    }
     
     K = 0
     Number = numeric(length = nrow(RESULT))
@@ -89,12 +103,25 @@ Performance_Function = function(ID_DF,
     for(i in Checks){
       ## Current Stock Performance
       Examine = History_Table[i,]
-      Current_Info = ID_DF %>%
+      Current_Info = Combined_Results %>%
         filter(Stock == Examine$Stock,
                Date == Current_Date) %>%
-        head(1) %>%
-        na.omit()
+        head(1)
       
+      ## Current Indicators
+      Indicators = PR_Stage_R3 %>%
+        filter(Stock == Examine$Stock) %>%
+        left_join(Market_Ind,by = "Date") %>%
+        left_join(Fear_Ind,by = "Date") %>%
+        mutate(WAD_Delta = WAD - lag(WAD,1),
+               Close_PD = (Close - lag(Close,1))/lag(Close,1),
+               SMI_Delta = (SMI - lag(SMI,1)),
+               SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
+               CCI_Delta = (CCI - lag(CCI,1)),
+               VHF_Delta = (VHF - lag(VHF,1)),
+               RSI_Delta = (RSI - lag(RSI,1))) %>%
+        filter(Date == Current_Date)
+        
       
       if(nrow(Current_Info) > 0){
         
@@ -106,22 +133,32 @@ Performance_Function = function(ID_DF,
                                               History_Table$Buy.Date[i],
                                               tz = "UTC",
                                               units = "days")
+        ## Updating Projection
+        if(Examine$Stock %in% FUTURES$Stock){
+          History_Table$Delta[i] = FUTURES$Delta[FUTURES$Stock == Examine$Stock]
+        }else if(Examine$Stock %in% SHORTS$Stock){
+          History_Table$Delta[i] = SHORTS$Delta[SHORTS$Stock == Examine$Stock]
+        }
         
         ## Updating Max Price
         if(Current_Info$Close > History_Table$Max.Price[i]){
           History_Table$Max.Price[i] = Current_Info$Close
+          REP = colnames(History_Table)[which(str_detect(colnames(History_Table),"MAX_"))]
+          for(j in REP){
+            History_Table[i,j] = Indicators[1,str_remove(j,"MAX_")]
+          }
         }
         
         ## Updating Stop Loss
-        if(length(ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
-                                  ID_DF$Date == Current_Date]) > 0){
+        if(length(PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
+                                  PR_Stage_R3$Date == Current_Date]) > 0){
           History_Table$Stop.Loss[i] = 
-            ifelse(Current_Info$Close - 2*ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
-                                                               ID_DF$Date == Current_Date] > 
+            ifelse(Current_Info$Close - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
+                                                               PR_Stage_R3$Date == Current_Date] > 
                      History_Table$Stop.Loss[i]
                    ,
-                   Current_Info$Close - 2*ID_DF$ATR[ID_DF$Stock == Examine$Stock & 
-                                                               ID_DF$Date == Current_Date],
+                   Current_Info$Close - 2*PR_Stage_R3$ATR[PR_Stage_R3$Stock == Examine$Stock & 
+                                                               PR_Stage_R3$Date == Current_Date],
                    History_Table$Stop.Loss[i])
         }
         
@@ -139,6 +176,17 @@ Performance_Function = function(ID_DF,
                                             as.character(Current_Date),
                                             NA)
         
+        ## Selling if Negative After Projection
+        if(History_Table$Time.Held[i] >= Projection){
+          History_Table$Sell.Date[i] = ifelse(History_Table$Pcent.Gain[i] > 0,
+                                              NA,
+                                              as.character(Current_Date))
+        }
+        
+        ## Selling if Projection Is to Lose More Than 1/2 of Gains
+        if(History_Table$Delta[i] + History_Table$Pcent.Gain[i] <= History_Table$Pcent.Gain[i]*0.5){
+          History_Table$Sell.Date[i] = as.character(Current_Date)
+        }
         
       }
       
@@ -147,14 +195,14 @@ Performance_Function = function(ID_DF,
         mutate(Profit = case_when(
           is.na(Sell.Date) ~ Profit,
           T ~ Number*Buy.Price*(1+Pcent.Gain) - Number*Buy.Price
-        )) 
-      
-      
+        ))
     }
     
     if(nrow(RESULT) >= 1){
       Additions = RESULT %>%
-        mutate(Number = Numbers,
+        mutate(Market_Status = Market_Ind$Market_Status[which(Market_Ind$Date == Current_Date)],
+               Market_Type = Fear_Ind$Market_Type[which(Fear_Ind$Date == Current_Date)],
+               Number = Numbers,
                Profit = 0,
                Buy.Price = Close,
                Max.Price = Close,
@@ -167,7 +215,7 @@ Performance_Function = function(ID_DF,
                Pcent.Gain = (Close - Buy.Price)/Buy.Price,
                Time.Held = NA,
                Sell.Date = NA) %>%
-        select(Stock,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
+        select(Stock,Market_Status,Market_Type,Buy.Price,Max.Price,Number,Profit,Buy.Date,Stop.Loss,Pcent.Gain,Time.Held,Sell.Date,everything())
       History_Table = bind_rows(History_Table,
                                 Additions[,colnames(History_Table)])
     }
@@ -181,6 +229,8 @@ Performance_Function = function(ID_DF,
       T ~ Pcent.Gain
     ))
   
+  # Saving Pool Results and Reduced Raw Data
+  if(Save_Hist){save(History_Table,file = History_Location)}
   
   return(History_Table)
 }

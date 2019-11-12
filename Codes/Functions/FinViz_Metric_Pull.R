@@ -48,7 +48,7 @@ FinViz_Meta_Data = function(RESULT){
     p$pause(0.5)$tick()$print()
   }
   Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame) %>%
-    dplyr::select(-contains("Perf"),
+    select(-contains("Perf"),
            -contains("SMA"),
            -c(ATR,Volume,Prev.Close,Price,Volatility,Change,Rel.Volume,
               X52W.Range,X52W.High,X52W.Low,RSI..14.,
