@@ -6,7 +6,7 @@ library(EmersonDataScience)
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll','Boruta','glmnet')
+                      "ranger",'roll','Boruta','glmnet','doSNOW')
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -34,7 +34,9 @@ if(Hour < 12){
   ## Pulling Historical Data
   if(Re_Pull){
     ## Fresh Historical Data Pull
-    Initial_Pull(Cap = Cap,PAPER = F)
+    Initial_Pull(Cap = Cap,
+                 Source = "Y",
+                 PAPER = F)
   }else{
     ## Historical Table Update
     Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),
@@ -139,7 +141,7 @@ if(Hour < 12){
   progress <- function(n) pb$pause(0.1)$tick()$print()
   opts <- list(progress = progress)
   library(doSNOW)
-  c1 = makeCluster(8,outfile = "")
+  c1 = makeCluster(NClusters,outfile = "")
   registerDoSNOW(c1)
   
   ## Parallel Execution
@@ -219,7 +221,6 @@ ALPACA_Performance_Function(TODAY = TODAY,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding,
-                            Max_Loss = Max_Loss,
                             PAPER = T)
 
 ALPACA_Performance_Function(TODAY = TODAY,
@@ -227,7 +228,6 @@ ALPACA_Performance_Function(TODAY = TODAY,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding_Live,
-                            Max_Loss = Max_Loss,
                             PAPER = F)
 
 ## Running Back Test To Check For New Rules ##
@@ -256,51 +256,51 @@ TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
 
 ## Summarizing Run Results
 psych::describe(RUNS[,3:ncol(RUNS)])
-
-## Reducing Rule Set
-RULES_Summary = RULES %>%
-  mutate(Delta = abs(PL-PH),
-         PDM = (MAX - MP)/abs(MP),
-         PD = Delta/MAX,
-         Side = case_when(
-           PH > PL ~ "High",
-           T ~ "Low"
-         ),
-         Value = case_when(
-           Side == "High" ~ VH,
-           T ~ VL)) %>%
-  filter(MAX > MP,
-         PDM > 0.05,
-         VH < VL) %>%
-  group_by(Var,Side) %>%
-  summarise_all(mean) %>%
-  rowwise() %>%
-  mutate(Percent_Kept = case_when(
-    Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
-    T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
-  arrange(desc(PDM)) %>%
-  filter(Percent_Kept > 0.95) %>%
-  ungroup()
-
-## Updating Rules List
-if(nrow(RULES_Summary) > 0){
-  Rule_File = file(str_c(Project_Folder,"/Codes/Functions/BUY_POS_FILTER.R")) 
-  (TXT = readLines(Rule_File,warn = F))
-  for(i in 1:nrow(RULES_Summary)){
-    (TMP = RULES_Summary[i,])
-    rule = str_c("DF = DF[DF[['",TMP$Var,"']] ",
-                 ifelse(TMP$Side == "Low","< ","> "),
-                 TMP$Value,",]")
-    TXT_Top = TXT[1]
-    TXT_Bottom = TXT[which(str_detect(str_trim(TXT),"^return")):length(TXT)]
-    TXT_Middle = setdiff(setdiff(TXT,TXT_Top),TXT_Bottom)
-    if(is_empty(TXT_Middle)){
-      TXT = c(TXT_Top,rule,TXT_Bottom)
-    }else{
-      TXT = c(TXT_Top,sort(c(TXT_Middle,rule)),TXT_Bottom)
-    }
-  }
-  writeLines(text = TXT,
-             con = Rule_File)
-  source(Rule_File)
-}
+# 
+# ## Reducing Rule Set
+# RULES_Summary = RULES %>%
+#   mutate(Delta = abs(PL-PH),
+#          PDM = (MAX - MP)/abs(MP),
+#          PD = Delta/MAX,
+#          Side = case_when(
+#            PH > PL ~ "High",
+#            T ~ "Low"
+#          ),
+#          Value = case_when(
+#            Side == "High" ~ VH,
+#            T ~ VL)) %>%
+#   filter(MAX > MP,
+#          PDM > 0.05,
+#          VH < VL) %>%
+#   group_by(Var,Side) %>%
+#   summarise_all(mean) %>%
+#   rowwise() %>%
+#   mutate(Percent_Kept = case_when(
+#     Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
+#     T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
+#   arrange(desc(PDM)) %>%
+#   filter(Percent_Kept > 0.95) %>%
+#   ungroup()
+# 
+# ## Updating Rules List
+# if(nrow(RULES_Summary) > 0){
+#   Rule_File = file(str_c(Project_Folder,"/Codes/Functions/BUY_POS_FILTER.R")) 
+#   (TXT = readLines(Rule_File,warn = F))
+#   for(i in 1:nrow(RULES_Summary)){
+#     (TMP = RULES_Summary[i,])
+#     rule = str_c("DF = DF[DF[['",TMP$Var,"']] ",
+#                  ifelse(TMP$Side == "Low","< ","> "),
+#                  TMP$Value,",]")
+#     TXT_Top = TXT[1]
+#     TXT_Bottom = TXT[which(str_detect(str_trim(TXT),"^return")):length(TXT)]
+#     TXT_Middle = setdiff(setdiff(TXT,TXT_Top),TXT_Bottom)
+#     if(is_empty(TXT_Middle)){
+#       TXT = c(TXT_Top,rule,TXT_Bottom)
+#     }else{
+#       TXT = c(TXT_Top,sort(c(TXT_Middle,rule)),TXT_Bottom)
+#     }
+#   }
+#   writeLines(text = TXT,
+#              con = Rule_File)
+#   source(Rule_File)
+# }

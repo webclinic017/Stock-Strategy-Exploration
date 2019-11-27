@@ -3,7 +3,6 @@ ALPACA_Performance_Function = function(TODAY,
                                        Auto_Stocks,
                                        Project_Folder,
                                        Max_Holding = 0.10,
-                                       Max_Loss = 0.05,
                                        PAPER = T){
   ## Setting API Keys
   if(PAPER){
@@ -157,7 +156,7 @@ ALPACA_Performance_Function = function(TODAY,
     Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                            filter(status == "new"))
     Filled_Orders = try(get_orders(status = 'all',
-                                   from = Sys.Date() - 70,
+                                   from = Sys.Date() - 365,
                                    live = !PAPER) %>%
                           filter(status == "filled",
                                  type == "limit" | type == 'stop_limit') %>%
@@ -173,15 +172,26 @@ ALPACA_Performance_Function = function(TODAY,
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
       
+      ## Pulling Profit Target From Client Order ID
+      Buy_Order = Filled_Orders %>%
+        filter(symbol == STOCK,
+               side == "buy") %>%
+        filter(filled_at == max(filled_at))
+      Target_Pcent_Gain = as.numeric(str_extract(Buy_Order$client_order_id,"(?<=T).+(?=S)"))
+      if(is_empty(Target_Pcent_Gain)){
+        Target_Pcent_Gain = -1
+      }
+      
+      ## Pulling Current Technical Indicators
+      FinViz_Metrics = FinViz_Meta_Data(data.frame(Stock = STOCK))
+      
       
       ## Calculating Stop Loss
       if(nrow(Loss_Order) == 0){
         ## Determining Stop Loss
         Stop_Loss = max(c(
-          Buy_Price*(1-Max_Loss),
           Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                          TODAY$Date == max(TODAY$Date)],1),
-          as.numeric(Current_Info$c)*(1-Max_Loss),
           as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                                           TODAY$Date == max(TODAY$Date)],1)
         ))
@@ -209,37 +219,30 @@ ALPACA_Performance_Function = function(TODAY,
         ## Pulling Current Stop Loss
         Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
         
+        ## Bumping Loss Order Up If Target Met
+        if(Pcent_Gain >= Target_Pcent_Gain){
+          Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
+        }else{
+          Target_Stop = 0
+        }
+        
         ## Determining New Stop Loss
         Stop_Loss = max(c(
-          as.numeric(Current_Info$c)*(1-Max_Loss),
           as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                          TODAY$Date == max(TODAY$Date)],1)))
+                                                          TODAY$Date == max(TODAY$Date)],1),
+          Target_Stop))
         
         ## Updating Stop Loss if Higher
         if(Stop_Loss > Current_Stop_Loss){
-          if(!PAPER){
-            ## Updating Exisiting Order
-            patch_order(order_id = Loss_Order$id,
-                        qty = as.character(Quantity),
-                        time_in_force = "gtc",
-                        stop_price = as.character(Stop_Loss),
-                        limit_price = as.character(Stop_Loss),
-                        live = !PAPER)
-          }else{
-            ## Canceling Exisiting Order
-            cancel_order(ticker = STOCK,
-                         order_id = Loss_Order$id,
-                         live = !PAPER)
-            Sys.sleep(30)
-            submit_order(ticker = STOCK,
-                         qty = as.character(Quantity),
-                         side = "sell",
-                         type = "stop_limit",
-                         time_in_force = "gtc",
-                         stop_price = as.character(Stop_Loss),
-                         limit_price = as.character(Stop_Loss),
-                         live = !PAPER)
-          }
+          
+          ## Updating Exisiting Order
+          patch_order(order_id = Loss_Order$id,
+                      qty = as.character(Quantity),
+                      time_in_force = "gtc",
+                      stop_price = as.character(Stop_Loss),
+                      limit_price = as.character(Stop_Loss),
+                      live = !PAPER)
+          
           ## Wrtining Update To Tracking File
           Report_Out = data.frame(Time = Sys.time(),
                                   Stock = STOCK,
@@ -248,6 +251,8 @@ ALPACA_Performance_Function = function(TODAY,
                                   Type = "stop",
                                   Price = Stop_Loss,
                                   Reason = "Stop Loss Update")
+          
+          ## Appending To Decison Log
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
