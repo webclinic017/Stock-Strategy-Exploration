@@ -4,7 +4,8 @@ ALPACA_Performance_Function = function(TODAY,
                                        Project_Folder,
                                        Max_Holding = 0.10,
                                        PAPER = T){
-  ## Setting API Keys
+  
+  ########################## Setting API Keys ##########################
   if(PAPER){
     KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
     Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
@@ -16,41 +17,22 @@ ALPACA_Performance_Function = function(TODAY,
     Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
     Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Live Choices.csv")
   }
+  ##########################   ##########################   ########################## 
   
-  ## Diversification
-  Diversification = function(RESULT){ 
-    if(!"try-error" %in% class(Sector_Ind_DF)){
-      ## Sector & Industry Filter
-      TMP = RESULT %>%
-        filter(!Industry %in% Sector_Ind_DF$Industry,
-               !Sector %in% Sector_Ind_DF$Sector)
-      
-      if(nrow(TMP) != 0){
-        return(TMP)
-      }
-       
-      ## Sector Filter
-      TMP = RESULT %>%
-        filter(!Sector %in% Sector_Ind_DF$Sector)
-      
-      if(nrow(TMP) != 0){
-        return(TMP)
-      }
-      
-      ## Sector or Industry Filter
-      TMP = RESULT %>%
-        filter(!Industry %in% Sector_Ind_DF$Industry |
-                 !Sector %in% Sector_Ind_DF$Sector)
-      return(TMP)
-    }
-    return(RESULT)
-  }
   
-  ## Checking Account Status
-  (ACCT_Status = get_account(live = !PAPER))
-  
-  ## Pulling Holinds
+  ########################## Getting Current Account Information ##########################
+  ACCT_Status = get_account(live = !PAPER)
   Current_Holdings = get_positions(live = !PAPER)
+  Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
+                         filter(status == "new"),
+                       silent = T)
+ 
+  Investment_Value = as.numeric(ACCT_Status$portfolio_value)
+  Buying_Power = as.numeric(ACCT_Status$cash)
+  ##########################   ##########################   ########################## 
+  
+  
+  ########################## Investment Choice Reduction ########################## 
   
   ## Appending Sector / Industry Info
   Sector_Ind_DF = try(Current_Holdings %>%
@@ -58,12 +40,7 @@ ALPACA_Performance_Function = function(TODAY,
                         select(Sector,Industry),
                       silent = T)
   
-  ## Pulling Existing Orders
-  Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
-                         filter(status == "new"),
-                       silent = T)
-  
-  ## Pulling Filled Sell Orders During Wash Sale Window
+  ## Checking 30 Day Wash Rule
   Wash_Sale_Record = try(get_orders(status = 'closed',
                                     from = Sys.Date() - 30,
                                     live = !PAPER) %>%
@@ -71,12 +48,6 @@ ALPACA_Performance_Function = function(TODAY,
                                   type == "stop_limit" | type == "stop" | type == "market") %>%
                            mutate(filled_at = ymd_hms(filled_at)),
                          silent = T)
-  
-  ## Updating Capital 
-  Investment_Value = as.numeric(ACCT_Status$portfolio_value)
-  Buying_Power = as.numeric(ACCT_Status$cash)
-  
-  ## Checking 30 Day Wash Rule
   if(!"try-error" %in% class(Wash_Sale_Record)){
     RESULT = RESULT %>%
       filter(!Stock %in% Wash_Sale_Record$symbol)
@@ -100,7 +71,10 @@ ALPACA_Performance_Function = function(TODAY,
   if(!"try-error" %in% class(Sector_Ind_DF)){
     RESULT = Diversification(RESULT)
   }
+  ##########################   ##########################   ########################## 
   
+  
+  ########################## Initial Purchase Orders ########################## 
   ## Defining Purchase Numbers
   K = 0
   Remaining_Money = Buying_Power
@@ -121,6 +95,8 @@ ALPACA_Performance_Function = function(TODAY,
   ## Skipping if Buying Power Too Low to Invest (0 RESULT Options)
   if(nrow(RESULT) > 0){
     for(STOCK in 1:nrow(RESULT)){
+      
+      ## Placing Limit Order (Extended Hours Enabled)
       submit_order(ticker = RESULT$Stock[STOCK],
                    qty = as.character(Numbers[STOCK]),
                    side = "buy",
@@ -135,11 +111,13 @@ ALPACA_Performance_Function = function(TODAY,
                                            round(RESULT$Stop_Loss[STOCK],4),
                                            "D",
                                            Sys.Date()))
+      
+      ## Recording Decison in Log
       Report_Out = data.frame(Time = Sys.time(),
                               Stock = RESULT$Stock[STOCK],
                               Qty = as.character(Numbers[STOCK]),
-                              Side = "Buy",
-                              Type = "Limit",
+                              Side = "buy",
+                              Type = "limit",
                               Price = as.character(RESULT$Close[STOCK]),
                               Reason = "Probability")
       try(write_csv(x = Report_Out,
@@ -147,24 +125,20 @@ ALPACA_Performance_Function = function(TODAY,
                     append = T))
     }
   } 
+  ##########################   ##########################   ########################## 
   
   
+  
+  ########################## Current Holding Order Updates ########################## 
   Ticker_List = c(Current_Holdings$symbol)
+  
   if(!is_empty(Ticker_List)){
-    ## Updating Holdings
-    Current_Holdings = get_positions(live = !PAPER)
-    Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
-                           filter(status == "new"))
-    Filled_Orders = try(get_orders(status = 'all',
-                                   from = Sys.Date() - 365,
-                                   live = !PAPER) %>%
-                          filter(status == "filled",
-                                 type == "limit" | type == 'stop_limit') %>%
-                          mutate(filled_at = ymd_hms(filled_at)))
     
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
-      ## Pulling Recent Close Price / Relevant Data
+      
+      ##########################  Current Asset Information  ########################## 
+      
       Current_Info = get_bars(ticker = STOCK,
                               limit = 1)
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
@@ -173,22 +147,28 @@ ALPACA_Performance_Function = function(TODAY,
       Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
       
       ## Pulling Profit Target From Client Order ID
-      Buy_Order = Filled_Orders %>%
-        filter(symbol == STOCK,
+      Buy_Order = try(
+        get_orders(
+          ticker = STOCK,
+          status = 'closed',
+          live = !PAPER
+        ) %>%
+        filter(status == 'filled',
                side == "buy") %>%
         filter(filled_at == max(filled_at))
+      )
       Target_Pcent_Gain = as.numeric(str_extract(Buy_Order$client_order_id,"(?<=T).+(?=S)"))
       if(is_empty(Target_Pcent_Gain)){
         Target_Pcent_Gain = -1
       }
       
-      ## Pulling Current Technical Indicators
-      FinViz_Metrics = FinViz_Meta_Data(data.frame(Stock = STOCK))
+      ##########################   ##########################   ########################## 
       
       
-      ## Calculating Stop Loss
+      ########################## Stop Loss Calculations ########################## 
       if(nrow(Loss_Order) == 0){
-        ## Determining Stop Loss
+        
+        ## Initial Stop Loss Based On ATR
         Stop_Loss = max(c(
           Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                          TODAY$Date == max(TODAY$Date)],1),
@@ -205,6 +185,8 @@ ALPACA_Performance_Function = function(TODAY,
                      stop_price = as.character(Stop_Loss),
                      limit_price = as.character(Stop_Loss),
                      live = !PAPER)
+        
+        ## Recording In Decison Log
         Report_Out = data.frame(Time = Sys.time(),
                                 Stock = STOCK,
                                 Qty = Quantity,
@@ -216,10 +198,9 @@ ALPACA_Performance_Function = function(TODAY,
                       path = Report_CSV,
                       append = T))
       }else{
-        ## Pulling Current Stop Loss
         Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
         
-        ## Bumping Loss Order Up If Target Met
+        ## Bumping Loss Order Up If Profit Target Met
         if(Pcent_Gain >= Target_Pcent_Gain){
           Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
         }else{
@@ -243,19 +224,29 @@ ALPACA_Performance_Function = function(TODAY,
                       limit_price = as.character(Stop_Loss),
                       live = !PAPER)
           
-          ## Wrtining Update To Tracking File
+          ## Defining Reason For Decison Log
+          if(Stop_Loss == Target_Stop){
+            Reason = "Profit Target Met"
+          }else{
+            Reason = "Stop Loss Update"
+          }
+          
+          ## Writing Update To Log File
           Report_Out = data.frame(Time = Sys.time(),
                                   Stock = STOCK,
                                   Qty = Quantity,
                                   Side = "sell",
                                   Type = "stop",
                                   Price = Stop_Loss,
-                                  Reason = "Stop Loss Update")
+                                  Reason = Reason)
           
           ## Appending To Decison Log
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
+          ##########################   ##########################   ########################## 
+          
+          
         }
       }
     }
