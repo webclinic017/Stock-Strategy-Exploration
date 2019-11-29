@@ -17,7 +17,6 @@ ALPACA_Performance_Function = function(TODAY,
     Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
     Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Live Choices.csv")
   }
-  ##########################   ##########################   ########################## 
   
   
   ########################## Getting Current Account Information ##########################
@@ -29,7 +28,13 @@ ALPACA_Performance_Function = function(TODAY,
  
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
   Buying_Power = as.numeric(ACCT_Status$cash)
-  ##########################   ##########################   ########################## 
+  ## Determining Rebalance (1st Trading Day Of Month)
+  Start = get_calendar(str_c(year(now()),
+                             "-",
+                             month(now()),
+                             "-01")) %>%
+    head(1)
+  Rebalance = as_date(now()) == Start$date[1]
   
   
   ########################## Investment Choice Reduction ########################## 
@@ -71,7 +76,6 @@ ALPACA_Performance_Function = function(TODAY,
   if(!"try-error" %in% class(Sector_Ind_DF)){
     RESULT = Diversification(RESULT)
   }
-  ##########################   ##########################   ########################## 
   
   
   ########################## Initial Purchase Orders ########################## 
@@ -125,7 +129,6 @@ ALPACA_Performance_Function = function(TODAY,
                     append = T))
     }
   } 
-  ##########################   ##########################   ########################## 
   
   
   
@@ -138,13 +141,23 @@ ALPACA_Performance_Function = function(TODAY,
     for(STOCK in Ticker_List){
       
       ##########################  Current Asset Information  ########################## 
-      
       Current_Info = get_bars(ticker = STOCK,
                               limit = 1)
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
-      Loss_Order = Current_Orders[Current_Orders$symbol == STOCK,]
+     
+      ## Pulling Existing Loss_Order
+      Loss_Order = try(
+        get_orders(
+          ticker = STOCK,
+          status = 'open',
+          live = !PAPER
+        ) %>%
+          filter(side == "sell") %>%
+          filter(created_at == max(created_at)) %>%
+          head(1)
+      )
       
       ## Pulling Profit Target From Client Order ID
       Buy_Order = try(
@@ -153,16 +166,15 @@ ALPACA_Performance_Function = function(TODAY,
           status = 'closed',
           live = !PAPER
         ) %>%
-        filter(status == 'filled',
-               side == "buy") %>%
-        filter(filled_at == max(filled_at))
+          filter(status == 'filled',
+                 side == "buy") %>%
+          filter(filled_at == max(filled_at)) %>%
+          head(1)
       )
       Target_Pcent_Gain = as.numeric(str_extract(Buy_Order$client_order_id,"(?<=T).+(?=S)"))
       if(is_empty(Target_Pcent_Gain)){
         Target_Pcent_Gain = -1
       }
-      
-      ##########################   ##########################   ########################## 
       
       
       ########################## Stop Loss Calculations ########################## 
@@ -244,9 +256,63 @@ ALPACA_Performance_Function = function(TODAY,
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
-          ##########################   ##########################   ########################## 
-          
-          
+        }
+      }
+      ########################## Rebalancing Check ########################## 
+      if(Rebalance){
+        Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
+        if(Market_Value > Investment_Value*Max_Holding){
+          Max_qty = floor(Investment_Value*Max_Holding/Current_Info$c)
+          if(Max_qty > 0){
+            ## Determining New Spread
+            Keep = Max_qty
+            Sell = Quantity - Keep
+            
+            ## Pulling Existing Loss_Order
+            Loss_Order = try(
+              get_orders(
+                ticker = STOCK,
+                status = 'open',
+                live = !PAPER
+              ) %>%
+                filter(side == "sell") %>%
+                filter(created_at == max(created_at)) %>%
+                head(1)
+            )
+            
+            ## Updating Exisiting Order
+            patch_order(order_id = Loss_Order$id,
+                        qty = as.character(Keep),
+                        time_in_force = "gtc",
+                        live = !PAPER)
+            
+            Sys.sleep(10)
+            
+            ## Placing Market Sell Order
+            submit_order(ticker = STOCK,
+                         qty = as.character(Sell),
+                         side = "sell",
+                         type = "market",
+                         time_in_force = "gtc",
+                         live = !PAPER)
+            
+            ## Writing Update To Log File
+            Report_Out = data.frame(Time = Sys.time(),
+                                    Stock = STOCK,
+                                    Qty = Sell,
+                                    Side = "sell",
+                                    Type = "market",
+                                    Price = Current_Info$c,
+                                    Reason = "Rebalance Reduction")
+            
+            ## Appending To Decison Log
+            try(write_csv(x = Report_Out,
+                          path = Report_CSV,
+                          append = T))
+            
+            
+            
+          }
         }
       }
     }
