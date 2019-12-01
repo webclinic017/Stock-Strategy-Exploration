@@ -199,8 +199,7 @@ if(Hour < 12){
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
-                               FinViz = T,
-                               DCF = F) %>%
+                               FinViz = T) %>%
     BUY_POS_FILTER()
   
   ## Saving Results
