@@ -3,6 +3,7 @@ Prediction_Function = function(Models,
                                FinViz = T,
                                Risk_Free_Rate = 0.02,
                                Margin_Intrest = 0.035,
+                               ETB_Rate = 0.002,
                                Lower_Risk_Ratio = 2,
                                Upper_Risk_Ratio = 4,
                                Hold_Period = 50){
@@ -30,7 +31,7 @@ Prediction_Function = function(Models,
   
   SHORT = TODAY %>%
     mutate(Expected_Return = Preds_Short) %>%
-    filter(Expected_Return < -exp(log(1 + Risk_Free_Rate + Margin_Intrest)/(1/(Hold_Period/365))) + 1,
+    filter(Expected_Return < -exp(log(1 + Risk_Free_Rate + Margin_Intrest + ETB_Rate)/(1/(Hold_Period/365))) + 1,
            Alpha_Stock < 0) %>%
     mutate(Decider = abs(Expected_Return/Beta_Stock) - Alpha_Stock,
            Stop_Loss = Close + 2*ATR,
