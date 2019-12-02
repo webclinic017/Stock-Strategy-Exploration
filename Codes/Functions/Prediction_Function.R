@@ -82,5 +82,5 @@ Prediction_Function = function(Models,
   return(list(
     LONG = LONG,
     SHORT = SHORT,
-    TOTAL))
+    TOTAL = TOTAL))
 }
