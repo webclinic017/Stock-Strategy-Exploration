@@ -79,7 +79,7 @@ ALPACA_Performance_Function = function(TODAY,
   
   ## Prioritizing Sector & Industry Diversification ##
   if(!"try-error" %in% class(Sector_Ind_DF)){
-    LONG = Diversification(LONG)
+    LONG = Diversification(LONG,Sector_Ind_DF)
   }
   
   
@@ -375,7 +375,7 @@ ALPACA_Performance_Function = function(TODAY,
     
     ## Prioritizing Sector & Industry Diversification ##
     if(!"try-error" %in% class(Sector_Ind_DF)){
-      SHORT = Diversification(SHORT)
+      SHORT = Diversification(SHORT,Sector_Ind_DF)
     }
     
     

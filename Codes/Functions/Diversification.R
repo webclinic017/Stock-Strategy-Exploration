@@ -1,5 +1,5 @@
 ## Diversification
-Diversification = function(RESULT){ 
+Diversification = function(RESULT,Sector_Ind_DF){ 
   if(!"try-error" %in% class(Sector_Ind_DF)){
     ## Sector & Industry Filter
     TMP = RESULT %>%

@@ -137,11 +137,8 @@ if(Hour < 12){
   Stocks = unique(Last_Time$Stock)
   
   ## Spinning Up Clusters
-  pb <- progress_estimated(length(Stocks))
-  progress <- function(n) pb$pause(0.1)$tick()$print()
-  opts <- list(progress = progress)
   library(doSNOW)
-  c1 = makeCluster(NClusters,outfile = "")
+  c1 = makeCluster(NClusters)
   registerDoSNOW(c1)
   
   ## Parallel Execution
@@ -152,8 +149,7 @@ if(Hour < 12){
                                   "quantmod",
                                   "lubridate",
                                   "TTR"),
-                    .verbose = F,
-                    .options.snow = opts) %dopar% {
+                    .verbose = F) %dopar% {
                       ## Subsetting Data
                       TMP = PR_Stage_R2 %>%
                         filter(Stock == Stocks[i])
@@ -202,10 +198,10 @@ if(Hour < 12){
                                TODAY = TODAY,
                                FinViz = T)
   
-  write.csv(x = RESULT$TOTAL,
-            file = str_c(Project_Folder,
-                         "/Data/Return_Predictions/",
-                         as_date(now()),".csv"))
+  try(write.csv(x = RESULT$TOTAL,
+                file = str_c(Project_Folder,
+                             "/Data/Return_Predictions/",
+                             as_date(now()),".csv")))
   
   ## Saving Results
   save(RESULT,TODAY,Models,
