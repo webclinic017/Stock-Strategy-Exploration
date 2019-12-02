@@ -20,7 +20,8 @@ Prediction_Function = function(Models,
            Expected_Return_Long = Preds_Long) %>%
     filter(Expected_Return_Short > exp(log(1 + Risk_Free_Rate)/(1/(Models$Model_Short$Timeframe/365))) - 1,
            Expected_Return_Long > exp(log(1 + Risk_Free_Rate)/(1/(Models$Model_Long$Timeframe/365))) - 1,
-           Alpha_Stock > 0) %>%
+           Alpha_Stock > 0,
+           P_Alpha_Stock < 0.001) %>%
     mutate(Decider = abs(Expected_Return_Long/Beta_Stock) + Alpha_Stock + abs(Expected_Return_Short/Beta_Stock),
            Stop_Loss = Close - 2*ATR,
            Risk_Ratio = Expected_Return_Long / ((Close - Stop_Loss)/Close)) %>%
@@ -38,7 +39,8 @@ Prediction_Function = function(Models,
            Expected_Return_Long = Preds_Long) %>%
     filter(Expected_Return_Short < -exp(log(1 + Risk_Free_Rate + Margin_Intrest + ETB_Rate)/(1/(Models$Model_Short$Timeframe/365))) + 1,
            Expected_Return_Long < -exp(log(1 + Risk_Free_Rate + Margin_Intrest + ETB_Rate)/(1/(Models$Model_Long$Timeframe/365))) + 1,
-           Alpha_Stock < 0) %>%
+           Alpha_Stock < 0,
+           P_Alpha_Stock < 0.001) %>%
     mutate(Decider = abs(Expected_Return_Long/Beta_Stock) - Alpha_Stock + abs(Expected_Return_Short/Beta_Stock),
            Stop_Loss = Close + 2*ATR,
            Risk_Ratio = Expected_Return_Long / ((Stop_Loss - Close)/Close)) %>%
@@ -51,6 +53,20 @@ Prediction_Function = function(Models,
     arrange(Prob_Rank) %>%
     select(Prob_Rank,Decider,Expected_Return_Long,Expected_Return_Short,Risk_Ratio,Stop_Loss,Stop_Loss_Percent,everything())
 
+  TOTAL = TODAY %>%
+    mutate(Expected_Return_Short = Preds_Short,
+           Expected_Return_Long = Preds_Long) %>%
+    mutate(Decider = abs(Expected_Return_Long/Beta_Stock) + Alpha_Stock + abs(Expected_Return_Short/Beta_Stock),
+           Stop_Loss = Close - 2*ATR,
+           Risk_Ratio = Expected_Return_Long / ((Close - Stop_Loss)/Close)) %>%
+    filter(!str_detect(Stock,"^\\^")) %>%
+    mutate(Prob_Rank = dense_rank(-Risk_Ratio),
+           Stop_Loss_Percent = (Close - Stop_Loss)/Close) %>%
+    arrange(Prob_Rank) %>%
+    select(Expected_Return_Long,Expected_Return_Short,Stop_Loss,Stop_Loss_Percent,Risk_Ratio,Stock,Date,Close,
+           Alpha_Stock,P_Alpha_Stock,Beta_Stock,P_Beta_Stock)
+  
+  
   if(FinViz){
     LONG = FinViz_Meta_Data(LONG)
     LONG = LONG %>%
@@ -59,11 +75,12 @@ Prediction_Function = function(Models,
              Sales.Q.Q > 0)
     SHORT = FinViz_Meta_Data(SHORT)
     SHORT = SHORT %>%
-      filter(Short.Ratio < Hold_Period) %>%
+      filter(Short.Ratio < Models$Model_Long$Timeframe) %>%
       select(Short.Ratio,everything())
   }
   
   return(list(
     LONG = LONG,
-    SHORT = SHORT))
+    SHORT = SHORT,
+    TOTAL))
 }

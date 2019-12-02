@@ -200,8 +200,12 @@ if(Hour < 12){
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
-                               FinViz = T) %>%
-    BUY_POS_FILTER()
+                               FinViz = T)
+  
+  write.csv(x = RESULT$TOTAL,
+            file = str_c(Project_Folder,
+                         "/Data/Return_Predictions/",
+                         as_date(now()),".csv"))
   
   ## Saving Results
   save(RESULT,TODAY,Models,

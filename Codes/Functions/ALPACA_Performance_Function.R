@@ -362,7 +362,6 @@ ALPACA_Performance_Function = function(TODAY,
     
     ## Removes Any Outside of Price Range
     SHORT = SHORT %>%
-      BUY_POS_FILTER() %>%
       filter(Close < Investment_Value*Max_Holding,
              !Stock %in% toupper(Current_Holdings$symbol)) %>%
       select(Sector,Industry,Decider,everything())
