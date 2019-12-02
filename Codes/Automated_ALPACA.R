@@ -191,8 +191,9 @@ if(Hour < 12){
   
   ## Building Models ##
   Models = Modeling_Function(ID_DF = ID_DF,
-                             Max_Date = max(ID_DF$Date))
-  print(Models$RMSE)
+                             Max_Date = max(ID_DF$Date),
+                             Short_Time = 15,
+                             Long_Time = 50)
   
   TODAY = ID_DF %>%
     filter(Date == max(Date))
