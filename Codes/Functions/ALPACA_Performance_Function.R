@@ -443,7 +443,7 @@ ALPACA_Performance_Function = function(TODAY,
         Current_Info = get_bars(ticker = STOCK,
                                 limit = 1)
         Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
-        Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
+        Quantity = abs(as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK]))
         Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
         
         ## Pulling Existing Loss_Order
@@ -491,10 +491,9 @@ ALPACA_Performance_Function = function(TODAY,
           submit_order(ticker = STOCK,
                        qty = as.character(Quantity),
                        side = "buy",
-                       type = "stop_limit",
+                       type = "stop",
                        time_in_force = "gtc",
                        stop_price = as.character(Stop_Loss),
-                       limit_price = as.character(Stop_Loss),
                        live = !PAPER)
           
           ## Recording In Decison Log
@@ -532,7 +531,6 @@ ALPACA_Performance_Function = function(TODAY,
                         qty = as.character(Quantity),
                         time_in_force = "gtc",
                         stop_price = as.character(Stop_Loss),
-                        limit_price = as.character(Stop_Loss),
                         live = !PAPER)
             
             ## Defining Reason For Decison Log

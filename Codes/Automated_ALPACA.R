@@ -199,8 +199,7 @@ if(Hour < 12){
                                FinViz = T)
   
   try(write.csv(x = RESULT$TOTAL,
-                file = str_c(Project_Folder,
-                             "/Data/Return_Predictions/",
+                file = str_c("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stock Projections/",
                              as_date(now()),".csv")))
   
   ## Saving Results
@@ -230,32 +229,32 @@ ALPACA_Performance_Function(TODAY = TODAY,
                             Max_Holding = Max_Holding_Live,
                             PAPER = F)
 
-## Running Back Test To Check For New Rules ##
-Runs = 10
-p = progress_estimated(Runs)
-Results = list()
-for(i in 1:Runs){
-  Results[[i]] = try(BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
-                                             Max_Loss = Max_Loss,
-                                             ID_DF = ID_DF,
-                                             Auto_Stocks = Auto_Stocks,
-                                             Progress = T))
-  p$pause(0.1)$tick()$print()
-}
-save(Results,
-     file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
-load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
-keep = sapply(Results,class) == "list"
-Results = Results[keep]
-RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
-Keep = RUNS$Trade_Number > 20
-Results = Results[Keep]
-RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
-RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
-TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
-
-## Summarizing Run Results
-psych::describe(RUNS[,3:ncol(RUNS)])
+# ## Running Back Test To Check For New Rules ##
+# Runs = 10
+# p = progress_estimated(Runs)
+# Results = list()
+# for(i in 1:Runs){
+#   Results[[i]] = try(BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
+#                                              Max_Loss = Max_Loss,
+#                                              ID_DF = ID_DF,
+#                                              Auto_Stocks = Auto_Stocks,
+#                                              Progress = T))
+#   p$pause(0.1)$tick()$print()
+# }
+# save(Results,
+#      file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+# load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+# keep = sapply(Results,class) == "list"
+# Results = Results[keep]
+# RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+# Keep = RUNS$Trade_Number > 20
+# Results = Results[Keep]
+# RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+# RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
+# TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
+# 
+# ## Summarizing Run Results
+# psych::describe(RUNS[,3:ncol(RUNS)])
 # 
 # ## Reducing Rule Set
 # RULES_Summary = RULES %>%
