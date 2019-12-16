@@ -65,7 +65,6 @@ ALPACA_Performance_Function = function(TODAY,
   
   ## Removes Any Outside of Price Range
   LONG = LONG %>%
-    BUY_POS_FILTER() %>%
     filter(Close < Investment_Value*Max_Holding,
            !Stock %in% toupper(Current_Holdings$symbol)) %>%
     select(Sector,Industry,Decider,everything())
@@ -148,6 +147,8 @@ ALPACA_Performance_Function = function(TODAY,
       ##########################  Current Asset Information  ########################## 
       Current_Info = get_bars(ticker = STOCK,
                               limit = 1)
+      Current_Forecast = RESULT$TOTAL %>%
+        filter(Stock == STOCK)
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
       Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
@@ -168,7 +169,7 @@ ALPACA_Performance_Function = function(TODAY,
       Buy_Order = try(
         get_orders(
           ticker = STOCK,
-          status = 'closed',
+          from = as_date(now()) - 365,
           live = !PAPER
         ) %>%
           filter(status == 'filled',
@@ -185,84 +186,145 @@ ALPACA_Performance_Function = function(TODAY,
       ########################## Stop Loss Calculations ########################## 
       if(nrow(Loss_Order) == 0){
         
-        ## Initial Stop Loss Based On ATR
-        Stop_Loss = max(c(
-          Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                         TODAY$Date == max(TODAY$Date)],1),
-          as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                          TODAY$Date == max(TODAY$Date)],1)
-        ))
-        
-        ## Placing Stop Loss Order
-        submit_order(ticker = STOCK,
-                     qty = as.character(Quantity),
-                     side = "sell",
-                     type = "stop_limit",
-                     time_in_force = "gtc",
-                     stop_price = as.character(Stop_Loss),
-                     limit_price = as.character(Stop_Loss),
-                     live = !PAPER)
-        
-        ## Recording In Decison Log
-        Report_Out = data.frame(Time = Sys.time(),
-                                Stock = STOCK,
-                                Qty = Quantity,
-                                Side = "sell",
-                                Type = "stop",
-                                Price = Stop_Loss,
-                                Reason = "Initial Stop Loss")
-        try(write_csv(x = Report_Out,
-                      path = Report_CSV,
-                      append = T))
-      }else{
-        Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
-        
-        ## Bumping Loss Order Up If Profit Target Met
-        if(Pcent_Gain >= Target_Pcent_Gain){
-          Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
+        if(Pcent_Gain > 0 & Current_Forecast$Risk_Ratio < 1){
+          
+          ## Placing Market Order
+          submit_order(ticker = STOCK,
+                       qty = as.character(Quantity),
+                       side = "sell",
+                       type = "market",
+                       time_in_force = "day",
+                       live = !PAPER)
+          
+          ## Recording In Decison Log
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "market",
+                                  Price = Current_Info$c,
+                                  Reason = "Risk Ratio < 1 Sell To Protect Profit")
+          
+          try(write_csv(x = Report_Out,
+                        path = Report_CSV,
+                        append = T))
+          
         }else{
-          Target_Stop = 0
-        }
-        
-        ## Determining New Stop Loss
-        Stop_Loss = max(c(
-          as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                          TODAY$Date == max(TODAY$Date)],1),
-          Target_Stop))
-        
-        ## Updating Stop Loss if Higher
-        if(Stop_Loss > Current_Stop_Loss){
           
-          ## Updating Exisiting Order
-          patch_order(order_id = Loss_Order$id,
-                      qty = as.character(Quantity),
-                      time_in_force = "gtc",
-                      stop_price = as.character(Stop_Loss),
-                      limit_price = as.character(Stop_Loss),
-                      live = !PAPER)
+          ## Initial Stop Loss Based On ATR
+          Stop_Loss = max(c(
+            Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                           TODAY$Date == max(TODAY$Date)],1),
+            as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                            TODAY$Date == max(TODAY$Date)],1)
+          ))
           
-          ## Defining Reason For Decison Log
-          if(Stop_Loss == Target_Stop){
-            Reason = "Profit Target Met"
-          }else{
-            Reason = "Stop Loss Update"
-          }
+          ## Placing Stop Loss Order
+          submit_order(ticker = STOCK,
+                       qty = as.character(Quantity),
+                       side = "sell",
+                       type = "stop_limit",
+                       time_in_force = "gtc",
+                       stop_price = as.character(Stop_Loss),
+                       limit_price = as.character(Stop_Loss),
+                       live = !PAPER)
           
-          ## Writing Update To Log File
+          ## Recording In Decison Log
           Report_Out = data.frame(Time = Sys.time(),
                                   Stock = STOCK,
                                   Qty = Quantity,
                                   Side = "sell",
                                   Type = "stop",
                                   Price = Stop_Loss,
-                                  Reason = Reason)
+                                  Reason = "Initial Stop Loss")
           
-          ## Appending To Decison Log
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
         }
+        
+      }else{
+        
+        if(Pcent_Gain > 0 & Current_Forecast$Risk_Ratio < 1){
+          
+          ## Canceling Existing Loss Order
+          cancel_order(ticker = STOCK,
+                       order_id = Loss_Order$id)
+          Sys.sleep(10)
+          
+          ## Placing Market Order
+          submit_order(ticker = STOCK,
+                       qty = as.character(Quantity),
+                       side = "sell",
+                       type = "market",
+                       time_in_force = "day",
+                       live = !PAPER)
+          
+          ## Recording In Decison Log
+          Report_Out = data.frame(Time = Sys.time(),
+                                  Stock = STOCK,
+                                  Qty = Quantity,
+                                  Side = "sell",
+                                  Type = "market",
+                                  Price = Current_Info$c,
+                                  Reason = "Risk Ratio < 1 Sell To Protect Profit")
+          
+          try(write_csv(x = Report_Out,
+                        path = Report_CSV,
+                        append = T))
+          
+        }else{
+          
+          Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
+          
+          ## Bumping Loss Order Up If Profit Target Met
+          if(Pcent_Gain >= Target_Pcent_Gain){
+            Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
+          }else{
+            Target_Stop = 0
+          }
+          
+          ## Determining New Stop Loss
+          Stop_Loss = max(c(
+            as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                            TODAY$Date == max(TODAY$Date)],1),
+            Target_Stop))
+          
+          ## Updating Stop Loss if Higher
+          if(Stop_Loss > Current_Stop_Loss){
+            
+            ## Updating Exisiting Order
+            patch_order(order_id = Loss_Order$id,
+                        qty = as.character(Quantity),
+                        time_in_force = "gtc",
+                        stop_price = as.character(Stop_Loss),
+                        limit_price = as.character(Stop_Loss),
+                        live = !PAPER)
+            
+            ## Defining Reason For Decison Log
+            if(Stop_Loss == Target_Stop){
+              Reason = "Profit Target Met"
+            }else{
+              Reason = "Stop Loss Update"
+            }
+            
+            ## Writing Update To Log File
+            Report_Out = data.frame(Time = Sys.time(),
+                                    Stock = STOCK,
+                                    Qty = Quantity,
+                                    Side = "sell",
+                                    Type = "stop",
+                                    Price = Stop_Loss,
+                                    Reason = Reason)
+            
+            ## Appending To Decison Log
+            try(write_csv(x = Report_Out,
+                          path = Report_CSV,
+                          append = T))
+          }
+        }
       }
+      
       ########################## Rebalancing Check ########################## 
       if(Rebalance){
         Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
