@@ -1,0 +1,140 @@
+---
+title: "Portfolio Analysis"
+author: "Emerson COMRES"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Loading COMRES Data Science Package
+library(EmersonDataScience)
+
+## Loading and Installing Packages if necessacary
+Required_Packages = c('tidyverse','ggthemes','installr','lubridate','recipes','scales','devtools','pryr','knitr','rprojroot','readxl',"AlpacaforR")
+load_or_install(Required_Packages)
+
+## Setting Default Chunk Options & Directory
+knitr::opts_chunk$set(echo = F,warning = F,message = F,error = F,fig.width = 6,fig.height = 6)
+Project_Folder = rprojroot::find_rstudio_root_file()
+knitr::opts_knit$set(root.dir = Project_Folder)
+Root_Folder = "//climsidfs07/refeng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/"
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+
+## Time Period To Evaluate (Days)
+Period = 90
+## Live or Paper Account
+Live = T
+
+load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+```
+
+```{r Setting Access Keys}
+KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
+Sys.setenv('APCA-PAPER-API-KEY-ID' = KEYS$Key.ID)
+Sys.setenv('APCA-PAPER-API-SECRET-KEY' = KEYS$Secret.Key)
+KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
+Sys.setenv('APCA-LIVE-API-KEY-ID' = as.character(KEYS$Key.ID))
+Sys.setenv('APCA-LIVE-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
+
+ACCT_ACTS = c('FILL', 'TRANS', 'DIV', 'MISC')
+```
+
+
+```{r Paper Portfolio Analysis}
+## Getting Activity For Past Month
+Dates = as.character(seq(as_date(ymd_hms(now() - 60*60*24*Period)),as_date(now()),by = "day"))
+Activity = list()
+p = progress_estimated(length(Dates))
+for(i in Dates){
+  STORE = list()
+  for(j in ACCT_ACTS){
+    TMP = get_account_activities(activity_type = j,
+                                 date = i,
+                                 page_size = 100,
+                                 live = Live)
+    if("data.frame" %in% class(TMP)){
+      STORE[[j]] = TMP
+    }
+  }
+  if(length(STORE) >= 1){
+    Activity[[i]] = plyr::ldply(STORE,bind_rows)
+  }
+  p$pause(0.0001)$tick()$print()
+}
+Activities = plyr::ldply(Activity,bind_rows) %>%
+  distinct() %>%
+  mutate(Time = ymd(str_c(
+    str_sub(id,1,4),"-",
+    str_sub(id,5,6),"-",
+    str_sub(id,7,8)))) %>%
+  select(-c(.id,id,leaves_qty,cum_qty,transaction_time)) %>%
+  mutate(price = as.numeric(price),
+         qty = as.numeric(qty),
+         value = case_when(
+           !is.na(price) ~ price*qty,
+           T ~ as.numeric(net_amount))) %>%
+  arrange(symbol) %>%
+  select(activity_type,Time,value,qty,side,symbol)
+
+Profit = sum(Activities$value[Activities$activity_type == "DIV"])
+Investment_Value = as.numeric(get_account(live = Live)$portfolio_value)
+  
+symbols = na.omit(unique(Activities$symbol))
+## Normal Buying Calculations
+for(i in symbols){
+  TMP = Activities %>%
+    filter(symbol == i) %>%
+    group_by(side) %>%
+    summarise(value = sum(value),
+              qty = sum(qty)) %>%
+    ungroup() %>%
+    na.omit()
+  if("sell_short" %in% TMP$side){
+    ## Currently Holding Logic
+    if(nrow(TMP) == 1){
+      Current_Value = as.numeric(get_bars(ticker = i,limit = 1)[[i]]$close)*TMP$qty
+      Profit = Profit + TMP$value - Current_Value
+    }else{
+      Profit = Profit + TMP$value[TMP$side == "sell_short"] - TMP$value[TMP$side == "buy"]
+    }
+  }else{
+    ## Currently Holding Logic
+    if(nrow(TMP) == 1){
+      if(TMP$side == "sell"){
+        Old_Value = as.numeric(get_bars(ticker = i,
+                                        from = Dates[1],
+                                        limit = 30)[[i]]$close)*TMP$qty
+        Old_Value = Old_Value[1]
+        Profit = Profit + TMP$value - Old_Value
+      }else if(TMP$side == "buy"){
+        Current_Value = as.numeric(get_bars(ticker = i,limit = 1)[[i]]$close)*TMP$qty
+        Profit = Profit + Current_Value - TMP$value
+      }
+    }else{
+      Profit = Profit + TMP$value[TMP$side == "sell"] - TMP$value[TMP$side == "buy"]
+    }
+  }
+}
+Return = Profit/(Investment_Value - Profit)
+Annual_Return = (1+Return)^(365/Period) - 1
+
+Market = Combined_Results %>%
+  filter(Date %in% ymd(Dates)) %>%
+  group_by(Date) %>%
+  summarise(Value = mean(Close,trim = 0.05,na.rm = T))
+Market_Investment_Value = Market$Value[nrow(Market)]
+Market_Profit = Market$Value[nrow(Market)] - Market$Value[1]
+Market_Return = Market_Profit/(Market_Investment_Value - Market_Profit)
+Market_Annual_Return = (1+Market_Return)^(365/Period) - 1
+
+Performance = Return - Market_Return
+print(str_c("Performance Compared To Market Past ",Period," Days"))
+print(percent(Performance))
+```
+

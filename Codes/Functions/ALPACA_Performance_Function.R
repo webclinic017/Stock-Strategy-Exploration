@@ -6,15 +6,15 @@ ALPACA_Performance_Function = function(TODAY,
                                        PAPER = T){
   
   ########################## Setting API Keys ##########################
+  KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
+  Sys.setenv('APCA-PAPER-API-KEY-ID' = KEYS$Key.ID)
+  Sys.setenv('APCA-PAPER-API-SECRET-KEY' = KEYS$Secret.Key)
+  KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
+  Sys.setenv('APCA-LIVE-API-KEY-ID' = as.character(KEYS$Key.ID))
+  Sys.setenv('APCA-LIVE-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   if(PAPER){
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
-    Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
-    Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
     Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Paper Choices.csv")
   }else{
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
-    Sys.setenv('APCA-API-KEY-ID' = as.character(KEYS$Key.ID))
-    Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
     Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Live Choices.csv")
   }
   
@@ -112,13 +112,7 @@ ALPACA_Performance_Function = function(TODAY,
                    time_in_force = "day",
                    live = !PAPER,
                    extended_hours = T,
-                   limit_price = as.character(LONG$Close[STOCK]),
-                   client_order_id = str_c("T",
-                                           round(LONG$Expected_Return_Long[STOCK],4),
-                                           "S",
-                                           round(LONG$Stop_Loss[STOCK],4),
-                                           "D",
-                                           Sys.Date()))
+                   limit_price = as.character(LONG$Close[STOCK]))
       
       ## Recording Decison in Log
       Report_Out = data.frame(Time = Sys.time(),
@@ -146,12 +140,13 @@ ALPACA_Performance_Function = function(TODAY,
       
       ##########################  Current Asset Information  ########################## 
       Current_Info = get_bars(ticker = STOCK,
-                              limit = 1)
+                              limit = 1)[[STOCK]]
       Current_Forecast = RESULT$TOTAL %>%
-        filter(Stock == STOCK)
+        filter(Stock == STOCK) %>%
+        head(1)
       Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
       Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
-      Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
+      Pcent_Gain = (as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
      
       ## Pulling Existing Loss_Order
       Loss_Order = try(
@@ -162,60 +157,20 @@ ALPACA_Performance_Function = function(TODAY,
         ) %>%
           filter(side == "sell") %>%
           filter(created_at == max(created_at)) %>%
-          head(1)
+          head(1),
+        silent = T
       )
       
-      ## Pulling Profit Target From Client Order ID
-      Buy_Order = try(
-        get_orders(
-          ticker = STOCK,
-          from = as_date(now()) - 365,
-          live = !PAPER
-        ) %>%
-          filter(status == 'filled',
-                 side == "buy") %>%
-          filter(filled_at == max(filled_at)) %>%
-          head(1)
-      )
-      Target_Pcent_Gain = as.numeric(str_extract(Buy_Order$client_order_id,"(?<=T).+(?=S)"))
-      if(is_empty(Target_Pcent_Gain)){
-        Target_Pcent_Gain = -1
-      }
       
       
       ########################## Stop Loss Calculations ########################## 
-      if(nrow(Loss_Order) == 0){
-        
-        if(Pcent_Gain > 0 & Current_Forecast$Risk_Ratio < 1){
-          
-          ## Placing Market Order
-          submit_order(ticker = STOCK,
-                       qty = as.character(Quantity),
-                       side = "sell",
-                       type = "market",
-                       time_in_force = "day",
-                       live = !PAPER)
-          
-          ## Recording In Decison Log
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Quantity,
-                                  Side = "sell",
-                                  Type = "market",
-                                  Price = Current_Info$c,
-                                  Reason = "Risk Ratio < 1 Sell To Protect Profit")
-          
-          try(write_csv(x = Report_Out,
-                        path = Report_CSV,
-                        append = T))
-          
-        }else{
+      if(any(nrow(Loss_Order) == 0,"try-error" %in% class(Loss_Order))){
           
           ## Initial Stop Loss Based On ATR
           Stop_Loss = max(c(
             Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                            TODAY$Date == max(TODAY$Date)],1),
-            as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+            as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                                             TODAY$Date == max(TODAY$Date)],1)
           ))
           
@@ -241,32 +196,26 @@ ALPACA_Performance_Function = function(TODAY,
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
-        }
         
       }else{
         
-        if(Pcent_Gain > 0 & Current_Forecast$Risk_Ratio < 1){
-          
-          ## Canceling Existing Loss Order
-          cancel_order(ticker = STOCK,
-                       order_id = Loss_Order$id)
-          Sys.sleep(10)
-          
-          ## Placing Market Order
-          submit_order(ticker = STOCK,
-                       qty = as.character(Quantity),
-                       side = "sell",
-                       type = "market",
-                       time_in_force = "day",
-                       live = !PAPER)
+        if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Risk_Ratio),1,Current_Forecast$Risk_Ratio) < 1){
+        
+          ## Updating Exisiting Order
+          replace_order(ticker_id = Loss_Order$id,
+                      qty = as.character(Quantity),
+                      time_in_force = "gtc",
+                      stop_price = as.character((Current_Info$close)),
+                      limit_price = as.character((Current_Info$close)),
+                      live = !PAPER)
           
           ## Recording In Decison Log
           Report_Out = data.frame(Time = Sys.time(),
                                   Stock = STOCK,
                                   Qty = Quantity,
                                   Side = "sell",
-                                  Type = "market",
-                                  Price = Current_Info$c,
+                                  Type = "stop",
+                                  Price = Current_Info$close,
                                   Reason = "Risk Ratio < 1 Sell To Protect Profit")
           
           try(write_csv(x = Report_Out,
@@ -277,24 +226,15 @@ ALPACA_Performance_Function = function(TODAY,
           
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
           
-          ## Bumping Loss Order Up If Profit Target Met
-          if(Pcent_Gain >= Target_Pcent_Gain){
-            Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
-          }else{
-            Target_Stop = 0
-          }
-          
           ## Determining New Stop Loss
-          Stop_Loss = max(c(
-            as.numeric(Current_Info$c) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                            TODAY$Date == max(TODAY$Date)],1),
-            Target_Stop))
+          Stop_Loss = as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                            TODAY$Date == max(TODAY$Date)],1)
           
           ## Updating Stop Loss if Higher
           if(Stop_Loss > Current_Stop_Loss){
             
             ## Updating Exisiting Order
-            patch_order(order_id = Loss_Order$id,
+            replace_order(ticker_id = Loss_Order$id,
                         qty = as.character(Quantity),
                         time_in_force = "gtc",
                         stop_price = as.character(Stop_Loss),
@@ -302,11 +242,7 @@ ALPACA_Performance_Function = function(TODAY,
                         live = !PAPER)
             
             ## Defining Reason For Decison Log
-            if(Stop_Loss == Target_Stop){
-              Reason = "Profit Target Met"
-            }else{
-              Reason = "Stop Loss Update"
-            }
+            Reason = "Stop Loss Update"
             
             ## Writing Update To Log File
             Report_Out = data.frame(Time = Sys.time(),
@@ -329,7 +265,7 @@ ALPACA_Performance_Function = function(TODAY,
       if(Rebalance){
         Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
         if(Market_Value > Investment_Value*Max_Holding){
-          Max_qty = floor(Investment_Value*Max_Holding/Current_Info$c)
+          Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
           if(Max_qty > 0){
             ## Determining New Spread
             Keep = Max_qty
@@ -348,7 +284,7 @@ ALPACA_Performance_Function = function(TODAY,
             )
             
             ## Updating Exisiting Order
-            patch_order(order_id = Loss_Order$id,
+            replace_order(ticker_id = Loss_Order$id,
                         qty = as.character(Keep),
                         time_in_force = "gtc",
                         live = !PAPER)
@@ -369,7 +305,7 @@ ALPACA_Performance_Function = function(TODAY,
                                     Qty = Sell,
                                     Side = "sell",
                                     Type = "market",
-                                    Price = Current_Info$c,
+                                    Price = Current_Info$close,
                                     Reason = "Rebalance Reduction")
             
             ## Appending To Decison Log
@@ -395,7 +331,7 @@ ALPACA_Performance_Function = function(TODAY,
                          silent = T)
     
     Investment_Value = as.numeric(ACCT_Status$portfolio_value)
-    Buying_Power = as.numeric(ACCT_Status$initial_margin)
+    Buying_Power = as.numeric(ACCT_Status$regt_buying_power)
     
     ########################## Investment Choice Reduction ########################## 
     
@@ -471,13 +407,7 @@ ALPACA_Performance_Function = function(TODAY,
                      time_in_force = "day",
                      live = !PAPER,
                      extended_hours = T,
-                     limit_price = as.character(SHORT$Close[STOCK]),
-                     client_order_id = str_c("T",
-                                             round(SHORT$Expected_Return_Long[STOCK],4),
-                                             "S",
-                                             round(SHORT$Stop_Loss[STOCK],4),
-                                             "D",
-                                             Sys.Date()))
+                     limit_price = as.character(SHORT$Close[STOCK]))
         
         ## Recording Decison in Log
         Report_Out = data.frame(Time = Sys.time(),
@@ -503,10 +433,10 @@ ALPACA_Performance_Function = function(TODAY,
         
         ##########################  Current Asset Information  ########################## 
         Current_Info = get_bars(ticker = STOCK,
-                                limit = 1)
+                                limit = 1)[[STOCK]]
         Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
         Quantity = abs(as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK]))
-        Pcent_Gain = (as.numeric(Current_Info$c)-Buy_Price)/Buy_Price
+        Pcent_Gain = (as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
         
         ## Pulling Existing Loss_Order
         Loss_Order = try(
@@ -519,23 +449,7 @@ ALPACA_Performance_Function = function(TODAY,
             filter(created_at == max(created_at)) %>%
             head(1)
         )
-        
-        ## Pulling Profit Target From Client Order ID
-        Buy_Order = try(
-          get_orders(
-            ticker = STOCK,
-            status = 'closed',
-            live = !PAPER
-          ) %>%
-            filter(status == 'filled',
-                   side == "sell") %>%
-            filter(filled_at == max(filled_at)) %>%
-            head(1)
-        )
-        Target_Pcent_Gain = as.numeric(str_extract(Buy_Order$client_order_id,"(?<=T).+(?=S)"))
-        if(is_empty(Target_Pcent_Gain)){
-          Target_Pcent_Gain = 1
-        }
+  
         
         
         ########################## Stop Loss Calculations ########################## 
@@ -572,35 +486,23 @@ ALPACA_Performance_Function = function(TODAY,
         }else{
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
           
-          ## Bumping Loss Order Up If Profit Target Met
-          if(Pcent_Gain <= Target_Pcent_Gain){
-            Target_Stop = Buy_Price*Target_Pcent_Gain + Buy_Price
-          }else{
-            Target_Stop = 1e06
-          }
           
           ## Determining New Stop Loss
-          Stop_Loss = min(c(
-            as.numeric(Current_Info$c) + 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                            TODAY$Date == max(TODAY$Date)],1),
-            Target_Stop))
+          Stop_Loss = as.numeric(Current_Info$close) + 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                            TODAY$Date == max(TODAY$Date)],1)
           
           ## Updating Stop Loss if Higher
           if(Stop_Loss < Current_Stop_Loss){
             
             ## Updating Exisiting Order
-            patch_order(order_id = Loss_Order$id,
+            replace_order(ticker_id = Loss_Order$id,
                         qty = as.character(Quantity),
                         time_in_force = "gtc",
                         stop_price = as.character(Stop_Loss),
                         live = !PAPER)
             
             ## Defining Reason For Decison Log
-            if(Stop_Loss == Target_Stop){
-              Reason = "Short Profit Target Met"
-            }else{
-              Reason = "Short Stop Loss Update"
-            }
+            Reason = "Short Stop Loss Update"
             
             ## Writing Update To Log File
             Report_Out = data.frame(Time = Sys.time(),
@@ -621,7 +523,7 @@ ALPACA_Performance_Function = function(TODAY,
         if(Rebalance){
           Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
           if(Market_Value > Investment_Value*Max_Holding){
-            Max_qty = floor(Investment_Value*Max_Holding/Current_Info$c)
+            Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
             if(Max_qty > 0){
               ## Determining New Spread
               Keep = Max_qty
@@ -640,7 +542,7 @@ ALPACA_Performance_Function = function(TODAY,
               )
               
               ## Updating Exisiting Order
-              patch_order(order_id = Loss_Order$id,
+              replace_order(ticker_id = Loss_Order$id,
                           qty = as.character(Keep),
                           time_in_force = "gtc",
                           live = !PAPER)
@@ -661,7 +563,7 @@ ALPACA_Performance_Function = function(TODAY,
                                       Qty = Sell,
                                       Side = "buy",
                                       Type = "market",
-                                      Price = Current_Info$c,
+                                      Price = Current_Info$close,
                                       Reason = "Short Rebalance Reduction")
               
               ## Appending To Decison Log
