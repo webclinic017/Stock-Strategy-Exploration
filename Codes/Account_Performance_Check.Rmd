@@ -27,9 +27,9 @@ Root_Folder = "//climsidfs07/refeng/1 Ref. Engineering (SH, Scroll & IPD)/13) An
 sourceDir(paste0(Project_Folder,"/Codes/Functions"))
 
 ## Time Period To Evaluate (Days)
-Period = 90
+Period = 30
 ## Live or Paper Account
-Live = T
+Live = F
 
 load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
 ```
@@ -78,16 +78,23 @@ Activities = plyr::ldply(Activity,bind_rows) %>%
          qty = as.numeric(qty),
          value = case_when(
            !is.na(price) ~ price*qty,
-           T ~ as.numeric(net_amount))) %>%
+           T ~ 0))%>%
   arrange(symbol) %>%
   select(activity_type,Time,value,qty,side,symbol)
 
 Profit = sum(Activities$value[Activities$activity_type == "DIV"])
 Investment_Value = as.numeric(get_account(live = Live)$portfolio_value)
+Current_Holdings = get_positions(live = !PAPER)
   
 symbols = na.omit(unique(Activities$symbol))
+Current_Holdings = Current_Holdings %>%
+  filter(!symbol %in% symbols)
+if(!is_empty(Current_Holdings)){
+  Profit = Profit + sum(Current_Holdings$unrealized_pl)
+}
 ## Normal Buying Calculations
 for(i in symbols){
+  print(i)
   TMP = Activities %>%
     filter(symbol == i) %>%
     group_by(side) %>%
@@ -120,6 +127,7 @@ for(i in symbols){
       Profit = Profit + TMP$value[TMP$side == "sell"] - TMP$value[TMP$side == "buy"]
     }
   }
+  print(Profit)
 }
 Return = Profit/(Investment_Value - Profit)
 Annual_Return = (1+Return)^(365/Period) - 1

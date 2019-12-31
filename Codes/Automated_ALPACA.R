@@ -188,7 +188,7 @@ if(Hour < 12){
   ## Building Models ##
   Models = Modeling_Function(ID_DF = ID_DF,
                              Max_Date = max(ID_DF$Date),
-                             Short_Time = 15,
+                             Short_Time = 10,
                              Long_Time = 50)
   
   TODAY = ID_DF %>%

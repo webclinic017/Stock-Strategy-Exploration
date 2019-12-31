@@ -1,12 +1,15 @@
-Modeling_Function = function(ID_DF,Max_Date,Short_Time = 15,Long_Time = 50){
+Modeling_Function = function(ID_DF,Max_Date,Short_Time = 15,Long_Time = 50,Risk_Free_Rate = 0.02){
   
   Sub_Model_Function = function(ID_DF,Max_Date,Timeframe){
     ## Defining Target Variable
     DF = ID_DF %>%
       group_by(Stock) %>%
-      mutate(Adjusted_Lead = (lead(MA50,Timeframe) - MA50)/MA50) %>%
+      mutate(Adjusted_Lead = (lead(Close,Timeframe) - Close)/Close,
+             Adjusted_Lead = Adjusted_Lead - (exp(log(1 + Risk_Free_Rate)/(1/(Timeframe/365))) - 1),
+             Adjusted_Lead = ((1+Adjusted_Lead)^(365/Timeframe) - 1) / Volatility_Klass) %>%
       filter(Date <= Max_Date,
-             Date >= Max_Date-365) %>%
+             Date >= Max_Date-365,
+             Adjusted_Lead <= median(Adjusted_Lead,na.rm = T) + 1.4826*mad(Adjusted_Lead,na.rm = T)*3) %>%
       ungroup() %>%
       na.omit() %>%
       filter(!str_detect(Stock,"^\\^"))
@@ -69,21 +72,21 @@ Modeling_Function = function(ID_DF,Max_Date,Short_Time = 15,Long_Time = 50){
                      s = best_lam,
                      newx = as.matrix(DF[,setdiff(rownames(coef(mod)),"(Intercept)")]))
     all(preds == Preds2)
-    RMSE = MLmetrics::RMSE(preds,Y)
+    MAE = MLmetrics::MAE(preds,Y)
     
     return(list(
       Model = mod,
       s = best_lam,
-      RMSE = RMSE,
+      MAE = MAE,
       Timeframe = Timeframe
     ))
   }
   
   ## Creating Models
   Model_Short = Sub_Model_Function(ID_DF,Max_Date,Timeframe = Short_Time)
-  print(Model_Short$RMSE)
+  print(Model_Short$MAE)
   Model_Long = Sub_Model_Function(ID_DF,Max_Date,Timeframe = Long_Time)
-  print(Model_Long$RMSE)
+  print(Model_Long$MAE)
     
     ## Returning Values ##
     return(list(

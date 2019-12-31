@@ -13,16 +13,16 @@ ALPACA_Performance_Function = function(TODAY,
   Sys.setenv('APCA-LIVE-API-KEY-ID' = as.character(KEYS$Key.ID))
   Sys.setenv('APCA-LIVE-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   if(PAPER){
-    Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Paper Choices.csv")
+    Report_CSV = paste0(Project_Folder,"/data/Decison Tracking/Paper Choices.csv")
   }else{
-    Report_CSV = paste0(Project_Folder,"data/Decison Tracking/Live Choices.csv")
+    Report_CSV = paste0(Project_Folder,"/data/Decison Tracking/Live Choices.csv")
   }
   
   
   ########################## Getting Current Account Information ##########################
   ACCT_Status = get_account(live = !PAPER)
   Current_Holdings = try(get_positions(live = !PAPER) %>%
-    filter(side == "long"))
+                           filter(side == "long"))
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
                          filter(status == "new"),
                        silent = T)
@@ -60,8 +60,6 @@ ALPACA_Performance_Function = function(TODAY,
     LONG = LONG %>%
       filter(!Stock %in% Wash_Sale_Record$symbol)
   }
-  
-  
   
   ## Removes Any Outside of Price Range
   LONG = LONG %>%
@@ -199,7 +197,9 @@ ALPACA_Performance_Function = function(TODAY,
         
       }else{
         
-        if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Risk_Ratio),1,Current_Forecast$Risk_Ratio) < 1){
+        if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Expected_Return_Long),
+                                   1,
+                                   (Current_Forecast$Expected_Return_Long + Current_Forecast$Expected_Return_Short)/2) < 0){
         
           ## Updating Exisiting Order
           replace_order(ticker_id = Loss_Order$id,
@@ -216,7 +216,7 @@ ALPACA_Performance_Function = function(TODAY,
                                   Side = "sell",
                                   Type = "stop",
                                   Price = Current_Info$close,
-                                  Reason = "Risk Ratio < 1 Sell To Protect Profit")
+                                  Reason = "Sharpe Ratio < 0 Sell To Protect Profit")
           
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
@@ -227,11 +227,11 @@ ALPACA_Performance_Function = function(TODAY,
           Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
           
           ## Determining New Stop Loss
-          Stop_Loss = as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                            TODAY$Date == max(TODAY$Date)],1)
+          Stop_Loss = round(as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                            TODAY$Date == max(TODAY$Date)],1),2)
           
           ## Updating Stop Loss if Higher
-          if(Stop_Loss > Current_Stop_Loss){
+          if(all(Stop_Loss > Current_Stop_Loss,!is_empty(Stop_Loss))){
             
             ## Updating Exisiting Order
             replace_order(ticker_id = Loss_Order$id,

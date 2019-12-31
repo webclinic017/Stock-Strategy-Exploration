@@ -1,0 +1,85 @@
+---
+title: "Forecast Exploration"
+author: "Emerson COMRES"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Loading COMRES Data Science Package
+library(EmersonDataScience)
+
+## Loading and Installing Packages if necessacary
+Required_Packages = c('tidyverse','ggthemes','installr','lubridate','recipes','scales','devtools','pryr','knitr','rprojroot','readxl','reshape2')
+load_or_install(Required_Packages)
+
+## Setting Default Chunk Options & Directory
+knitr::opts_chunk$set(echo = F,warning = F,message = F,error = F,fig.width = 6,fig.height = 6)
+Project_Folder = rprojroot::find_rstudio_root_file()
+knitr::opts_knit$set(root.dir = Project_Folder)
+Root_Folder = "//climsidfs07/refeng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stock Projections/"
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+```
+
+```{r}
+Forecasts = list.files(path = Root_Folder,pattern = "*.csv") %>%
+  tail(10)
+Store = list()
+for(i in 1:length(Forecasts)){
+  Store[[i]] = read.csv(file = str_c(Root_Folder,Forecasts[i]))
+}
+Results = plyr::ldply(Store,data.frame)
+
+AF_Lower = function(x){mean(x) - 2*sd(x)}
+AF_Higher = function(x){mean(x) + 2*sd(x)}
+CHECK = Results %>%
+  group_by(Stock) %>%
+  filter(n() == 10) %>%
+  select(Expected_Return_Long,
+         Risk_Ratio,
+         Close,
+         Alpha_Stock,
+         P_Alpha_Stock,
+         Beta_Stock,
+         P_Beta_Stock,
+         Stock) %>%
+  summarise_all(c("AF_Lower","AF_Higher")) %>%
+  ungroup() %>%
+  filter(Expected_Return_Long_AF_Lower > 0,
+         Risk_Ratio_AF_Lower > 2,
+         Risk_Ratio_AF_Lower < 4,
+         Alpha_Stock_AF_Lower > 0,
+         P_Alpha_Stock_AF_Higher < 0.0001)
+```
+
+```{r}
+Stocks = unique(as.character(CHECK$Stock))
+for(Ticker in Stocks){
+  TMP = Results %>%
+    filter(Stock == Ticker) %>%
+    mutate(Date = ymd(Date)) %>%
+    select(Expected_Return_Long,
+           Risk_Ratio,
+           Date,
+           Close,
+           Alpha_Stock,
+           P_Alpha_Stock,
+           Beta_Stock,
+           P_Beta_Stock) %>%
+    melt(id.vars = "Date")
+  p1 = ggplot(TMP,aes(Date,value)) +
+    geom_line(size = 1.25) +
+    labs(color = "",
+         title = str_c(Ticker),
+         subtitle = ) +
+    facet_wrap(variable~.,ncol = 2,scales = "free_y")
+  print(p1)
+}
+```
+  
