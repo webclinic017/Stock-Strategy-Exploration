@@ -3,7 +3,8 @@ ALPACA_Performance_Function = function(TODAY,
                                        Auto_Stocks,
                                        Project_Folder,
                                        Max_Holding = 0.10,
-                                       PAPER = T){
+                                       PAPER = T,
+                                       Rebalance = F){
   
   ########################## Setting API Keys ##########################
   KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
@@ -29,13 +30,6 @@ ALPACA_Performance_Function = function(TODAY,
  
   Investment_Value = as.numeric(ACCT_Status$portfolio_value)
   Buying_Power = as.numeric(ACCT_Status$cash)
-  ## Determining Rebalance (1st Trading Day Of Month)
-  Start = get_calendar(str_c(year(now()),
-                             "-",
-                             month(now()),
-                             "-01")) %>%
-    head(1)
-  Rebalance = as_date(now()) == Start$date[1]
   
   
   ########################## Investment Choice Reduction ########################## 
@@ -132,44 +126,43 @@ ALPACA_Performance_Function = function(TODAY,
   Ticker_List = c(Current_Holdings$symbol)
   
   if(!is_empty(Ticker_List)){
-    
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
-      
-      ##########################  Current Asset Information  ########################## 
-      Current_Info = get_bars(ticker = STOCK,
-                              limit = 1)[[STOCK]]
-      Current_Forecast = RESULT$TOTAL %>%
-        filter(Stock == STOCK) %>%
-        head(1)
-      Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
-      Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
-      Pcent_Gain = (as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
-     
-      ## Pulling Existing Loss_Order
-      Loss_Order = try(
-        get_orders(
-          ticker = STOCK,
-          status = 'open',
-          live = !PAPER
-        ) %>%
-          filter(side == "sell") %>%
-          filter(created_at == max(created_at)) %>%
-          head(1),
-        silent = T
-      )
-      
-      
-      
-      ########################## Stop Loss Calculations ########################## 
-      if(any(nrow(Loss_Order) == 0,"try-error" %in% class(Loss_Order))){
-          
+        
+        ##########################  Current Asset Information  ########################## 
+        Current_Info = get_bars(ticker = STOCK,
+                                limit = 1)[[STOCK]]
+        Current_Forecast = RESULT$TOTAL %>%
+          filter(Stock == STOCK) %>%
+          head(1)
+        Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
+        Quantity = as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK])
+        Pcent_Gain = (as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
+        
+        ## Pulling Existing Loss_Order
+        Loss_Order = try(
+          get_orders(
+            ticker = STOCK,
+            status = 'open',
+            live = !PAPER
+          ) %>%
+            filter(side == "sell") %>%
+            filter(created_at == max(created_at)) %>%
+            head(1),
+          silent = T
+        )
+        
+        
+        
+        ########################## Stop Loss Calculations ########################## 
+        if(any(nrow(Loss_Order) == 0,"try-error" %in% class(Loss_Order))){
+          print(str_c(STOCK," Setting Initial Stop Loss"))
           ## Initial Stop Loss Based On ATR
           Stop_Loss = max(c(
             Buy_Price - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                            TODAY$Date == max(TODAY$Date)],1),
             as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                            TODAY$Date == max(TODAY$Date)],1)
+                                                                TODAY$Date == max(TODAY$Date)],1)
           ))
           
           ## Placing Stop Loss Order
@@ -194,132 +187,149 @@ ALPACA_Performance_Function = function(TODAY,
           try(write_csv(x = Report_Out,
                         path = Report_CSV,
                         append = T))
-        
-      }else{
-        
-        if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Expected_Return_Long),
-                                   1,
-                                   (Current_Forecast$Expected_Return_Long + Current_Forecast$Expected_Return_Short)/2) < 0){
-        
-          ## Updating Exisiting Order
-          replace_order(ticker_id = Loss_Order$id,
-                      qty = as.character(Quantity),
-                      time_in_force = "gtc",
-                      stop_price = as.character((Current_Info$close)),
-                      limit_price = as.character((Current_Info$close)),
-                      live = !PAPER)
-          
-          ## Recording In Decison Log
-          Report_Out = data.frame(Time = Sys.time(),
-                                  Stock = STOCK,
-                                  Qty = Quantity,
-                                  Side = "sell",
-                                  Type = "stop",
-                                  Price = Current_Info$close,
-                                  Reason = "Sharpe Ratio < 0 Sell To Protect Profit")
-          
-          try(write_csv(x = Report_Out,
-                        path = Report_CSV,
-                        append = T))
           
         }else{
           
-          Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
-          
-          ## Determining New Stop Loss
-          Stop_Loss = round(as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
-                                                            TODAY$Date == max(TODAY$Date)],1),2)
-          
-          ## Updating Stop Loss if Higher
-          if(all(Stop_Loss > Current_Stop_Loss,!is_empty(Stop_Loss))){
+          if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Expected_Return_Long),
+                                     1,
+                                     (Current_Forecast$Expected_Return_Long + Current_Forecast$Expected_Return_Short)/2) < 1){
+            print(str_c(STOCK," Profit Protection Sharpe Ratio < 1"))
+            ## Canceling Existing Order
+            cancel_order(ticker_id = STOCK,
+                         live = !PAPER)
+            Sys.sleep(3)
+            AlpacaforR::submit_order(ticker = STOCK,
+                                     qty = as.character(Quantity),
+                                     side = "sell",
+                                     type = "market",
+                                     live = !PAPER,
+                                     time_in_force = "gtc")
             
-            ## Updating Exisiting Order
-            replace_order(ticker_id = Loss_Order$id,
-                        qty = as.character(Quantity),
-                        time_in_force = "gtc",
-                        stop_price = as.character(Stop_Loss),
-                        limit_price = as.character(Stop_Loss),
-                        live = !PAPER)
             
-            ## Defining Reason For Decison Log
-            Reason = "Stop Loss Update"
-            
-            ## Writing Update To Log File
+            ## Recording In Decison Log
             Report_Out = data.frame(Time = Sys.time(),
                                     Stock = STOCK,
                                     Qty = Quantity,
                                     Side = "sell",
-                                    Type = "stop",
-                                    Price = Stop_Loss,
-                                    Reason = Reason)
-            
-            ## Appending To Decison Log
-            try(write_csv(x = Report_Out,
-                          path = Report_CSV,
-                          append = T))
-          }
-        }
-      }
-      
-      ########################## Rebalancing Check ########################## 
-      if(Rebalance){
-        Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
-        if(Market_Value > Investment_Value*Max_Holding){
-          Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
-          if(Max_qty > 0){
-            ## Determining New Spread
-            Keep = Max_qty
-            Sell = Quantity - Keep
-            
-            ## Pulling Existing Loss_Order
-            Loss_Order = try(
-              get_orders(
-                ticker = STOCK,
-                status = 'open',
-                live = !PAPER
-              ) %>%
-                filter(side == "sell") %>%
-                filter(created_at == max(created_at)) %>%
-                head(1)
-            )
-            
-            ## Updating Exisiting Order
-            replace_order(ticker_id = Loss_Order$id,
-                        qty = as.character(Keep),
-                        time_in_force = "gtc",
-                        live = !PAPER)
-            
-            Sys.sleep(10)
-            
-            ## Placing Market Sell Order
-            submit_order(ticker = STOCK,
-                         qty = as.character(Sell),
-                         side = "sell",
-                         type = "market",
-                         time_in_force = "gtc",
-                         live = !PAPER)
-            
-            ## Writing Update To Log File
-            Report_Out = data.frame(Time = Sys.time(),
-                                    Stock = STOCK,
-                                    Qty = Sell,
-                                    Side = "sell",
                                     Type = "market",
                                     Price = Current_Info$close,
-                                    Reason = "Rebalance Reduction")
+                                    Reason = "Sharpe Ratio < 1 Sell To Protect Profit")
             
-            ## Appending To Decison Log
             try(write_csv(x = Report_Out,
                           path = Report_CSV,
                           append = T))
             
+          }else{
             
+            Current_Stop_Loss = as.numeric(Loss_Order$stop_price)
             
+            ## Determining New Stop Loss
+            Stop_Loss = round(as.numeric(Current_Info$close) - 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
+                                                                                  TODAY$Date == max(TODAY$Date)],1),2)
+            
+            ## Updating Stop Loss if Higher
+            if(all(Stop_Loss > Current_Stop_Loss,!is_empty(Stop_Loss))){
+              print(str_c(STOCK," Updating Stop Loss"))
+              ## Canceling Existing Order
+              cancel_order(ticker_id = STOCK,
+                           live = !PAPER)
+              Sys.sleep(3)
+              AlpacaforR::submit_order(ticker = STOCK,
+                                       qty = as.character(Quantity),
+                                       side = "sell",
+                                       type = "stop_limit",
+                                       limit_price = as.character((Stop_Loss)),
+                                       stop_price = as.character((Stop_Loss)),
+                                       live = !PAPER,
+                                       time_in_force = "gtc")
+              
+              ## Defining Reason For Decison Log
+              Reason = "Stop Loss Update"
+              
+              ## Writing Update To Log File
+              Report_Out = data.frame(Time = Sys.time(),
+                                      Stock = STOCK,
+                                      Qty = Quantity,
+                                      Side = "sell",
+                                      Type = "stop",
+                                      Price = Stop_Loss,
+                                      Reason = Reason)
+              
+              ## Appending To Decison Log
+              try(write_csv(x = Report_Out,
+                            path = Report_CSV,
+                            append = T))
+            }
           }
         }
-      }
+        
+        ########################## Rebalancing Check ########################## 
+        if(Rebalance){
+          Market_Value = as.numeric(Current_Holdings$market_value[Current_Holdings$symbol == STOCK])
+          if(Market_Value > Investment_Value*Max_Holding){
+            Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
+            if(Max_qty > 0){
+              print(str_c(STOCK," Monthly Rebalancing"))
+              
+              ## Determining New Spread
+              Keep = Max_qty
+              Sell = Quantity - Keep
+              
+              ## Pulling Existing Loss_Order
+              Loss_Order = try(
+                get_orders(
+                  ticker = STOCK,
+                  status = 'open',
+                  live = !PAPER
+                ) %>%
+                  filter(side == "sell") %>%
+                  filter(created_at == max(created_at)) %>%
+                  head(1)
+              )
+              
+              ## Canceling Existing Order
+              cancel_order(ticker_id = STOCK,
+                           live = !PAPER)
+              Sys.sleep(3)
+              AlpacaforR::submit_order(ticker = STOCK,
+                                       qty = as.character(Keep),
+                                       side = "sell",
+                                       type = "stop_limit",
+                                       limit_price = as.character(Loss_Order$limit_price),
+                                       stop_price = as.character(Loss_Order$stop_price),
+                                       live = !PAPER,
+                                       time_in_force = "gtc")
+              Sys.sleep(3)
+              
+              ## Placing Market Sell Order
+              submit_order(ticker = STOCK,
+                           qty = as.character(Sell),
+                           side = "sell",
+                           type = "market",
+                           time_in_force = "gtc",
+                           live = !PAPER)
+              
+              ## Writing Update To Log File
+              Report_Out = data.frame(Time = Sys.time(),
+                                      Stock = STOCK,
+                                      Qty = Sell,
+                                      Side = "sell",
+                                      Type = "market",
+                                      Price = Current_Info$close,
+                                      Reason = "Rebalance Reduction")
+              
+              ## Appending To Decison Log
+              try(write_csv(x = Report_Out,
+                            path = Report_CSV,
+                            append = T))
+              
+              
+              
+            }
+          }
+        }
     }
-  } 
+  }
   
   if(PAPER){
     ##########################  Shorting Option Reduction ########################## 
@@ -431,6 +441,7 @@ ALPACA_Performance_Function = function(TODAY,
       ## Stop Loss and Market Sell Rules
       for(STOCK in Ticker_List){
         
+        
         ##########################  Current Asset Information  ########################## 
         Current_Info = get_bars(ticker = STOCK,
                                 limit = 1)[[STOCK]]
@@ -454,7 +465,7 @@ ALPACA_Performance_Function = function(TODAY,
         
         ########################## Stop Loss Calculations ########################## 
         if(nrow(Loss_Order) == 0){
-          
+          print(str_c(STOCK," Setting Initial Buy Stop"))
           ## Initial Stop Loss Based On ATR
           Stop_Loss = max(c(
             Buy_Price + 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
@@ -493,13 +504,19 @@ ALPACA_Performance_Function = function(TODAY,
           
           ## Updating Stop Loss if Higher
           if(Stop_Loss < Current_Stop_Loss){
+            print(str_c(STOCK," Updating Buy Stop"))
+            ## Canceling Existing Order
+            cancel_order(ticker_id = STOCK,
+                         live = !PAPER)
+            Sys.sleep(3)
+            AlpacaforR::submit_order(ticker = STOCK,
+                                     qty = as.character(Quantity),
+                                     side = "buy",
+                                     type = "stop",
+                                     stop_price = as.character(Stop_Loss),
+                                     live = !PAPER,
+                                     time_in_force = "gtc")
             
-            ## Updating Exisiting Order
-            replace_order(ticker_id = Loss_Order$id,
-                        qty = as.character(Quantity),
-                        time_in_force = "gtc",
-                        stop_price = as.character(Stop_Loss),
-                        live = !PAPER)
             
             ## Defining Reason For Decison Log
             Reason = "Short Stop Loss Update"
@@ -525,6 +542,8 @@ ALPACA_Performance_Function = function(TODAY,
           if(Market_Value > Investment_Value*Max_Holding){
             Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
             if(Max_qty > 0){
+              print(str_c(STOCK," Rebalancing Market Sells"))
+              
               ## Determining New Spread
               Keep = Max_qty
               Sell = Quantity - Keep
@@ -541,13 +560,18 @@ ALPACA_Performance_Function = function(TODAY,
                   head(1)
               )
               
-              ## Updating Exisiting Order
-              replace_order(ticker_id = Loss_Order$id,
-                          qty = as.character(Keep),
-                          time_in_force = "gtc",
-                          live = !PAPER)
-              
-              Sys.sleep(10)
+              ## Canceling Existing Order
+              cancel_order(ticker_id = STOCK,
+                           live = !PAPER)
+              Sys.sleep(3)
+              AlpacaforR::submit_order(ticker = STOCK,
+                                       qty = as.character(Keep),
+                                       side = "buy",
+                                       type = "stop",
+                                       stop_price = as.character(Loss_Order$stop_price),
+                                       live = !PAPER,
+                                       time_in_force = "gtc")
+              Sys.sleep(3)
               
               ## Placing Market Sell Order
               submit_order(ticker = STOCK,
@@ -575,8 +599,8 @@ ALPACA_Performance_Function = function(TODAY,
               
             }
           }
-        }
-      }
+        } # End Rebalance
+      } # End Stock Loop
     } 
-  }
-}
+  } # End Short Sell Portion
+} # End Funtion

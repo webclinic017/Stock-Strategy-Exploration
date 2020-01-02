@@ -220,14 +220,16 @@ ALPACA_Performance_Function(TODAY = TODAY,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding,
-                            PAPER = T)
+                            PAPER = T,
+                            Rebalance = T)
 
 ALPACA_Performance_Function(TODAY = TODAY,
                             RESULT = RESULT,
                             Auto_Stocks = Auto_Stocks,
                             Project_Folder = Project_Folder,
                             Max_Holding = Max_Holding_Live,
-                            PAPER = F)
+                            PAPER = F,
+                            Rebalance = T)
 
 # ## Running Back Test To Check For New Rules ##
 # Runs = 10

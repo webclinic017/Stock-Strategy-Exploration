@@ -22,7 +22,9 @@ Diversification = function(RESULT,Sector_Ind_DF){
     TMP = RESULT %>%
       filter(!Industry %in% Sector_Ind_DF$Industry |
                !Sector %in% Sector_Ind_DF$Sector)
-    return(TMP)
+    if(nrow(TMP) != 0){
+      return(TMP)
+    }
   }
   return(RESULT)
 }

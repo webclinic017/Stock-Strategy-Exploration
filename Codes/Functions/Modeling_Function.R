@@ -9,7 +9,8 @@ Modeling_Function = function(ID_DF,Max_Date,Short_Time = 15,Long_Time = 50,Risk_
              Adjusted_Lead = ((1+Adjusted_Lead)^(365/Timeframe) - 1) / Volatility_Klass) %>%
       filter(Date <= Max_Date,
              Date >= Max_Date-365,
-             Adjusted_Lead <= median(Adjusted_Lead,na.rm = T) + 1.4826*mad(Adjusted_Lead,na.rm = T)*3) %>%
+             Adjusted_Lead <= median(Adjusted_Lead,na.rm = T) + 1.4826*mad(Adjusted_Lead,na.rm = T)*3,
+             Adjusted_Lead >= median(Adjusted_Lead,na.rm = T) - 1.4826*mad(Adjusted_Lead,na.rm = T)*3) %>%
       ungroup() %>%
       na.omit() %>%
       filter(!str_detect(Stock,"^\\^"))
