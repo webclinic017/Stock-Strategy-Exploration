@@ -128,7 +128,8 @@ ALPACA_Performance_Function = function(TODAY,
   if(!is_empty(Ticker_List)){
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
-        
+      print(str_c("Running Long Logic On ", STOCK))  
+      
         ##########################  Current Asset Information  ########################## 
         Current_Info = get_bars(ticker = STOCK,
                                 limit = 1)[[STOCK]]
@@ -269,7 +270,7 @@ ALPACA_Performance_Function = function(TODAY,
           if(Market_Value > Investment_Value*Max_Holding){
             Max_qty = floor(Investment_Value*Max_Holding/Current_Info$close)
             if(Max_qty > 0){
-              print(str_c(STOCK," Monthly Rebalancing"))
+              print(str_c(STOCK," Rebalancing"))
               
               ## Determining New Spread
               Keep = Max_qty
@@ -345,7 +346,8 @@ ALPACA_Performance_Function = function(TODAY,
     
     ########################## Investment Choice Reduction ########################## 
     
-    SHORT = RESULT$SHORT
+    SHORT = RESULT$SHORT %>%
+      mutate(Decider = -Decider)
     
     ## Appending Sector / Industry Info
     Sector_Ind_DF = try(Current_Holdings %>%
@@ -441,13 +443,13 @@ ALPACA_Performance_Function = function(TODAY,
       ## Stop Loss and Market Sell Rules
       for(STOCK in Ticker_List){
         
-        
+        print(str_c("Running Short Logic On ", STOCK)) 
         ##########################  Current Asset Information  ########################## 
         Current_Info = get_bars(ticker = STOCK,
                                 limit = 1)[[STOCK]]
         Buy_Price = as.numeric(Current_Holdings$avg_entry_price[Current_Holdings$symbol == STOCK])
         Quantity = abs(as.numeric(Current_Holdings$qty[Current_Holdings$symbol == STOCK]))
-        Pcent_Gain = (as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
+        Pcent_Gain = -(as.numeric(Current_Info$close)-Buy_Price)/Buy_Price
         
         ## Pulling Existing Loss_Order
         Loss_Order = try(
@@ -502,8 +504,22 @@ ALPACA_Performance_Function = function(TODAY,
           Stop_Loss = as.numeric(Current_Info$close) + 2*head(TODAY$ATR[TODAY$Stock == STOCK & 
                                                             TODAY$Date == max(TODAY$Date)],1)
           
-          ## Updating Stop Loss if Higher
-          if(Stop_Loss < Current_Stop_Loss){
+          if(is_empty(Stop_Loss)){
+            print(str_c(STOCK," Buying No Longer Easy to Borrow If Positive Return"))
+            if(Pcent_Gain > 0){
+              ## Canceling Existing Order
+              cancel_order(ticker_id = STOCK,
+                           live = !PAPER)
+              Sys.sleep(3)
+              AlpacaforR::submit_order(ticker = STOCK,
+                                       qty = as.character(Quantity),
+                                       side = "buy",
+                                       type = "market",
+                                       stop_price = as.character(Stop_Loss),
+                                       live = !PAPER,
+                                       time_in_force = "gtc")
+            }
+          }else if(Stop_Loss < Current_Stop_Loss){
             print(str_c(STOCK," Updating Buy Stop"))
             ## Canceling Existing Order
             cancel_order(ticker_id = STOCK,
