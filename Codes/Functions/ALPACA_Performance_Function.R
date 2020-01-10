@@ -191,9 +191,14 @@ ALPACA_Performance_Function = function(TODAY,
           
         }else{
           
-          if(Pcent_Gain > 0 & ifelse(is_empty(Current_Forecast$Expected_Return_Long),
-                                     1,
-                                     (Current_Forecast$Expected_Return_Long + Current_Forecast$Expected_Return_Short)/2) < 1){
+          if(Pcent_Gain > 0 & 
+             any(ifelse(is_empty(Current_Forecast$Expected_Return_Long),
+                    1,
+                    Current_Forecast$Expected_Return_Long + Current_Forecast$Expected_Return_Short)/2 < 1,
+                 ifelse(is_empty(Current_Forecast$Expected_Return_Short),
+                        1,
+                        Current_Forecast$Expected_Return_Short) < 1)
+             ){
             print(str_c(STOCK," Profit Protection Sharpe Ratio < 1"))
             ## Canceling Existing Order
             cancel_order(ticker_id = STOCK,
@@ -287,11 +292,12 @@ ALPACA_Performance_Function = function(TODAY,
                   filter(created_at == max(created_at)) %>%
                   head(1)
               )
-              
-              ## Canceling Existing Order
-              cancel_order(ticker_id = STOCK,
-                           live = !PAPER)
-              Sys.sleep(3)
+              if(nrow(Loss_Order) > 0){
+                ## Canceling Existing Order
+                cancel_order(ticker_id = STOCK,
+                             live = !PAPER)
+                Sys.sleep(3)
+              }
               AlpacaforR::submit_order(ticker = STOCK,
                                        qty = as.character(Keep),
                                        side = "sell",

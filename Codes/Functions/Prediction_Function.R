@@ -18,7 +18,9 @@ Prediction_Function = function(Models,
     mutate(Decider = (Expected_Return_Long + Expected_Return_Short) / 2,
            Stop_Loss = Close - 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
-    filter(Decider > 1) %>%
+    filter(Decider > 1,
+           Expected_Return_Short > 1,
+           Expected_Return_Long > 1) %>%
     mutate(Prob_Rank = dense_rank(-Decider),
            Stop_Loss_Percent = (Close - Stop_Loss)/Close) %>%
     arrange(Prob_Rank) %>%
@@ -31,7 +33,8 @@ Prediction_Function = function(Models,
     mutate(Decider = (Expected_Return_Long + Expected_Return_Short)/2,
            Stop_Loss = Close + 2*ATR) %>%
     filter(!str_detect(Stock,"^\\^")) %>%
-    filter(Decider < -1) %>%
+    filter(Decider < -1,
+           Expected_Return_Short < -1) %>%
     mutate(Prob_Rank = dense_rank(-Decider),
            Stop_Loss_Percent = (Stop_Loss - Close)/Close) %>%
     arrange(desc(Prob_Rank)) %>%
