@@ -1,6 +1,7 @@
 Prediction_Function = function(Models,
                                TODAY,
                                FinViz = T,
+                               DCF = T,
                                Margin_Intrest = 0.035,
                                ETB_Rate = 0.002){
 
@@ -55,6 +56,16 @@ Prediction_Function = function(Models,
   
   
   ## Fundamental Filtering
+  if(DCF){
+    DCFs = mapply(DCF_Update,LONG$Stock,SIMPLIFY = T)
+    DCFs[is.na(DCFs)] = F
+    LONG = LONG[DCFs,]
+    DCFs = mapply(DCF_Update,SHORT$Stock,SIMPLIFY = T)
+    DCFs[is.na(DCFs)] = T
+    SHORT = SHORT[!DCFs,]
+  }
+  
+  
   if(FinViz){
     LONG = FinViz_Meta_Data(LONG)
     LONG = LONG %>%

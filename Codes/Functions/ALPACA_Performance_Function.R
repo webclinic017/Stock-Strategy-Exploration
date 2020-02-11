@@ -4,7 +4,9 @@ ALPACA_Performance_Function = function(TODAY,
                                        Project_Folder,
                                        Max_Holding = 0.10,
                                        PAPER = T,
-                                       Rebalance = F){
+                                       Short = F,
+                                       Rebalance = F,
+                                       Diversify = F){
   
   ########################## Setting API Keys ##########################
   KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
@@ -57,11 +59,16 @@ ALPACA_Performance_Function = function(TODAY,
   
   ## Removes Any Outside of Price Range
   LONG = LONG %>%
-    filter(Close < Investment_Value*Max_Holding,
-           !Stock %in% toupper(Current_Holdings$symbol)) %>%
+    filter(Close < Investment_Value*Max_Holding) %>%
     select(Sector,Industry,Decider,everything())
   
-  ## Keeping Best Outlook Within Industry and Sector
+  if(!"try-error" %in% class(Current_Holdings)){
+    LONG = LONG %>%
+      filter(!Stock %in% toupper(Current_Holdings$symbol))
+  }
+  
+  if(Diversify){
+   ## Keeping Best Outlook Within Industry and Sector
   LONG = LONG %>%
     group_by(Sector,Industry) %>%
     filter(Decider == max(Decider)) %>%
@@ -70,7 +77,9 @@ ALPACA_Performance_Function = function(TODAY,
   
   ## Prioritizing Sector & Industry Diversification ##
   if(!"try-error" %in% class(Sector_Ind_DF)){
-    LONG = Diversification(LONG,Sector_Ind_DF)
+    
+      LONG = Diversification(LONG,Sector_Ind_DF)
+    }
   }
   
   
@@ -236,18 +245,25 @@ ALPACA_Performance_Function = function(TODAY,
             ## Updating Stop Loss if Higher
             if(all(Stop_Loss > Current_Stop_Loss,!is_empty(Stop_Loss))){
               print(str_c(STOCK," Updating Stop Loss"))
-              ## Canceling Existing Order
-              cancel_order(ticker_id = STOCK,
-                           live = !PAPER)
-              Sys.sleep(3)
-              AlpacaforR::submit_order(ticker = STOCK,
-                                       qty = as.character(Quantity),
-                                       side = "sell",
-                                       type = "stop_limit",
-                                       limit_price = as.character((Stop_Loss)),
-                                       stop_price = as.character((Stop_Loss)),
-                                       live = !PAPER,
-                                       time_in_force = "gtc")
+              # ## Canceling Existing Order
+              # cancel_order(ticker_id = STOCK,
+              #              live = !PAPER)
+              # Sys.sleep(3)
+              AlpacaforR::replace_order(ticker_id = STOCK,
+                                        qty = as.character(Quantity),
+                                        time_in_force = "gtc",
+                                        limit_price = as.character((Stop_Loss)),
+                                        stop_price = as.character((Stop_Loss)),
+                                        live = !PAPER)
+              
+              # AlpacaforR::submit_order(ticker = STOCK,
+              #                          qty = as.character(Quantity),
+              #                          side = "sell",
+              #                          type = "stop_limit",
+              #                          limit_price = as.character((Stop_Loss)),
+              #                          stop_price = as.character((Stop_Loss)),
+              #                          live = !PAPER,
+              #                          time_in_force = "gtc")
               
               ## Defining Reason For Decison Log
               Reason = "Stop Loss Update"
@@ -293,19 +309,18 @@ ALPACA_Performance_Function = function(TODAY,
                   head(1)
               )
               if(nrow(Loss_Order) > 0){
-                ## Canceling Existing Order
-                cancel_order(ticker_id = STOCK,
-                             live = !PAPER)
-                Sys.sleep(3)
-              }
-              AlpacaforR::submit_order(ticker = STOCK,
+                # ## Canceling Existing Order
+                # cancel_order(ticker_id = STOCK,
+                #              live = !PAPER)
+                # Sys.sleep(3)
+              
+              AlpacaforR::replace_order(ticker_id = STOCK,
                                        qty = as.character(Keep),
-                                       side = "sell",
-                                       type = "stop_limit",
                                        limit_price = as.character(Loss_Order$limit_price),
                                        stop_price = as.character(Loss_Order$stop_price),
                                        live = !PAPER,
                                        time_in_force = "gtc")
+              }
               Sys.sleep(3)
               
               ## Placing Market Sell Order
@@ -338,7 +353,7 @@ ALPACA_Performance_Function = function(TODAY,
     }
   }
   
-  if(PAPER){
+  if(PAPER & Short){
     ##########################  Shorting Option Reduction ########################## 
     ACCT_Status = get_account(live = !PAPER)
     Current_Holdings = try(get_positions(live = !PAPER) %>%
@@ -381,7 +396,8 @@ ALPACA_Performance_Function = function(TODAY,
       filter(Close < Investment_Value*Max_Holding,
              !Stock %in% toupper(Current_Holdings$symbol)) %>%
       select(Sector,Industry,Decider,everything())
-    
+  
+    if(Diversify){
     ## Keeping Best Outlook Within Industry and Sector
     SHORT = SHORT %>%
       group_by(Sector,Industry) %>%
@@ -392,6 +408,7 @@ ALPACA_Performance_Function = function(TODAY,
     ## Prioritizing Sector & Industry Diversification ##
     if(!"try-error" %in% class(Sector_Ind_DF)){
       SHORT = Diversification(SHORT,Sector_Ind_DF)
+    }
     }
     
     
@@ -527,14 +544,12 @@ ALPACA_Performance_Function = function(TODAY,
             }
           }else if(Stop_Loss < Current_Stop_Loss){
             print(str_c(STOCK," Updating Buy Stop"))
-            ## Canceling Existing Order
-            cancel_order(ticker_id = STOCK,
-                         live = !PAPER)
-            Sys.sleep(3)
-            AlpacaforR::submit_order(ticker = STOCK,
+            # ## Canceling Existing Order
+            # cancel_order(ticker_id = STOCK,
+            #              live = !PAPER)
+            # Sys.sleep(3)
+            AlpacaforR::replace_order(ticker_id = STOCK,
                                      qty = as.character(Quantity),
-                                     side = "buy",
-                                     type = "stop",
                                      stop_price = as.character(Stop_Loss),
                                      live = !PAPER,
                                      time_in_force = "gtc")
@@ -582,18 +597,18 @@ ALPACA_Performance_Function = function(TODAY,
                   head(1)
               )
               
-              ## Canceling Existing Order
-              cancel_order(ticker_id = STOCK,
-                           live = !PAPER)
-              Sys.sleep(3)
-              AlpacaforR::submit_order(ticker = STOCK,
-                                       qty = as.character(Keep),
-                                       side = "buy",
-                                       type = "stop",
-                                       stop_price = as.character(Loss_Order$stop_price),
-                                       live = !PAPER,
-                                       time_in_force = "gtc")
-              Sys.sleep(3)
+              if(nrow(Loss_Order) > 0) {
+                ## Canceling Existing Order
+                cancel_order(ticker_id = STOCK,
+                             live = !PAPER)
+                Sys.sleep(3)
+                AlpacaforR::replace_order(ticker_id = STOCK,
+                                         qty = as.character(Keep),
+                                         stop_price = as.character(Loss_Order$stop_price),
+                                         live = !PAPER,
+                                         time_in_force = "gtc")
+                Sys.sleep(3)
+              }
               
               ## Placing Market Sell Order
               submit_order(ticker = STOCK,

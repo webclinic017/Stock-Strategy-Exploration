@@ -23,7 +23,7 @@ NClusters = 8
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
-Max_Holding_Live = 0.20
+Max_Holding_Live = 0.10
 
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = "All" 
@@ -196,6 +196,7 @@ if(Hour < 12){
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
+                               DCF = F,
                                FinViz = T)
   
   try(write.csv(x = RESULT$TOTAL,
@@ -215,6 +216,22 @@ if(Hour < 12){
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
 ## Running Position Setting Function (Paper and Live)
+ALPACA_Performance_Function(TODAY = TODAY,
+                            RESULT = RESULT,
+                            Auto_Stocks = Auto_Stocks,
+                            Project_Folder = Project_Folder,
+                            Max_Holding = Max_Holding,
+                            PAPER = T,
+                            Rebalance = T)
+
+ALPACA_Performance_Function(TODAY = TODAY,
+                            RESULT = RESULT,
+                            Auto_Stocks = Auto_Stocks,
+                            Project_Folder = Project_Folder,
+                            Max_Holding = Max_Holding_Live,
+                            PAPER = F,
+                            Rebalance = T)
+
 ALPACA_Performance_Function(TODAY = TODAY,
                             RESULT = RESULT,
                             Auto_Stocks = Auto_Stocks,
