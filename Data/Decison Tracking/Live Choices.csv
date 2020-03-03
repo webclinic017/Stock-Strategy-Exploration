@@ -670,3 +670,37 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2020-02-11T17:06:30Z,VALE,4,buy,limit,11.6,Probability
 2020-02-11T17:06:31Z,KRNY,3,buy,limit,12.13,Probability
 2020-02-11T17:06:31Z,GSK,1,buy,limit,44.610001,Probability
+2020-02-12T16:04:17Z,VALE,3,buy,limit,11.92,Probability
+2020-02-12T16:04:18Z,GSK,1,buy,limit,44.419998,Probability
+2020-02-12T16:04:19Z,CVA,3,buy,limit,15.47,Probability
+2020-02-12T16:04:20Z,MBT,4,buy,limit,10.53,Probability
+2020-02-12T16:04:26Z,TLK,1,sell,market,27.88,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-12T16:04:27Z,PPL,1,sell,stop,35.32,Stop Loss Update
+2020-02-12T16:04:28Z,KRNY,3,sell,stop,11.73144098788158,Initial Stop Loss
+2020-02-12T16:04:30Z,CMCSA,1,sell,stop,44.24,Stop Loss Update
+2020-02-12T16:05:03Z,VALE,3,buy,limit,11.92,Probability
+2020-02-12T16:05:04Z,CVA,3,buy,limit,15.47,Probability
+2020-02-12T16:05:05Z,MBT,4,buy,limit,10.53,Probability
+2020-02-12T16:05:06Z,RNST,1,buy,limit,32.560001,Probability
+2020-02-12T16:05:09Z,GSK,1,sell,stop,42.74382452300536,Initial Stop Loss
+2020-02-13T16:04:38Z,VALE,4,buy,limit,12.12,Probability
+2020-02-13T16:04:39Z,RNST,1,buy,limit,32.610001,Probability
+2020-02-13T16:04:41Z,USB,1,sell,stop,53.47,Stop Loss Update
+2020-02-13T16:04:43Z,PPL,1,sell,stop,35.48,Stop Loss Update
+2020-02-13T16:04:45Z,CMCSA,1,sell,stop,44.43,Stop Loss Update
+2020-02-13T16:05:17Z,RNST,1,buy,limit,32.610001,Probability
+2020-02-13T16:05:19Z,VALE,4,sell,stop,11.212269546993337,Initial Stop Loss
+2020-02-13T16:05:21Z,PPL,1,sell,stop,35.5,Stop Loss Update
+2020-02-14T17:23:27Z,INFY,4,buy,limit,11.1,Probability
+2020-02-14T17:23:30Z,RNST,2,sell,stop,31.359125187772452,Initial Stop Loss
+2020-02-14T17:23:34Z,RNST,1,sell,market,32.43,Rebalance Reduction
+2020-02-14T17:24:14Z,INFY,4,sell,stop,10.701013220680084,Initial Stop Loss
+2020-02-18T23:10:41Z,PHM,1,buy,limit,46.689999,Probability
+2020-02-18T23:10:42Z,MDC,1,buy,limit,44.77,Probability
+2020-02-19T19:25:29Z,MDC,1,buy,limit,44.619999,Probability
+2020-02-19T19:25:30Z,PHM,1,buy,limit,46.650002,Probability
+2020-02-19T19:25:32Z,VALE,4,sell,stop,11.37,Stop Loss Update
+2020-02-19T19:25:35Z,INFY,4,sell,stop,10.95,Stop Loss Update
+2020-02-19T19:26:05Z,MDC,1,buy,limit,44.619999,Probability
+2020-02-19T19:26:06Z,PHM,1,buy,limit,46.650002,Probability
+2020-02-19T19:26:10Z,INFY,4,sell,stop,10.96,Stop Loss Update

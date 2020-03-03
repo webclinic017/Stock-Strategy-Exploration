@@ -3228,3 +3228,134 @@ Date,Stock,Qty,Side,Type,Price,Reason
 2020-02-11T17:06:24Z,ENIA,512,sell,stop,9.207952675589045,Initial Stop Loss
 2020-02-11T17:06:25Z,CMCSA,111,sell,stop,42.77703888628994,Initial Stop Loss
 2020-02-11T17:06:27Z,AWR,54,sell,stop,88.4939614015015,Initial Stop Loss
+2020-02-12T16:02:55Z,TLK,180,sell,market,27.88,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-12T16:03:19Z,PPL,414,sell,stop,35.313555958884585,Initial Stop Loss
+2020-02-12T16:03:23Z,PPL,276,sell,market,36.2,Rebalance Reduction
+2020-02-12T16:03:24Z,OGS,106,sell,stop,91.74879926411735,Initial Stop Loss
+2020-02-12T16:03:29Z,OGS,53,sell,market,93.2,Rebalance Reduction
+2020-02-12T16:03:30Z,NICE,28,sell,stop,169.11047487797904,Initial Stop Loss
+2020-02-12T16:03:31Z,MTD,12,sell,stop,745.474960521112,Initial Stop Loss
+2020-02-12T16:03:36Z,MTD,6,sell,market,778.53,Rebalance Reduction
+2020-02-12T16:03:37Z,LNT,170,sell,stop,57.263143199771626,Initial Stop Loss
+2020-02-12T16:03:42Z,LNT,85,sell,market,58.53,Rebalance Reduction
+2020-02-12T16:03:43Z,KO,83,sell,stop,58.35,Stop Loss Update
+2020-02-12T16:03:44Z,GOOGL,3,sell,stop,1456.1432589966028,Initial Stop Loss
+2020-02-12T16:03:46Z,CMG,10,sell,stop,863.1958348063456,Initial Stop Loss
+2020-02-12T16:03:50Z,CMG,5,sell,market,897,Rebalance Reduction
+2020-02-12T16:03:52Z,CMCSA,111,sell,stop,44.25,Stop Loss Update
+2020-02-12T16:03:56Z,CMCSA,3,sell,market,45.975,Rebalance Reduction
+2020-02-12T16:03:57Z,AXE,51,sell,stop,96.66554753279084,Initial Stop Loss
+2020-02-12T16:04:01Z,AXE,1,sell,market,98.325,Rebalance Reduction
+2020-02-12T16:04:03Z,AWK,72,sell,stop,132.12152552807072,Initial Stop Loss
+2020-02-12T16:04:07Z,AWK,35,sell,market,135.17,Rebalance Reduction
+2020-02-12T16:04:08Z,AAPL,45,sell,stop,309.5028820109211,Initial Stop Loss
+2020-02-12T16:04:13Z,AAPL,30,sell,market,323.3983,Rebalance Reduction
+2020-02-12T16:04:39Z,NVR,1,buy,limit,3981.860107,Probability
+2020-02-12T16:04:40Z,AMZN,2,buy,limit,2150.800049,Probability
+2020-02-12T16:04:40Z,BKNG,2,buy,limit,1909.300049,Probability
+2020-02-12T16:04:41Z,INTC,74,buy,limit,67.410004,Probability
+2020-02-12T16:04:42Z,CME,23,buy,limit,211.649994,Probability
+2020-02-12T16:04:42Z,USB,12,buy,limit,54.93,Probability
+2020-02-12T16:04:44Z,PPL,138,sell,stop,35.32,Stop Loss Update
+2020-02-12T16:04:50Z,LNT,85,sell,market,58.53,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-12T16:04:52Z,GOOGL,3,sell,stop,1456.43,Stop Loss Update
+2020-02-12T16:04:55Z,AXE,50,sell,stop,96.67,Stop Loss Update
+2020-02-12T16:04:57Z,AWK,37,sell,stop,132.19,Stop Loss Update
+2020-02-13T16:03:14Z,BKNG,2,buy,limit,1960.359985,Probability
+2020-02-13T16:03:15Z,AMZN,2,buy,limit,2160,Probability
+2020-02-13T16:03:15Z,TDY,13,buy,limit,385.559998,Probability
+2020-02-13T16:03:16Z,VALE,5,buy,limit,12.12,Probability
+2020-02-13T16:03:18Z,USB,12,sell,stop,53.4973105705872,Initial Stop Loss
+2020-02-13T16:03:19Z,PPL,138,sell,stop,35.49,Stop Loss Update
+2020-02-13T16:03:21Z,NVR,1,sell,stop,3818.3009020829395,Initial Stop Loss
+2020-02-13T16:03:23Z,KO,83,sell,stop,58.42,Stop Loss Update
+2020-02-13T16:03:25Z,INTC,74,sell,stop,64.67568793013278,Initial Stop Loss
+2020-02-13T16:03:29Z,GOOGL,3,sell,market,1516.6357,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-13T16:03:32Z,CMG,5,sell,stop,873.54,Stop Loss Update
+2020-02-13T16:03:33Z,CME,23,sell,stop,201.6380531763541,Initial Stop Loss
+2020-02-13T16:03:34Z,CMCSA,108,sell,stop,44.4,Stop Loss Update
+2020-02-13T16:03:40Z,AWR,54,sell,market,91.62,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-13T16:03:44Z,AWK,37,sell,market,136.6945,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-13T16:04:13Z,TDY,13,buy,limit,385.559998,Probability
+2020-02-13T16:04:14Z,ABT,56,buy,limit,88.790001,Probability
+2020-02-13T16:04:14Z,MRK,60,buy,limit,83.25,Probability
+2020-02-13T16:04:15Z,TMO,13,buy,limit,334.570007,Probability
+2020-02-13T16:04:15Z,PSB,1,buy,limit,170.029999,Probability
+2020-02-13T16:04:16Z,VFC,1,buy,limit,83.93,Probability
+2020-02-13T16:04:17Z,VALE,5,sell,stop,11.212369546993337,Initial Stop Loss
+2020-02-13T16:04:22Z,KO,83,sell,stop,58.43,Stop Loss Update
+2020-02-13T16:04:25Z,CME,23,sell,stop,201.77,Stop Loss Update
+2020-02-13T16:04:26Z,CMCSA,108,sell,stop,44.43,Stop Loss Update
+2020-02-13T16:04:28Z,BKNG,2,sell,stop,1862.1239997582707,Initial Stop Loss
+2020-02-13T16:04:29Z,AMZN,2,sell,stop,2071.007501606268,Initial Stop Loss
+2020-02-13T16:04:31Z,AAPL,15,sell,stop,311.58,Stop Loss Update
+2020-02-13T16:04:55Z,TDY,13,buy,limit,385.559998,Probability
+2020-02-13T16:04:56Z,PSB,1,buy,limit,170.029999,Probability
+2020-02-13T16:04:56Z,AXP,1,buy,limit,133.240005,Probability
+2020-02-13T16:04:58Z,VFC,1,sell,stop,80.32993550875483,Initial Stop Loss
+2020-02-13T16:05:00Z,TMO,13,sell,stop,320.7626002540684,Initial Stop Loss
+2020-02-13T16:05:04Z,MRK,60,sell,stop,78.36419057433052,Initial Stop Loss
+2020-02-13T16:05:06Z,INTC,74,sell,stop,64.68,Stop Loss Update
+2020-02-13T16:05:10Z,AMZN,2,sell,stop,2072.88,Stop Loss Update
+2020-02-13T16:05:11Z,ABT,56,sell,stop,85.69283348697074,Initial Stop Loss
+2020-02-14T17:22:13Z,MKTX,14,buy,limit,338.149994,Probability
+2020-02-14T17:22:14Z,ILMN,17,buy,limit,291.380005,Probability
+2020-02-14T17:22:15Z,KRNY,45,buy,limit,12.12,Probability
+2020-02-14T17:22:18Z,TMO,13,sell,stop,324.53,Stop Loss Update
+2020-02-14T17:22:23Z,OGS,53,sell,market,95.64,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-14T17:22:32Z,MKTX,14,buy,limit,338.149994,Probability
+2020-02-14T17:22:33Z,ILMN,17,buy,limit,291.380005,Probability
+2020-02-14T17:22:34Z,PSB,29,buy,limit,170.309998,Probability
+2020-02-14T17:22:35Z,INFY,11,buy,limit,11.1,Probability
+2020-02-14T17:22:38Z,NVR,1,sell,stop,3819.38,Stop Loss Update
+2020-02-14T17:22:40Z,NICE,28,sell,stop,173.29,Stop Loss Update
+2020-02-14T17:22:44Z,NICE,1,sell,market,180.355,Rebalance Reduction
+2020-02-14T17:22:47Z,MRK,60,sell,stop,79.04,Stop Loss Update
+2020-02-14T17:22:48Z,KRNY,45,sell,stop,11.705502688530547,Initial Stop Loss
+2020-02-14T17:22:50Z,KO,83,sell,stop,58.65,Stop Loss Update
+2020-02-14T17:22:52Z,CMG,5,sell,stop,886.27,Stop Loss Update
+2020-02-14T17:22:57Z,CME,23,sell,market,212.02,Sharpe Ratio < 1 Sell To Protect Profit
+2020-02-14T17:22:59Z,BKNG,2,sell,stop,1912.73,Stop Loss Update
+2020-02-14T17:23:02Z,ABT,56,sell,stop,85.93,Stop Loss Update
+2020-02-14T17:23:47Z,MKTX,14,buy,limit,338.149994,Probability
+2020-02-14T17:23:48Z,ILMN,17,buy,limit,291.380005,Probability
+2020-02-14T17:23:49Z,PSB,29,buy,limit,170.309998,Probability
+2020-02-14T17:23:49Z,ICFI,58,buy,limit,86.900002,Probability
+2020-02-14T17:23:56Z,MRK,60,sell,stop,79.05,Stop Loss Update
+2020-02-14T17:23:57Z,KO,83,sell,stop,58.69,Stop Loss Update
+2020-02-14T17:23:59Z,INFY,11,sell,stop,10.701113220680085,Initial Stop Loss
+2020-02-18T23:08:45Z,CVCO,21,buy,limit,229.839996,Probability
+2020-02-18T23:08:45Z,PHM,106,buy,limit,46.689999,Probability
+2020-02-18T23:08:48Z,VALE,5,sell,stop,11.33,Stop Loss Update
+2020-02-18T23:08:51Z,PSB,58,sell,stop,165.47497560610555,Initial Stop Loss
+2020-02-18T23:08:55Z,PSB,29,sell,market,169.96,Rebalance Reduction
+2020-02-18T23:08:58Z,MSFT,26,sell,stop,179.92,Stop Loss Update
+2020-02-18T23:09:00Z,MRK,60,sell,stop,79.36,Stop Loss Update
+2020-02-18T23:09:01Z,KRNY,45,sell,stop,11.71,Stop Loss Update
+2020-02-18T23:09:04Z,INFY,11,sell,stop,10.87,Stop Loss Update
+2020-02-18T23:09:06Z,CMG,5,sell,stop,894.74,Stop Loss Update
+2020-02-18T23:09:07Z,CMCSA,108,sell,stop,44.46,Stop Loss Update
+2020-02-18T23:09:10Z,AMZN,2,sell,stop,2073.91,Stop Loss Update
+2020-02-18T23:09:11Z,ABT,56,sell,stop,86.17,Stop Loss Update
+2020-02-19T19:25:01Z,CVCO,21,buy,limit,230.449997,Probability
+2020-02-19T19:25:02Z,MDC,113,buy,limit,44.619999,Probability
+2020-02-19T19:25:02Z,PHM,108,buy,limit,46.650002,Probability
+2020-02-19T19:25:03Z,LMT,11,buy,limit,435.549988,Probability
+2020-02-19T19:25:04Z,TDY,1,buy,limit,388.600006,Probability
+2020-02-19T19:25:04Z,BRO,1,buy,limit,48.110001,Probability
+2020-02-19T19:25:07Z,VFC,1,sell,stop,80.45,Stop Loss Update
+2020-02-19T19:25:09Z,VALE,5,sell,stop,11.37,Stop Loss Update
+2020-02-19T19:25:11Z,TMO,13,sell,stop,327.23,Stop Loss Update
+2020-02-19T19:25:12Z,NICE,27,sell,stop,175.83,Stop Loss Update
+2020-02-19T19:25:14Z,MSFT,26,sell,stop,180.47,Stop Loss Update
+2020-02-19T19:25:17Z,INFY,11,sell,stop,10.95,Stop Loss Update
+2020-02-19T19:25:18Z,CMG,5,sell,stop,905,Stop Loss Update
+2020-02-19T19:25:21Z,AXE,50,sell,stop,97.19,Stop Loss Update
+2020-02-19T19:25:22Z,AMZN,2,sell,stop,2100.87,Stop Loss Update
+2020-02-19T19:25:24Z,ABT,56,sell,stop,86.95,Stop Loss Update
+2020-02-19T19:25:43Z,MDC,113,buy,limit,44.619999,Probability
+2020-02-19T19:25:43Z,PHM,108,buy,limit,46.650002,Probability
+2020-02-19T19:25:44Z,LMT,11,buy,limit,435.549988,Probability
+2020-02-19T19:25:45Z,TDY,1,buy,limit,388.600006,Probability
+2020-02-19T19:25:45Z,DHI,1,buy,limit,61.830002,Probability
+2020-02-19T19:25:54Z,CVCO,21,sell,stop,216.95625629797325,Initial Stop Loss

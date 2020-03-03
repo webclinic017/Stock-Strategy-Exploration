@@ -24,6 +24,7 @@ ALPACA_Performance_Function = function(TODAY,
   
   ########################## Getting Current Account Information ##########################
   ACCT_Status = get_account(live = !PAPER)
+  Market_Status = get_clock()$is_open
   Current_Holdings = try(get_positions(live = !PAPER) %>%
                            filter(side == "long"))
   Current_Orders = try(get_orders(status = 'all',live = !PAPER) %>%
@@ -134,7 +135,7 @@ ALPACA_Performance_Function = function(TODAY,
   ########################## Current Holding Order Updates ########################## 
   Ticker_List = c(Current_Holdings$symbol)
   
-  if(!is_empty(Ticker_List)){
+  if(!is_empty(Ticker_List) & Market_Status){
     ## Stop Loss and Market Sell Rules
     for(STOCK in Ticker_List){
       print(str_c("Running Long Logic On ", STOCK))  

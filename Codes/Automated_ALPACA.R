@@ -11,6 +11,23 @@ load_or_install(Required_Packages)
 
 ## Loading Required Functions
 sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+## Trip Segmenting Function
+TripS_Func = function(DF){
+  Trip_Starts = which(DF$Counter == 1)
+  Trip = 0
+  DF$Trip = Trip
+  for(i in 1:length(Trip_Starts)){
+    Trip = Trip + 1
+    if(i == 1 & length(Trip_Starts) == 1){
+      DF$Trip = Trip
+    }else if(i == length(Trip_Starts)){
+      DF[Trip_Starts[i]:nrow(DF),"Trip"] = Trip 
+    }else{
+      DF[Trip_Starts[i]:Trip_Starts[i+1],"Trip"] = Trip 
+    }
+  }
+  return(DF)
+}
 
 ## Disabling API Warning
 options("getSymbols.yahoo.warning" = FALSE)
@@ -82,6 +99,11 @@ if(Hour < 12){
     summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
     ungroup() %>%
     na.omit()
+  
+  
+  Market_Summary = Market_Ind %>%
+    left_join(Total_Alpha_Slope)
+  
   Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                     Total_Alpha_Slope = Total_Alpha_Slope,
                                     Group_Columns = "Sector",
@@ -215,39 +237,47 @@ if(Hour < 12){
 }  
 load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
-## Running Position Setting Function (Paper and Live)
-ALPACA_Performance_Function(TODAY = TODAY,
-                            RESULT = RESULT,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding,
-                            PAPER = T,
-                            Rebalance = T)
 
-ALPACA_Performance_Function(TODAY = TODAY,
-                            RESULT = RESULT,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding_Live,
-                            PAPER = F,
-                            Rebalance = T)
+Alpha_Signal = mean(TODAY$Total_Alpha) > 0
 
-ALPACA_Performance_Function(TODAY = TODAY,
-                            RESULT = RESULT,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding,
-                            PAPER = T,
-                            Rebalance = T)
-
-ALPACA_Performance_Function(TODAY = TODAY,
-                            RESULT = RESULT,
-                            Auto_Stocks = Auto_Stocks,
-                            Project_Folder = Project_Folder,
-                            Max_Holding = Max_Holding_Live,
-                            PAPER = F,
-                            Rebalance = T)
-
+if(Alpha_Signal){
+  ## Running Position Setting Function (Paper and Live)
+  ALPACA_Performance_Function(TODAY = TODAY,
+                              RESULT = RESULT,
+                              Auto_Stocks = Auto_Stocks,
+                              Project_Folder = Project_Folder,
+                              Max_Holding = Max_Holding,
+                              PAPER = T,
+                              Rebalance = T)
+  
+  # ALPACA_Performance_Function(TODAY = TODAY,
+  #                             RESULT = RESULT,
+  #                             Auto_Stocks = Auto_Stocks,
+  #                             Project_Folder = Project_Folder,
+  #                             Max_Holding = Max_Holding_Live,
+  #                             PAPER = F,
+  #                             Rebalance = T)
+  
+  ALPACA_Performance_Function(TODAY = TODAY,
+                              RESULT = RESULT,
+                              Auto_Stocks = Auto_Stocks,
+                              Project_Folder = Project_Folder,
+                              Max_Holding = Max_Holding,
+                              PAPER = T,
+                              Rebalance = T)
+  
+  # ALPACA_Performance_Function(TODAY = TODAY,
+  #                             RESULT = RESULT,
+  #                             Auto_Stocks = Auto_Stocks,
+  #                             Project_Folder = Project_Folder,
+  #                             Max_Holding = Max_Holding_Live,
+  #                             PAPER = F,
+  #                             Rebalance = T)
+}else{
+  Alpaca_Failsafe(PAPER = T)
+  Alpaca_Failsafe(PAPER = F)
+}
+  
 # ## Running Back Test To Check For New Rules ##
 # Runs = 10
 # p = progress_estimated(Runs)
