@@ -1,0 +1,38 @@
+---
+title: "Analytics Small Project Template"
+author: "Emerson COMRES"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+## Loading COMRES Data Science Package
+library(EmersonDataScience)
+
+## Loading and Installing Packages if necessacary
+Required_Packages = c('tidyverse','ggthemes','installr','lubridate','recipes','scales','devtools','pryr','knitr','rprojroot','readxl')
+load_or_install(Required_Packages)
+
+## Setting Default Chunk Options & Directory
+knitr::opts_chunk$set(echo = F,warning = F,message = F,error = F,fig.width = 6,fig.height = 6)
+Project_Folder = rprojroot::find_rstudio_root_file()
+knitr::opts_knit$set(root.dir = Project_Folder)
+Root_Folder = "//climsidfs07/refeng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/"
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+```
+
+```{r}
+Current_Price = 10
+Current_SMA_50 = 8.2
+Current_PD = Current_Price/Current_SMA_50
+Model_Price_Projection = 0.40
+Static_Price_Projection = (Current_SMA_50*Model_Price_Projection + Current_SMA_50 - Current_Price)/Current_Price
+
+```
+

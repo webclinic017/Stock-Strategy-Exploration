@@ -25,10 +25,7 @@ Initial_Pull = function(Cap = "All",
   ## Pulling Available
   Alpaca_Stocks = get_assets() %>%
     filter(status == "active",
-           tradable,
-           marginable,
-           shortable,
-           easy_to_borrow)
+           tradable)
   
   Auto_Stocks = Auto_Stocks %>%
     mutate(Multiplier = str_extract(MarketCap,"\\w$"),

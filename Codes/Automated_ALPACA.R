@@ -35,7 +35,7 @@ options("getSymbols.warning4.0" = FALSE)
 
 ## General RMD Options
 Re_Pull = T
-NClusters = 8
+NClusters = 4
 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
