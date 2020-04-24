@@ -1,8 +1,22 @@
 Initial_Pull = function(Cap = "All",
-                        Source = "A",
-                        PAPER = T) {
+                        Source = "Y",
+                        Required_Packages,
+                        Debug_Save = F) {
   if(!Source %in% c("Y","A")){
     stop("Source must be either 'Y' (Yahoo) or 'A' (Alpaca) in Initial_Pull function.")
+  }
+  
+  require(doParallel)
+  require(iterators)
+  require(doSNOW)
+  
+  ## Spinning down any left open clusters
+  on.exit(installr::kill_all_Rscript_s())
+  
+  if(Debug_Save){
+    save(list = methods::formalArgs(Initial_Pull),
+         file = str_c(Project_Folder,"/Debug/Initial_Pull.RDATA"))
+    load(file = str_c(Project_Folder,"/Debug/Initial_Pull.RDATA"))
   }
   
   ## Updating Stock List
@@ -12,20 +26,20 @@ Initial_Pull = function(Cap = "All",
            !is.na(MarketCap))
   
   ## Setting API Keys
-  if(PAPER){
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
-    Sys.setenv('APCA-API-KEY-ID' = KEYS$Key.ID)
-    Sys.setenv('APCA-API-SECRET-KEY' = KEYS$Secret.Key)
-  }else{
-    KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
-    Sys.setenv('APCA-API-KEY-ID' = as.character(KEYS$Key.ID))
-    Sys.setenv('APCA-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
-  }
+  KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
+  Sys.setenv('APCA-PAPER-API-KEY-ID' = KEYS$Key.ID)
+  Sys.setenv('APCA-PAPER-API-SECRET-KEY' = KEYS$Secret.Key)
+  KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Live API.txt"))
+  Sys.setenv('APCA-LIVE-API-KEY-ID' = as.character(KEYS$Key.ID))
+  Sys.setenv('APCA-LIVE-API-SECRET-KEY' = as.character(KEYS$Secret.Key))
   
   ## Pulling Available
   Alpaca_Stocks = get_assets() %>%
     filter(status == "active",
-           tradable)
+           tradable,
+           marginable,
+           shortable,
+           easy_to_borrow)
   
   Auto_Stocks = Auto_Stocks %>%
     mutate(Multiplier = str_extract(MarketCap,"\\w$"),
@@ -78,92 +92,106 @@ Initial_Pull = function(Cap = "All",
   ## Combining & Removing Dead Stocks
   Total_Stocks = bind_rows(Market_Tickers, Auto_Stocks)
     
- 
-   for (j in 1:2){
+  ## Creating Clusters
+  c1 = makeCluster(detectCores())
+  registerDoSNOW(c1)
+  
+  for (j in 1:2){
     Dump = list()
     
-    p = progress_estimated(n = nrow(Total_Stocks), min_time = 3)
-    for (i in 1:nrow(Total_Stocks)) {
-      p$pause(0.1)$tick()$print()
-      ticker = as.character(Total_Stocks$Symbol[i])
-      
-      if(j == 1){
-        if(Source == "Y"){
-          stockData = try(getSymbols(ticker,
-                                     src = "yahoo",
-                                     from = Sys.Date() - 365,
-                                     auto.assign = FALSE) %>%
-                            as.data.frame() %>%
-                            mutate(Date = ymd(rownames(.))) %>%
-                            select(-6))
-        }
-        if(Source == "A"){
-          stockData = try(get_bars(ticker,
-                                   from = Sys.Date() - 365) %>%
-                            select("Open" = o,
-                                   "High" = h,
-                                   "Low" = l,
-                                   "Close" = c,
-                                   "Volume" = v,
-                                   "Date" = d) %>%
-                            mutate(Date = ymd(Date)),
-                          silent = T)
-        }
-      }else{
-        if(Source == "Y"){
-          stockData = try(getSymbols(ticker,
-                                     src = "yahoo",
-                                     auto.assign = FALSE) %>%
-                            as.data.frame() %>%
-                            mutate(Date = ymd(rownames(.))) %>%
-                            select(-6))
-        }
-        if(Source == "A"){
-          stockData = try(get_bars(ticker,
-                                   from = Sys.Date() - 365*5) %>%
-                            select("Open" = o,
-                                   "High" = h,
-                                   "Low" = l,
-                                   "Close" = c,
-                                   "Volume" = v,
-                                   "Date" = d) %>%
-                            mutate(Date = ymd(Date)),
-                          silent = T)
-          Stop = F
-          if(!"try-error" %in% class(stockData)){
-            while(nrow(stockData)/1000 == round(nrow(stockData)/1000) & !Stop){
-              TMP = try(get_bars(ticker,
-                                 from = min(stockData$Date) - 365*5,
-                                 to = min(stockData$Date)-1) %>%
-                          select("Open" = o,
-                                 "High" = h,
-                                 "Low" = l,
-                                 "Close" = c,
-                                 "Volume" = v,
-                                 "Date" = d) %>%
-                          mutate(Date = ymd(Date)))
-              if("try-error" %in% class(TMP)){
-                Stop = T
-              }else{
-               stockData = rbind(TMP,stockData) 
-              }
-            }
-          }  
-        }
-      }
-      if ("try-error" %in% class(stockData)) {
-        Dump[[i]] = stockData
-      }else{
-        colnames(stockData) = c("Open",
-                                "High",
-                                "Low",
-                                "Close",
-                                "Volume",
-                                "Date")
-        stockData$Stock = ticker
-        Dump[[i]] = stockData
-      }
-    }
+    p <- progress_estimated(nrow(Total_Stocks))
+    progress <- function(n) p$tick()$print()
+    opts <- list(progress = progress)
+    
+    tickers = Total_Stocks$Symbol
+    
+    Dump = foreach(i = tickers,
+                   .errorhandling = "stop",
+                   .inorder = F,
+                   .options.snow = opts,
+                   .export = c("j"),
+                   .packages = Required_Packages) %dopar%{
+                     
+                     ticker = i
+                     
+                     if(j == 1){
+                       if(Source == "Y"){
+                         stockData = try(getSymbols(ticker,
+                                                    src = "yahoo",
+                                                    from = Sys.Date() - 365,
+                                                    auto.assign = FALSE) %>%
+                                           as.data.frame() %>%
+                                           mutate(Date = ymd(rownames(.))) %>%
+                                           select(-6))
+                       }
+                       if(Source == "A"){
+                         stockData = try(get_bars(ticker,
+                                                  from = Sys.Date() - 365) %>%
+                                           select("Open" = o,
+                                                  "High" = h,
+                                                  "Low" = l,
+                                                  "Close" = c,
+                                                  "Volume" = v,
+                                                  "Date" = d) %>%
+                                           mutate(Date = ymd(Date)),
+                                         silent = T)
+                       }
+                     }else{
+                       if(Source == "Y"){
+                         stockData = try(getSymbols(ticker,
+                                                    src = "yahoo",
+                                                    auto.assign = FALSE) %>%
+                                           as.data.frame() %>%
+                                           mutate(Date = ymd(rownames(.))) %>%
+                                           select(-6))
+                       }
+                       if(Source == "A"){
+                         stockData = try(get_bars(ticker,
+                                                  from = Sys.Date() - 365*5) %>%
+                                           select("Open" = o,
+                                                  "High" = h,
+                                                  "Low" = l,
+                                                  "Close" = c,
+                                                  "Volume" = v,
+                                                  "Date" = d) %>%
+                                           mutate(Date = ymd(Date)),
+                                         silent = T)
+                         Stop = F
+                         if(!"try-error" %in% class(stockData)){
+                           while(nrow(stockData)/1000 == round(nrow(stockData)/1000) & !Stop){
+                             TMP = try(get_bars(ticker,
+                                                from = min(stockData$Date) - 365*5,
+                                                to = min(stockData$Date)-1) %>%
+                                         select("Open" = o,
+                                                "High" = h,
+                                                "Low" = l,
+                                                "Close" = c,
+                                                "Volume" = v,
+                                                "Date" = d) %>%
+                                         mutate(Date = ymd(Date)))
+                             if("try-error" %in% class(TMP)){
+                               Stop = T
+                             }else{
+                               stockData = rbind(TMP,stockData) 
+                             }
+                           }
+                         }  
+                       }
+                     }
+                     if ("try-error" %in% class(stockData)) {
+                       stockData
+                     }else{
+                       colnames(stockData) = c("Open",
+                                               "High",
+                                               "Low",
+                                               "Close",
+                                               "Volume",
+                                               "Date")
+                       stockData$Stock = ticker
+                       stockData
+                     }
+                   }
+    
     ## Consolidating to Data Frame
     list.condition <-
       sapply(Dump, function(x)

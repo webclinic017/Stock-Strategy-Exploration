@@ -1,12 +1,11 @@
-PR_Appendage = function(Combined_Results = NULL,
-                        parallel = T,
-                        NCores = detectCores()){
+PR_Appendage = function(Combined_Results,Required_Packages){
   
-  Loop_Function = function(Combined_Results,
-                           Stock_Loop){
+  ## Spinning down any left open clusters
+  on.exit(installr::kill_all_Rscript_s())
+  
+  Loop_Function = function(DF){
     # Subsetting to Specific Stock
-    DF = Combined_Results %>%
-      filter(Stock == Stock_Loop) %>%
+    DF = DF %>%
       na.omit() %>%
       mutate(Volume_50_SMA = rollapply(data = Volume,
                                        width = 50,
@@ -96,38 +95,23 @@ PR_Appendage = function(Combined_Results = NULL,
       ungroup()
   
     ## Looping All Stocks Through Spline Optimization
-    Tickers = as.character(unique(Combined_Results$Stock))
+    c1 = makeCluster(detectCores())
+    registerDoParallel(c1)
+    p <- progress_estimated(unique(Combined_Results$Stock))
+    progress <- function(n) p$tick()$print()
+    opts <- list(progress = progress)
     
-    if(!parallel){
-      Window_Results = list()
-      
-      p = progress_estimated(n = length(Tickers),min_time = 3)
-      for(i in 1:length(Tickers)){
-        p$pause(0.1)$tick()$print()
-        # Ticker to Optimize
-        Stock_Loop = Tickers[i]
-        # Output to ForEach Loop
-        Window_Results[[i]] = Loop_Function(Combined_Results,
-                                            Stock_Loop)
-      }
-    }else{
-      NCores = min(c(detectCores(),NCores))
-      c1 = makeCluster(NCores)
-      registerDoParallel(c1)
-      Window_Results = foreach(i = 1:length(Tickers),
-                               .inorder = F,
-                               .packages = c("tidyverse",
-                                             "quantmod",
-                                             "lubridate")) %dopar% {
-                                             # Ticker to Optimize
-                                             Stock_Loop = Tickers[i]
+    Symbols = isplit(Combined_Results,Combined_Results$Stock)
+    
+    Window_Results = foreach(i = Symbols,
+                             .errorhandling = "stop",
+                             .inorder = F,
+                             .options.snow = opts,
+                             .packages = Required_Packages) %dopar% {
                                              # Output to ForEach Loop
-                                             Loop_Function(Combined_Results,
-                                                           Stock_Loop)
+                                             Loop_Function(i$value)
                                            }
-      stopCluster(c1)
-      registerDoSEQ()
-    }
+    
     # Simplifying List and Removing Try-Errors
     Window_Results = Window_Results[str_detect(sapply(Window_Results,class),"data.frame")] %>%
       plyr::ldply(data.frame)

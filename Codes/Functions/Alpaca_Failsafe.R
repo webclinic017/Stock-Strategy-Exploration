@@ -20,6 +20,7 @@ Alpaca_Failsafe = function(PAPER = T){
     cancel_order(ticker_id = Current_Orders$id[i])
   }
   
+  
   close_all_positions(live = !PAPER)
   
   

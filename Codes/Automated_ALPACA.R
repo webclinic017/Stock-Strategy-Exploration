@@ -6,7 +6,7 @@ library(EmersonDataScience)
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR")
+                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","itterators")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -53,7 +53,8 @@ if(Hour < 12){
     ## Fresh Historical Data Pull
     Initial_Pull(Cap = Cap,
                  Source = "Y",
-                 PAPER = F)
+                 Required_Packages = Required_Packages,
+                 Debug_Save = T)
   }else{
     ## Historical Table Update
     Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),
@@ -78,9 +79,7 @@ if(Hour < 12){
   ## Normalizing OHLCV Values  
   Start = Sys.time()
   print("Initial Stat Calculation for Pool Selection")
-  PR_Stage = PR_Appendage(Combined_Results,
-                          parallel = T,
-                          NCores = NClusters)
+  PR_Stage = PR_Appendage(Combined_Results,Required_Packages = Required_Packages)
   Sys.time() - Start
   ## Saving Results
   save(PR_Stage,
@@ -107,19 +106,24 @@ if(Hour < 12){
   Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                     Total_Alpha_Slope = Total_Alpha_Slope,
                                     Group_Columns = "Sector",
+                                    Required_Packages,
                                     width = 50)
   Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                       Total_Alpha_Slope = Total_Alpha_Slope,
                                       Group_Columns = "Industry",
+                                      Required_Packages,
                                       width = 50)
   Sector_Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                              Total_Alpha_Slope = Total_Alpha_Slope,
                                              Group_Columns = c("Sector","Industry"),
+                                             Required_Packages,
                                              width = 50)
   Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                    Total_Alpha_Slope = Total_Alpha_Slope,
                                    Group_Columns = "Stock",
+                                   Required_Packages,
                                    width = 50)
+  
   ## Appending Results
   PR_Stage_R2 = PR_Stage %>%
     left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
@@ -159,25 +163,28 @@ if(Hour < 12){
   Stocks = unique(Last_Time$Stock)
   
   ## Spinning Up Clusters
-  library(doSNOW)
-  c1 = makeCluster(NClusters)
-  registerDoSNOW(c1)
+  ## Looping All Stocks Through Spline Optimization
+  c1 = makeCluster(detectCores())
+  registerDoParallel(c1)
+  p <- progress_estimated(unique(PR_Stage_R2$Stock))
+  progress <- function(n) p$tick()$print()
+  opts <- list(progress = progress)
+  
+  Symbols = isplit(PR_Stage_R2,PR_Stage_R2$Stock)
   
   ## Parallel Execution
-  Results = foreach(i = 1:length(Stocks),
+  Results = foreach(i = Symbols,
                     .errorhandling = "remove",
                     .inorder = F,
+                    .options.snow = opts,
                     .packages = c("tidyverse",
                                   "quantmod",
                                   "lubridate",
                                   "TTR"),
                     .verbose = F) %dopar% {
-                      ## Subsetting Data
-                      TMP = PR_Stage_R2 %>%
-                        filter(Stock == Stocks[i])
                       
                       ## Calculating Technical Indicators
-                      Stat_Appendage_Function(DF = TMP)
+                      Stat_Appendage_Function(DF = i$value)
                     }
   
   ## Spinning Down Clusters

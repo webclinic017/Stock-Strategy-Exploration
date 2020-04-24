@@ -1,4 +1,12 @@
-BAC_Function = function(PR_Stage,Total_Alpha_Slope,Group_Columns,width = 50){
+BAC_Function = function(PR_Stage,
+                        Total_Alpha_Slope,
+                        Group_Columns,
+                        Required_Packages,
+                        width = 50){
+  
+  ## Spinning down any left open clusters
+  on.exit(installr::kill_all_Rscript_s())
+  
   if(all(Group_Columns == "Stock")){
     TMP = PR_Stage %>%
       mutate(Return = Close_Slope_50_Norm) %>%
@@ -15,53 +23,60 @@ BAC_Function = function(PR_Stage,Total_Alpha_Slope,Group_Columns,width = 50){
       ungroup()
   }
   
-  Group_DF = TMP %>%
-    select(Group_Columns) %>%
-    distinct()
-  
-  counter = 0
-  p = progress_estimated(nrow(Group_DF))
-  for(i in 1:nrow(Group_DF)){
-    counter = counter + 1
-    TMP2 = TMP
-    for(j in 1:ncol(Group_DF)){
-      TMP2 = TMP2 %>%
-        filter_at(colnames(Group_DF)[j],any_vars(. == as_vector(Group_DF[i,j])))
-    }
-    Y = as.matrix(TMP2$Return)
-    X = as.matrix(TMP2$Total_Alpha)
-    
-    Results = roll_lm(x = X,
-                      y = Y,
-                      width = width,
-                      intercept = T,
-                      na_restore = T)
-    Alpha = Results$coefficients[,1]
-    Z_Alpha = Alpha/Results$std.error[,1]
-    P_Alpha = exp(-0.717 * Z_Alpha - 0.416 * Z_Alpha * Z_Alpha)
-    Beta = Results$coefficients[,2]
-    Z_Beta = Beta/Results$std.error[,2]
-    P_Beta = exp(-0.717 * Z_Beta - 0.416 * Z_Beta * Z_Beta)
-    
-    Cor = Results$r.squared
-    Output = data.frame(Alpha = Alpha,
-                        Z_Alpha = Z_Alpha,
-                        P_Alpha = P_Alpha,
-                        Beta = Beta,
-                        Z_Beta = Z_Beta,
-                        P_Beta = P_Beta,
-                        Cor = Cor)
-    colnames(Output) = str_c(colnames(Output),"_",str_c(Group_Columns,collapse = "_"))
-    Output = Output %>%
-      bind_cols(TMP2) %>%
-      select(-Return,-Total_Alpha) %>%
-      na.omit()
-    if(counter == 1){
-      Total_Out = Output
-    }else{
-      Total_Out = bind_rows(Total_Out,Output)
-    }
-    p$pause(0.1)$tick()$print()
+  Groups = list()
+  for(i in Group_Columns){
+    Groups[i] = TMP[,i]
   }
+  
+  ## Looping All Stocks Through Spline Optimization
+  c1 = makeCluster(detectCores())
+  registerDoParallel(c1)
+  
+  Symbols = isplit(x = TMP,f = Groups)
+  
+  Total_Out = foreach(i = Symbols,
+                      .errorhandling = "stop",
+                      .inorder = F,
+                      .packages = Required_Packages) %dopar% {  
+                        
+                        TMP2 = i$value
+                        
+                        if(nrow(TMP2) < 100){next}
+                        
+                        Y = as.matrix(TMP2$Return)
+                        X = as.matrix(TMP2$Total_Alpha)
+                        
+                        Results = roll_lm(x = X,
+                                          y = Y,
+                                          width = width,
+                                          intercept = T,
+                                          na_restore = T)
+                        Alpha = Results$coefficients[,1]
+                        Z_Alpha = Alpha/Results$std.error[,1]
+                        P_Alpha = exp(-0.717 * Z_Alpha - 0.416 * Z_Alpha * Z_Alpha)
+                        Beta = Results$coefficients[,2]
+                        Z_Beta = Beta/Results$std.error[,2]
+                        P_Beta = exp(-0.717 * Z_Beta - 0.416 * Z_Beta * Z_Beta)
+                        
+                        Cor = Results$r.squared
+                        Output = data.frame(Alpha = Alpha,
+                                            Z_Alpha = Z_Alpha,
+                                            P_Alpha = P_Alpha,
+                                            Beta = Beta,
+                                            Z_Beta = Z_Beta,
+                                            P_Beta = P_Beta,
+                                            Cor = Cor)
+                        colnames(Output) = str_c(colnames(Output),"_",str_c(Group_Columns,collapse = "_"))
+                        Output = Output %>%
+                          bind_cols(TMP2) %>%
+                          select(-Return,-Total_Alpha) %>%
+                          na.omit() %>%
+                          as.data.frame()
+                        Output
+                      }
+  # Total_Out List and Removing Try-Errors
+  Total_Out = Total_Out[str_detect(sapply(Total_Out,class),"data.frame")] %>%
+    plyr::ldply(data.frame)
+  
   return(Total_Out)
 }
