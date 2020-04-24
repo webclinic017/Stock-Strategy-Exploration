@@ -45,7 +45,7 @@ FinViz_Meta_Data = function(RESULT){
     TMP = try(FinViz_Metric_Pull(Ticker),
               silent = T)
     storage[[i]] = TMP
-    p$pause(0.5)$tick()$print()
+    p$tick()$print()
   }
   Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame) %>%
     dplyr::select(-contains("Perf"),

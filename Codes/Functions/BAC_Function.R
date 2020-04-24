@@ -25,7 +25,7 @@ BAC_Function = function(PR_Stage,
   
   Groups = list()
   for(i in Group_Columns){
-    Groups[i] = TMP[,i]
+    Groups[[i]] = TMP[,i]
   }
   
   ## Looping All Stocks Through Spline Optimization
@@ -40,8 +40,6 @@ BAC_Function = function(PR_Stage,
                       .packages = Required_Packages) %dopar% {  
                         
                         TMP2 = i$value
-                        
-                        if(nrow(TMP2) < 100){next}
                         
                         Y = as.matrix(TMP2$Return)
                         X = as.matrix(TMP2$Total_Alpha)

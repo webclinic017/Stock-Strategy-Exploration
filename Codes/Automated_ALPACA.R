@@ -6,11 +6,12 @@ library(EmersonDataScience)
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","itterators")
+                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","iterators")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
 sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+
 ## Trip Segmenting Function
 TripS_Func = function(DF){
   Trip_Starts = which(DF$Counter == 1)
@@ -161,14 +162,16 @@ if(Hour < 12){
   
   ## Calculating Technical Indicators
   Stocks = unique(Last_Time$Stock)
+  PR_Stage_R2 = PR_Stage_R2[PR_Stage_R2$Stock %in% Stocks,]
   
   ## Spinning Up Clusters
   ## Looping All Stocks Through Spline Optimization
-  c1 = makeCluster(detectCores())
-  registerDoParallel(c1)
-  p <- progress_estimated(unique(PR_Stage_R2$Stock))
+  c1 = makeCluster(4)
+  registerDoSNOW(c1)
+  p <- progress_estimated(length(unique(PR_Stage_R2$Stock)))
   progress <- function(n) p$tick()$print()
   opts <- list(progress = progress)
+  
   
   Symbols = isplit(PR_Stage_R2,PR_Stage_R2$Stock)
   
@@ -188,8 +191,7 @@ if(Hour < 12){
                     }
   
   ## Spinning Down Clusters
-  stopCluster(c1)
-  registerDoSEQ()
+  installr::kill_all_Rscript_s()
   
   ## Consolidating Results
   PR_Stage_R3 = plyr::ldply(Results,data.frame)
@@ -225,11 +227,15 @@ if(Hour < 12){
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
-                               DCF = F,
-                               FinViz = T)
+                               DCF = T,
+                               FinViz = T,
+                               Debug_Save = T)
   
+  try(write.csv(x = RESULT$LONG,
+                file = str_c(Project_Folder,"/Stock Projections/LONG_",
+                             as_date(now()),".csv")))
   try(write.csv(x = RESULT$TOTAL,
-                file = str_c("//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stock Projections/",
+                file = str_c(Project_Folder,"/Stock Projections/TOTAL_",
                              as_date(now()),".csv")))
   
   ## Saving Results

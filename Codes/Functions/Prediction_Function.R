@@ -3,7 +3,14 @@ Prediction_Function = function(Models,
                                FinViz = T,
                                DCF = T,
                                Margin_Intrest = 0.035,
-                               ETB_Rate = 0.002){
+                               ETB_Rate = 0.002,
+                               Debug_Save = F){
+  
+  if(Debug_Save){
+    save(list = methods::formalArgs(Prediction_Function),
+         file = str_c(Project_Folder,"/Debug/Prediction_Function.RDATA"))
+    load(file = str_c(Project_Folder,"/Debug/Prediction_Function.RDATA"))
+  }
 
   Preds_Long = predict(Models$Model_Long$Model,
                         s = Models$Model_Long$s,
@@ -67,20 +74,24 @@ Prediction_Function = function(Models,
   
   
   if(FinViz){
-    LONG = FinViz_Meta_Data(LONG)
-    LONG = LONG %>%
-      filter(ROE > 0,
-             EPS.Q.Q > 0,
-             Sales.Q.Q > 0,
-             Short.Float < 0.05)
-    SHORT = FinViz_Meta_Data(SHORT)
-    SHORT = SHORT %>%
-      filter(Short.Ratio < Models$Model_Long$Timeframe,
-             Short.Float > 0.05,
-             ROE < 0,
-             EPS.Q.Q < 0,
-             Sales.Q.Q < 0) %>%
-      select(Short.Ratio,Short.Float,everything())
+    if(nrow(LONG) != 0){
+      LONG = FinViz_Meta_Data(LONG)
+      LONG = LONG %>%
+        filter(ROE > 0,
+               EPS.Q.Q > 0,
+               Sales.Q.Q > 0,
+               Short.Float < 0.05)
+    }
+    if(nrow(SHORT) != 0){
+      SHORT = FinViz_Meta_Data(SHORT)
+      SHORT = SHORT %>%
+        filter(Short.Ratio < Models$Model_Long$Timeframe,
+               Short.Float > 0.05,
+               ROE < 0,
+               EPS.Q.Q < 0,
+               Sales.Q.Q < 0) %>%
+        select(Short.Ratio,Short.Float,everything())
+    }
   }
   
   return(list(
