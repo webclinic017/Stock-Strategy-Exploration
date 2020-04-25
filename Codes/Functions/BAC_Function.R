@@ -25,7 +25,7 @@ BAC_Function = function(PR_Stage,
   
   Groups = list()
   for(i in Group_Columns){
-    Groups[[i]] = TMP[,i]
+    Groups[[i]] = as_vector(TMP[,i])
   }
   
   ## Looping All Stocks Through Spline Optimization

@@ -1,24 +1,9 @@
 Stat_Appendage_Function = function(DF){
-########################## Sample Data #######################
-  # load(file = "//climsidfs07/RefEng/1 Ref. Engineering (SH, Scroll & IPD)/13) Analytics/Small Projects/Stocks/Data/NASDAQ Historical.RDATA")
-  # DF = Combined_Results %>%
-  #   group_by(Stock) %>%
-  #   filter(Stock == "AMZN")
-##############################################################
-  # ## Loading Project Functions
-  # sourceDir <- function(path, trace = TRUE, ...) {
-  #   for (nm in list.files(path, pattern = "\\.[RrSsQq]$")) {
-  #     if(trace) cat(nm,":")           
-  #     source(file.path(path, nm), ...)
-  #     if(trace) cat("\n")
-  #   }
-  # }
-  # sourceDir(paste0(getwd(),'/Codes/Functions/'))
-require(tidyverse)
-require(lubridate)
-require(quantmod)
-require(TTR)
-
+  require(tidyverse)
+  require(lubridate)
+  require(quantmod)
+  require(TTR)
+  
   ## Applying TTR Functions
   DF = as.data.frame(DF)[!duplicated(DF$Date),]
   DF2 = DF %>%
@@ -84,9 +69,9 @@ require(TTR)
   
   ## DVI Optimization
   # Very Smooth Price Oscillator
-  DVI_DF = DVI(DF_Orig$Close) %>%
-    as.data.frame() %>%
-    setNames(.,c("DVI_MAG","DVI_STR","DVI"))
+  # DVI_DF = DVI(DF_Orig$Close) %>%
+  #   as.data.frame() %>%
+  #   setNames(.,c("DVI_MAG","DVI_STR","DVI"))
   
   ## SMI Optimization
   # Stochastic Momentum Index

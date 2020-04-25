@@ -5,7 +5,7 @@ DCF_Update = function(Symbol){
   if("dcf" %in% names(json)){
     DCF = json[["dcf"]]
     Current_Price = json[["Stock Price"]]
-    try(print(str_c(Symbol,":",round(DCF,2),":",round(Current_Price,2))),silent = T)
+    # try(print(str_c(Symbol,":",round(DCF,2),":",round(Current_Price,2))),silent = T)
     Ratio = try((DCF-Current_Price)/Current_Price,silent = T)
     if(!"try-error" %in% class(Ratio)){
       if(Ratio > 0.02 & Ratio < 1){

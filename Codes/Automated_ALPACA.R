@@ -2,6 +2,8 @@ Project_Folder = "C://Users//aayorde//documents//github//stock-strategy-explorat
 
 library(EmersonDataScience)
 
+devtools::install_github("jagg19/AlpacaforR")
+
 ## Loading and Installing Packages if necessacary
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
@@ -12,55 +14,31 @@ load_or_install(Required_Packages)
 ## Loading Required Functions
 sourceDir(paste0(Project_Folder,"/Codes/Functions"))
 
-## Trip Segmenting Function
-TripS_Func = function(DF){
-  Trip_Starts = which(DF$Counter == 1)
-  Trip = 0
-  DF$Trip = Trip
-  for(i in 1:length(Trip_Starts)){
-    Trip = Trip + 1
-    if(i == 1 & length(Trip_Starts) == 1){
-      DF$Trip = Trip
-    }else if(i == length(Trip_Starts)){
-      DF[Trip_Starts[i]:nrow(DF),"Trip"] = Trip 
-    }else{
-      DF[Trip_Starts[i]:Trip_Starts[i+1],"Trip"] = Trip 
-    }
-  }
-  return(DF)
-}
-
-## Disabling API Warning
-options("getSymbols.yahoo.warning" = FALSE)
-options("getSymbols.warning4.0" = FALSE)
-
 ## General RMD Options
-Re_Pull = T
-NClusters = 4
-
+Run_Analysis = T
+## Modeling Information
+Max_Single_Investment = 50
+Min_Single_Investment = 15
+## Cap Preferences (one of All/Mega/Large/Mid/Small)
+Cap = "All" 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
 Max_Holding_Live = 0.10
+## Disabling API Warning
+options("getSymbols.yahoo.warning" = FALSE)
+options("getSymbols.warning4.0" = FALSE)
 
-## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "All" 
-
-Hour = hour(Sys.time())
-
-if(Hour < 12){
-  ## Pulling Historical Data
-  if(Re_Pull){
-    ## Fresh Historical Data Pull
-    Initial_Pull(Cap = Cap,
-                 Source = "Y",
-                 Required_Packages = Required_Packages,
-                 Debug_Save = T)
-  }else{
-    ## Historical Table Update
-    Ticker_Pull_Function(Location = paste0(Project_Folder,"/Data/"),
-                         Google_Drive = F)
-  }
+## Pulling Historical Data
+if(Run_Analysis){
+  ## Fresh Historical Data Pull
+  Initial_Pull(Cap = Cap,
+               Source = "Y",
+               Max_Single_Investment = Max_Single_Investment,
+               Min_Single_Investment = Min_Single_Investment,
+               Required_Packages = Required_Packages,
+               Debug_Save = T)
+  
   
   ## Loading Historical Stock Data
   load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
@@ -68,10 +46,10 @@ if(Hour < 12){
     filter(Date != Sys.Date())
   
   # ## Bear/Bull Calculations
-  Market_Ind = Market_Direction(Combined_Results,Plot = F) %>%
+  Market_Ind = Market_Direction(Combined_Results,Plot = T) %>%
     select(-c(Close,Indicator)) %>%
     na.omit()
-
+  
   # ## Saving Market Indicators
   save(Market_Ind,
        file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
@@ -80,12 +58,14 @@ if(Hour < 12){
   ## Normalizing OHLCV Values  
   Start = Sys.time()
   print("Initial Stat Calculation for Pool Selection")
-  PR_Stage = PR_Appendage(Combined_Results,Required_Packages = Required_Packages)
+  PR_Stage = PR_Appendage(Combined_Results,
+                          Required_Packages = Required_Packages)
   Sys.time() - Start
+  
   ## Saving Results
   save(PR_Stage,
        file = paste0(Project_Folder,"/Data/Initial Stats.RDATA"))
-  
+  rm(Combined_Results)
   
   ## Compairing Performance to Major Indexs
   load(file = paste0(Project_Folder,"/Data/Initial Stats.RDATA"))
@@ -99,10 +79,6 @@ if(Hour < 12){
     summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
     ungroup() %>%
     na.omit()
-  
-  
-  Market_Summary = Market_Ind %>%
-    left_join(Total_Alpha_Slope)
   
   Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                     Total_Alpha_Slope = Total_Alpha_Slope,
@@ -147,26 +123,14 @@ if(Hour < 12){
     select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
     na.omit()
   
-  
-  ## Removing Dead Stocks Or Baby Stocks
-  Time_Stop = max(PR_Stage_R2$Date)
-  Time_Start = Time_Stop - 365*5
-  Last_Time = PR_Stage_R2 %>% 
-    group_by(Stock) %>%
-    summarise(Max_Time = max(Date),
-              Min_Time = min(Date),
-              Count = n()) %>%
-    filter(Max_Time == Time_Stop,
-           Min_Time <= Time_Start,
-           Count > 1000)
-  
-  ## Calculating Technical Indicators
-  Stocks = unique(Last_Time$Stock)
-  PR_Stage_R2 = PR_Stage_R2[PR_Stage_R2$Stock %in% Stocks,]
+  save(PR_Stage_R2,
+       file = str_c(Project_Folder,"/Data/PR_Stage_R2.RDATA"))
+  load(file = str_c(Project_Folder,"/Data/PR_Stage_R2.RDATA"))
+  rm(PR_Stage,Sector_Alpha_Slope,Stock_Alpha_Slope,Sector_Industry_Alpha_Slope,Industry_Alpha_Slope,Total_Alpha_Slope)
   
   ## Spinning Up Clusters
   ## Looping All Stocks Through Spline Optimization
-  c1 = makeCluster(4)
+  c1 = makeCluster(detectCores())
   registerDoSNOW(c1)
   p <- progress_estimated(length(unique(PR_Stage_R2$Stock)))
   progress <- function(n) p$tick()$print()
@@ -195,11 +159,13 @@ if(Hour < 12){
   
   ## Consolidating Results
   PR_Stage_R3 = plyr::ldply(Results,data.frame)
+  rm(Results)
   
   ## Saving Results
   save(PR_Stage_R3,
        file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+  rm(PR_Stage_R2)
   
   ## Initial Data ##
   ID_DF = PR_Stage_R3 %>%
@@ -215,12 +181,13 @@ if(Hour < 12){
            CCI_Delta = (CCI - lag(CCI,1)),
            VHF_Delta = (VHF - lag(VHF,1)),
            RSI_Delta = (RSI - lag(RSI,1)))
+  rm(PR_Stage_R3)
   
   ## Building Models ##
   Models = Modeling_Function(ID_DF = ID_DF,
                              Max_Date = max(ID_DF$Date),
                              Short_Time = 10,
-                             Long_Time = 50)
+                             Long_Time = 15)
   
   TODAY = ID_DF %>%
     filter(Date == max(Date))

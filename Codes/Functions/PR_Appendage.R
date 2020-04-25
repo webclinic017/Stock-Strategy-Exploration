@@ -88,16 +88,10 @@ PR_Appendage = function(Combined_Results,Required_Packages){
     return(DF)
   }
   
-    ## Quick Reduction
-    Combined_Results = Combined_Results %>%
-      group_by(Stock) %>%
-      filter(n() >= 365) %>%
-      ungroup()
-  
     ## Looping All Stocks Through Spline Optimization
     c1 = makeCluster(detectCores())
-    registerDoParallel(c1)
-    p <- progress_estimated(unique(Combined_Results$Stock))
+    registerDoSNOW(c1)
+    p <- progress_estimated(length(unique(Combined_Results$Stock)))
     progress <- function(n) p$tick()$print()
     opts <- list(progress = progress)
     

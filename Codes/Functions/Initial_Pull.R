@@ -1,8 +1,11 @@
 Initial_Pull = function(Cap = "All",
                         Source = "Y",
+                        Max_Single_Investment,
+                        Min_Single_Investment,
                         Required_Packages,
                         Debug_Save = F) {
-  if(!Source %in% c("Y","A")){
+ 
+   if(!Source %in% c("Y","A")){
     stop("Source must be either 'Y' (Yahoo) or 'A' (Alpaca) in Initial_Pull function.")
   }
   
@@ -23,7 +26,9 @@ Initial_Pull = function(Cap = "All",
   Auto_Stocks = stockSymbols() %>%
     filter(!is.na(Industry),
            !is.na(Sector),
-           !is.na(MarketCap))
+           !is.na(MarketCap),
+           LastSale <= Max_Single_Investment,
+           LastSale >= Min_Single_Investment)
   
   ## Setting API Keys
   KEYS = read.csv(paste0(Project_Folder,"/Data/Keys/Paper API.txt"))
@@ -57,13 +62,7 @@ Initial_Pull = function(Cap = "All",
       New_Cap > 2e9 ~ "Mid",
       New_Cap > 500e6 ~ "Small"
     )) %>%
-    select(-c(IPOyear,Exchange,Multiplier,Value)) %>%
-    filter(!str_detect(str_trim(Symbol),
-                       paste0("^ARII$|^ATHN$|^BHBK$|^BLMT$|^ECYT$|^ESRX$|^GNBC$|^HDP$|^KANG$|^IDTI$",
-                              "|^LOXO$|^NXTM$|^PBSK$|^SODA$|^SONC$|^TSRO$|^NAVG$|^ULTI$|^WTW$|^AHL$",
-                              "|^BJZ$|^BPK$|^DM$|^DSW$|^ECC$|^ETX$|^ELLI$|^FCB$|^FBR$|^HTGX$|^LHO$",
-                              "|^KORS$|^MSF$|^NFX$|^SSWN$|^SEP$|^TLP$|^VLP$|^VZA$|^WGP$|^ORM$|^DEACU$",
-                              "|^SVA$|^UBS$|^CRVS$|^HEXO$|^ALRM$|^KTB$")))
+    select(-c(IPOyear,Exchange,Multiplier,Value)) 
   
   ## Filtering to Specific 
   if(Cap != "All"){
@@ -96,136 +95,92 @@ Initial_Pull = function(Cap = "All",
   c1 = makeCluster(detectCores())
   registerDoSNOW(c1)
   
-  for (j in 1:2){
-    Dump = list()
-    
-    p <- progress_estimated(nrow(Total_Stocks))
-    progress <- function(n) p$tick()$print()
-    opts <- list(progress = progress)
-    
-    tickers = Total_Stocks$Symbol
-    
-    Dump = foreach(i = tickers,
-                   .errorhandling = "stop",
-                   .inorder = F,
-                   .options.snow = opts,
-                   .export = c("j"),
-                   .packages = Required_Packages) %dopar%{
-                     
-                     ticker = i
-                     
-                     if(j == 1){
-                       if(Source == "Y"){
-                         stockData = try(getSymbols(ticker,
-                                                    src = "yahoo",
-                                                    from = Sys.Date() - 365,
-                                                    auto.assign = FALSE) %>%
-                                           as.data.frame() %>%
-                                           mutate(Date = ymd(rownames(.))) %>%
-                                           select(-6))
-                       }
-                       if(Source == "A"){
-                         stockData = try(get_bars(ticker,
-                                                  from = Sys.Date() - 365) %>%
-                                           select("Open" = o,
-                                                  "High" = h,
-                                                  "Low" = l,
-                                                  "Close" = c,
-                                                  "Volume" = v,
-                                                  "Date" = d) %>%
-                                           mutate(Date = ymd(Date)),
-                                         silent = T)
-                       }
-                     }else{
-                       if(Source == "Y"){
-                         stockData = try(getSymbols(ticker,
-                                                    src = "yahoo",
-                                                    auto.assign = FALSE) %>%
-                                           as.data.frame() %>%
-                                           mutate(Date = ymd(rownames(.))) %>%
-                                           select(-6))
-                       }
-                       if(Source == "A"){
-                         stockData = try(get_bars(ticker,
-                                                  from = Sys.Date() - 365*5) %>%
-                                           select("Open" = o,
-                                                  "High" = h,
-                                                  "Low" = l,
-                                                  "Close" = c,
-                                                  "Volume" = v,
-                                                  "Date" = d) %>%
-                                           mutate(Date = ymd(Date)),
-                                         silent = T)
-                         Stop = F
-                         if(!"try-error" %in% class(stockData)){
-                           while(nrow(stockData)/1000 == round(nrow(stockData)/1000) & !Stop){
-                             TMP = try(get_bars(ticker,
-                                                from = min(stockData$Date) - 365*5,
-                                                to = min(stockData$Date)-1) %>%
-                                         select("Open" = o,
-                                                "High" = h,
-                                                "Low" = l,
-                                                "Close" = c,
-                                                "Volume" = v,
-                                                "Date" = d) %>%
-                                         mutate(Date = ymd(Date)))
-                             if("try-error" %in% class(TMP)){
-                               Stop = T
-                             }else{
-                               stockData = rbind(TMP,stockData) 
-                             }
-                           }
-                         }  
-                       }
-                     }
-                     if ("try-error" %in% class(stockData)) {
-                       stockData
-                     }else{
-                       colnames(stockData) = c("Open",
-                                               "High",
-                                               "Low",
-                                               "Close",
-                                               "Volume",
-                                               "Date")
-                       stockData$Stock = ticker
-                       stockData
-                     }
+  Dump = list()
+  
+  p <- progress_estimated(nrow(Total_Stocks))
+  progress <- function(n) p$tick()$print()
+  opts <- list(progress = progress)
+  
+  tickers = Total_Stocks$Symbol
+  
+  Dump = foreach(i = tickers,
+                 .errorhandling = "stop",
+                 .inorder = F,
+                 .options.snow = opts,
+                 .packages = Required_Packages) %dopar%{
+                   
+                   ticker = i
+                   
+                   if(Source == "Y"){
+                     stockData = try(getSymbols(ticker,
+                                                src = "yahoo",
+                                                from = Sys.Date() - 365*3,
+                                                auto.assign = FALSE) %>%
+                                       as.data.frame() %>%
+                                       mutate(Date = ymd(rownames(.))) %>%
+                                       select(-6))
                    }
-    
-    ## Consolidating to Data Frame
-    list.condition <-
-      sapply(Dump, function(x)
-        class(x) == "data.frame")
-    output.list  <- Dump[list.condition]
-    Combined_Results = plyr::ldply(output.list, data.frame)
-    
-    ## Performing Liquidity Checks
-    if(j == 1){
-      CHECK = Combined_Results %>%
-        group_by(Stock) %>%
-        na.locf() %>%
-        na.omit() %>%
-        summarise(O = sum(Open == 0),
-                  H = sum(High == 0),
-                  L = sum(Low == 0),
-                  C = sum(Close == 0),
-                  V_AVG = median(Volume),
-                  C_AVG = median(Close) - 2*mad(Close),
-                  DV = V_AVG * C_AVG) %>%
-        filter(O == 0,
-               H == 0,
-               L == 0,
-               C == 0,
-               C_AVG > 5,
-               DV >= 2.5e6)
-      
-      ## Reducing to Highly Liquid Stocks
-      Total_Stocks = Total_Stocks %>%
-        filter(Symbol %in% c(CHECK$Stock,"^VIX","^VXN"))
-    }
-   }
+                   if(Source == "A"){
+                     stockData = try(get_bars(ticker,
+                                              from = Sys.Date() - 365*3) %>%
+                                       select("Open" = o,
+                                              "High" = h,
+                                              "Low" = l,
+                                              "Close" = c,
+                                              "Volume" = v,
+                                              "Date" = d) %>%
+                                       mutate(Date = ymd(Date)),
+                                     silent = T)
+                   }
+                   if ("try-error" %in% class(stockData)) {
+                     stockData
+                   }else{
+                     colnames(stockData) = c("Open",
+                                             "High",
+                                             "Low",
+                                             "Close",
+                                             "Volume",
+                                             "Date")
+                     stockData$Stock = ticker
+                     stockData
+                   }
+                 }
+  
+  
+  ## Consolidating to Data Frame
+  list.condition <-
+    sapply(Dump, function(x)
+      class(x) == "data.frame")
+  output.list  <- Dump[list.condition]
+  Combined_Results = plyr::ldply(output.list, data.frame)
+  
+  ## Performing Liquidity Checks
+  CHECK = Combined_Results %>%
+    group_by(Stock) %>%
+    na.locf() %>%
+    na.omit() %>%
+    summarise(O = sum(Open == 0),
+              H = sum(High == 0),
+              L = sum(Low == 0),
+              C = sum(Close == 0),
+              V_AVG = median(Volume),
+              C_AVG = median(Close) - 2*mad(Close),
+              DV = V_AVG * C_AVG) %>%
+    filter(O == 0,
+           H == 0,
+           L == 0,
+           C == 0,
+           C_AVG > 5,
+           DV >= 2.5e6)
+  
+  ## Reducing to Highly Liquid Stocks
+  Total_Stocks = Total_Stocks %>%
+    filter(Symbol %in% c(CHECK$Stock,"^VIX","^VXN"))
+  
+  Combined_Results = Combined_Results %>%
+    filter(Stock %in% Total_Stocks$Symbol)
   
   ## Saving Historical Market Data
-    save(Combined_Results,
-         file = paste0(Project_Folder, "/Data//NASDAQ Historical.RDATA"))
+  save(Combined_Results,
+       file = paste0(Project_Folder, "/Data//NASDAQ Historical.RDATA"))
 }
