@@ -17,7 +17,7 @@ sourceDir(paste0(Project_Folder,"/Codes/Functions"))
 ## General RMD Options
 Run_Analysis = T
 ## Modeling Information
-Max_Single_Investment = 50
+Max_Single_Investment = 100
 Min_Single_Investment = 15
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = "All" 
@@ -194,6 +194,7 @@ if(Run_Analysis){
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
+                               Max_Investment = Max_Single_Investment,
                                DCF = T,
                                FinViz = T,
                                Debug_Save = T)
