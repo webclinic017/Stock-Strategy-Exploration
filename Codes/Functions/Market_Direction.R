@@ -4,6 +4,7 @@ Market_Direction = function(Combined_Results,Plot = T){
   Market_DF = Combined_Results %>%
     group_by(Date) %>%
     summarise(Close = mean(Close,trim = 0.05,na.rm = T)) %>%
+    na.locf() %>%
     ungroup() %>%
     mutate(Indicator = runMax(Close,90),
            Delta = (Close -Indicator)/Indicator) %>%
@@ -54,8 +55,14 @@ Market_Direction = function(Combined_Results,Plot = T){
       labs(x = "Date",
            y = "Close",
            title = "Market Status of Past 6 Months",
-           subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Current Date = ",Current_Status$Date,
-                             " :: Status for Past ",Current_Status$Days," Days"),
+           subtitle = paste0("Current status = ",
+                             Current_Status$Market_Status,
+                             " :: Date = ",Current_Status$Date,
+                             " :: Status for Past ",Current_Status$Days," Days",
+                             "\n50 Day Slope = ",
+                             scales::percent(
+                               (MIND_DF$SMA50[nrow(MIND_DF)] -  MIND_DF$SMA50[nrow(MIND_DF)-1])/
+                                     MIND_DF$SMA50[nrow(MIND_DF)-1])),
            color = "Market Status")
     print(p1)
   }

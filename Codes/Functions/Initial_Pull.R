@@ -65,14 +65,20 @@ Initial_Pull = function(Cap = "All",
     select(-c(IPOyear,Exchange,Multiplier,Value)) 
   
   ## Filtering to Specific 
-  if(Cap != "All"){
+  if(all(Cap != "All")){
       Auto_Stocks = Auto_Stocks %>%
-        filter(Cap_Type == Cap)
+        filter(Cap_Type %in% Cap)
   }
   
   ## Removing Duplicate Tickers
   Dups = duplicated(Auto_Stocks$Symbol)
   Auto_Stocks = Auto_Stocks[!Dups,]
+  
+  DCFs = pbmapply(DCF_Update,
+                  Auto_Stocks$Symbol,
+                  SIMPLIFY = T)
+  DCFs[is.na(DCFs)] = F
+  Auto_Stocks = Auto_Stocks[Auto_Stocks$Symbol %in% names(DCFs),]
   
   save(Auto_Stocks,
        file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))

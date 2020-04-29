@@ -1,4 +1,4 @@
-Project_Folder = "C://Users//aayorde//documents//github//stock-strategy-exploration/"
+Project_Folder = rprojroot::find_rstudio_root_file()
 
 library(EmersonDataScience)
 
@@ -8,7 +8,7 @@ devtools::install_github("jagg19/AlpacaforR")
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","iterators")
+                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","iterators","pbapply")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -18,9 +18,9 @@ sourceDir(paste0(Project_Folder,"/Codes/Functions"))
 Run_Analysis = T
 ## Modeling Information
 Max_Single_Investment = 100
-Min_Single_Investment = 15
+Min_Single_Investment = 10
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = "All" 
+Cap = c("Small","Mid") 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
@@ -28,6 +28,15 @@ Max_Holding_Live = 0.10
 ## Disabling API Warning
 options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
+
+## Pulling Economic Data If Needed
+Economic_Data_Location = str_remove(Project_Folder,"[^\\/]+$")
+Reference_Data = readRDS(file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
+if(as.numeric(difftime(Sys.Date(),max(ymd(Reference_Data$Date)),tz = "UTC",units = "days")) >= 62){
+  Reference_Data = Reference_Economic_Pull(Time_Start = "2019-01-01")
+  colnames(Reference_Data)[1] = "Date"
+  saveRDS(Reference_Data,file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
+}
 
 ## Pulling Historical Data
 if(Run_Analysis){
@@ -195,12 +204,14 @@ if(Run_Analysis){
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
                                Max_Investment = Max_Single_Investment,
-                               DCF = T,
                                FinViz = T,
                                Debug_Save = T)
   
   try(write.csv(x = RESULT$LONG,
                 file = str_c(Project_Folder,"/Stock Projections/LONG_",
+                             as_date(now()),".csv")))
+  try(write.csv(x = RESULT$SHORT,
+                file = str_c(Project_Folder,"/Stock Projections/SHORT_",
                              as_date(now()),".csv")))
   try(write.csv(x = RESULT$TOTAL,
                 file = str_c(Project_Folder,"/Stock Projections/TOTAL_",

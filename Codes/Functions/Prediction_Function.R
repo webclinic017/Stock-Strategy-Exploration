@@ -2,7 +2,6 @@ Prediction_Function = function(Models,
                                TODAY,
                                Max_Investment,
                                FinViz = T,
-                               DCF = T,
                                Margin_Intrest = 0.035,
                                ETB_Rate = 0.002,
                                Debug_Save = F){
@@ -42,8 +41,7 @@ Prediction_Function = function(Models,
            Expected_Return_Long,Expected_Return_Short,
            Max_Premium_Call,Call_Profit_Exit,
            Trailing_Stop_Percent,
-           Stop_Gain,Stop_Loss,Stop_Loss_Percent,everything()) %>%
-    head(100)
+           Stop_Gain,Stop_Loss,Stop_Loss_Percent,everything()) 
   
   SHORT = TODAY %>%
     mutate(Expected_Return_Short = Preds_Short,
@@ -63,8 +61,7 @@ Prediction_Function = function(Models,
            Sector,Industry,
            Expected_Return_Long,Expected_Return_Short,
            Max_Premium_Put,Put_Profit_Exit,
-           Stop_Gain,Stop_Loss,Stop_Loss_Percent,everything()) %>%
-    head(100)
+           Stop_Gain,Stop_Loss,Stop_Loss_Percent,everything())
 
   TOTAL = TODAY %>%
     mutate(Expected_Return_Short = Preds_Short,
@@ -85,16 +82,6 @@ Prediction_Function = function(Models,
   
   
   ## Fundamental Filtering
-  if(DCF){
-    DCFs = mapply(DCF_Update,LONG$Stock,SIMPLIFY = T)
-    DCFs[is.na(DCFs)] = F
-    LONG = LONG[DCFs,]
-    DCFs = mapply(DCF_Update,SHORT$Stock,SIMPLIFY = T)
-    DCFs[is.na(DCFs)] = T
-    SHORT = SHORT[!DCFs,]
-  }
-  
-  
   if(FinViz){
     if(nrow(LONG) != 0){
       LONG = FinViz_Meta_Data(LONG)
