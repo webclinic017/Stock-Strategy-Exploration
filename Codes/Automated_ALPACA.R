@@ -297,6 +297,7 @@ if(Run_Analysis){
   Target_Profit = base::apply(X = Projections,MARGIN = 1,FUN = mean)
   Exit_Price = TODAY$Close*(1+Target_Profit)
   Stop_Loss = Target_Profit / 2
+  Entry_Price = TODAY$Close*(1-Stop_Loss)
   
   
   RESULT = Prediction_Function(Models = Models,
