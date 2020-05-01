@@ -9,15 +9,18 @@ BAC_Function = function(PR_Stage,
   
   if(all(Group_Columns == "Stock")){
     TMP = PR_Stage %>%
-      mutate(Return = Close_Slope_50_Norm) %>%
+      group_by(Stock) %>%
+      mutate(Return = (Close - lag(Close,1))/lag(Close,1)) %>%
       inner_join(Total_Alpha_Slope,by = "Date") %>%
       na.omit() %>%
-      select(Date,Stock,Return,Total_Alpha)
+      select(Date,Stock,Return,Total_Alpha) %>%
+      ungroup()
   }else{
     TMP = PR_Stage %>%
       left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
       group_by_at(vars(Date,Group_Columns)) %>%
-      summarise(Return = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+      summarise(Return = mean(Close,trim = 0.05)) %>%
+      mutate(Return = (Return - lag(Return,1))/lag(Return,1)) %>%
       inner_join(Total_Alpha_Slope,by = "Date") %>%
       na.omit() %>%
       ungroup()

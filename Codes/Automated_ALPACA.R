@@ -2,13 +2,14 @@ Project_Folder = rprojroot::find_rstudio_root_file()
 
 library(EmersonDataScience)
 
+devtools::install_github("rstudio/websocket")
 devtools::install_github("jagg19/AlpacaforR")
 
 ## Loading and Installing Packages if necessacary
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
                       'earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes'
                       ,'caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret","lubridate",
-                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","iterators","pbapply")
+                      "ranger",'roll','Boruta','glmnet','doSNOW',"AlpacaforR","iterators","pbapply","forecast","websocket")
 load_or_install(Required_Packages)
 
 ## Loading Required Functions
@@ -20,7 +21,7 @@ Run_Analysis = T
 Max_Single_Investment = 100
 Min_Single_Investment = 10
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = c("Small","Mid") 
+Cap = c("Small") 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
@@ -80,35 +81,92 @@ if(Run_Analysis){
   load(file = paste0(Project_Folder,"/Data/Initial Stats.RDATA"))
   load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
   
+  Market_Ticker = PR_Stage %>%
+    group_by(Date) %>%
+    summarise_all(mean,trim = 0.05,na.rm = T) %>%
+    mutate(Stock = "Total_Market")
+  
+  
   Major_Indexs = c("^GSPC","^IXIC","^DJI")
   Total_Alpha_Slope = PR_Stage %>%
     filter(!Stock %in% Major_Indexs) %>%
-    select(Date,Close_Slope_50_Norm) %>%
+    select(Date,Close) %>%
     group_by(Date) %>%
-    summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+    summarise(Average_Close = mean(Close,trim = 0.05)) %>%
+    mutate(Total_Alpha = (Average_Close - lag(Average_Close,1))/lag(Average_Close,1)) %>%
     ungroup() %>%
     na.omit()
+  
+  MIN_ALPHA = 0
+  MAX_P_VAL = 0.20
   
   Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                     Total_Alpha_Slope = Total_Alpha_Slope,
                                     Group_Columns = "Sector",
                                     Required_Packages,
                                     width = 50)
+  
+  Alpha_Filter = Sector_Alpha_Slope %>%
+    group_by(Sector) %>%
+    filter(Date == max(Date),
+           Alpha_Sector > MIN_ALPHA,
+           P_Alpha_Sector < MAX_P_VAL) %>%
+    select(Sector)
+  
+  Sector_Alpha_Slope = Sector_Alpha_Slope %>%
+    inner_join(Alpha_Filter) %>%
+    mutate(Beta_Sector = ifelse(P_Beta_Sector > MAX_P_VAL,0,Beta_Sector))
+  
   Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                       Total_Alpha_Slope = Total_Alpha_Slope,
                                       Group_Columns = "Industry",
                                       Required_Packages,
                                       width = 50)
+  
+  Alpha_Filter = Industry_Alpha_Slope %>%
+    group_by(Industry) %>%
+    filter(Date == max(Date),
+           Alpha_Industry > MIN_ALPHA,
+           P_Alpha_Industry < MAX_P_VAL) %>%
+    select(Industry)
+  
+  Industry_Alpha_Slope = Industry_Alpha_Slope %>%
+    inner_join(Alpha_Filter) %>%
+    mutate(Beta_Industry = ifelse(P_Beta_Industry > MAX_P_VAL,0,Beta_Industry))
+  
   Sector_Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                              Total_Alpha_Slope = Total_Alpha_Slope,
                                              Group_Columns = c("Sector","Industry"),
                                              Required_Packages,
                                              width = 50)
+  
+  Alpha_Filter = Sector_Industry_Alpha_Slope %>%
+    group_by(Sector,Industry) %>%
+    filter(Date == max(Date),
+           Alpha_Sector_Industry > MIN_ALPHA,
+           P_Alpha_Sector_Industry < MAX_P_VAL) %>%
+    select(Sector,Industry)
+  
+  Sector_Industry_Alpha_Slope = Sector_Industry_Alpha_Slope %>%
+    inner_join(Alpha_Filter) %>%
+    mutate(Beta_Sector_Industry = ifelse(P_Beta_Sector_Industry > MAX_P_VAL,0,Beta_Sector_Industry))
+  
   Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                    Total_Alpha_Slope = Total_Alpha_Slope,
                                    Group_Columns = "Stock",
                                    Required_Packages,
                                    width = 50)
+  
+  Alpha_Filter = Stock_Alpha_Slope %>%
+    group_by(Stock) %>%
+    filter(Date == max(Date),
+           Alpha_Stock > MIN_ALPHA,
+           P_Alpha_Stock < MAX_P_VAL) %>%
+    select(Stock)
+  
+  Stock_Alpha_Slope = Stock_Alpha_Slope %>%
+    inner_join(Alpha_Filter) %>%
+    mutate(Beta_Stock = ifelse(P_Beta_Stock > MAX_P_VAL,0,Beta_Stock))
   
   ## Appending Results
   PR_Stage_R2 = PR_Stage %>%
@@ -129,8 +187,9 @@ if(Run_Analysis){
            Close > 0,
            Close < 5000,
            Volume > 0) %>%
-    select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
-    na.omit()
+    bind_rows(Market_Ticker) %>%
+    select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) 
+  PR_Stage_R2[is.na(PR_Stage_R2)] = 0
   
   save(PR_Stage_R2,
        file = str_c(Project_Folder,"/Data/PR_Stage_R2.RDATA"))
@@ -189,17 +248,56 @@ if(Run_Analysis){
            SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
            CCI_Delta = (CCI - lag(CCI,1)),
            VHF_Delta = (VHF - lag(VHF,1)),
-           RSI_Delta = (RSI - lag(RSI,1)))
+           RSI_Delta = (RSI - lag(RSI,1))) %>%
+    na.locf(na.rm = T)
   rm(PR_Stage_R3)
   
   ## Building Models ##
-  Models = Modeling_Function(ID_DF = ID_DF,
-                             Max_Date = max(ID_DF$Date),
-                             Short_Time = 10,
-                             Long_Time = 15)
+  Horizon_Start = 10
+  Horizon_End = 15
+  Market_Performance = ID_DF[ID_DF$Stock == "Total_Market",]
+  plot(Market_Performance$Close)
+  Models = Modeling_Function(ID_DF = Market_Performance,
+                             Timeframes = seq(Horizon_Start,Horizon_End))
+  
+  Market_Projection = numeric()
+  Sharpe_Projection = numeric()
+  TODAY = Market_Performance %>%
+    filter(Date == max(Date))
+  Current_Price = TODAY$Close
+  counter = 0
+  for(i in Horizon_Start:Horizon_End){
+    counter = counter + 1
+    Timeframe = i
+    Volatility = TODAY$Volatility_Klass
+    Projection = as.numeric(predict(Models[[i]]$Model,
+                                    s = Models[[i]]$s,
+                                    as.matrix(TODAY[,setdiff(rownames(coef(Models[[i]]$Model)),"(Intercept)")])))
+    Risk_Adjusted_Return = exp((i/365)*log(Projection*Volatility + 1)) - 1
+    Actual_Return = Risk_Adjusted_Return + (exp(log(1 + 0.02)/(1/(i/365))) - 1)
+    Market_Projection[counter] = Actual_Return * Current_Price + Current_Price
+    Sharpe_Projection[counter] = Projection
+  }
+  Sharpe_Projection
+  Market_Projection
+  Market_Projection = na.approx(Market_Projection) 
+  Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
+  plot(Market_Return)
   
   TODAY = ID_DF %>%
     filter(Date == max(Date))
+  
+  Alpha_Columns = colnames(TODAY)[str_detect(colnames(TODAY),"^Alpha")]
+  Alphas = base::apply(X = as.matrix(TODAY[,Alpha_Columns]),MARGIN = 1,FUN = sum)/length(Alpha_Columns)
+  Beta_Columns = colnames(TODAY)[str_detect(colnames(TODAY),"^Beta")]
+  Betas = base::apply(X = as.matrix(TODAY[,Beta_Columns]),MARGIN = 1,FUN = sum)/length(Beta_Columns)
+  Projections = Alphas + (matrix(data = Betas,ncol = 1) %*% Market_Return)
+  row.names(Projections) = TODAY$Stock
+  
+  Target_Profit = base::apply(X = Projections,MARGIN = 1,FUN = mean)
+  Exit_Price = TODAY$Close*(1+Target_Profit)
+  Stop_Loss = Target_Profit / 2
+  
   
   RESULT = Prediction_Function(Models = Models,
                                TODAY = TODAY,
@@ -209,13 +307,13 @@ if(Run_Analysis){
   
   try(write.csv(x = RESULT$LONG,
                 file = str_c(Project_Folder,"/Stock Projections/LONG_",
-                             as_date(now()),".csv")))
-  try(write.csv(x = RESULT$SHORT,
-                file = str_c(Project_Folder,"/Stock Projections/SHORT_",
-                             as_date(now()),".csv")))
+                             max(TODAY$Date),".csv")))
+  # try(write.csv(x = RESULT$SHORT,
+  #               file = str_c(Project_Folder,"/Stock Projections/SHORT_",
+  #                            max(TODAY$Date),".csv")))
   try(write.csv(x = RESULT$TOTAL,
                 file = str_c(Project_Folder,"/Stock Projections/TOTAL_",
-                             as_date(now()),".csv")))
+                             max(TODAY$Date),".csv")))
   
   ## Saving Results
   save(RESULT,TODAY,Models,
