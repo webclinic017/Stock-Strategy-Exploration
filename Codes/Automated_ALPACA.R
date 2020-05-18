@@ -2,8 +2,8 @@ Project_Folder = rprojroot::find_rstudio_root_file()
 
 library(EmersonDataScience)
 
-devtools::install_github("rstudio/websocket")
 devtools::install_github("jagg19/AlpacaforR")
+devtools::install_github("sboysel/fredr")
 
 ## Loading and Installing Packages if necessacary
 Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML',
@@ -21,7 +21,7 @@ Run_Analysis = T
 Max_Single_Investment = 100
 Min_Single_Investment = 10
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
-Cap = c("Small") 
+Cap = c("All") 
 ## Perfromance Function Parameters
 Max_Loss = 0.05
 Max_Holding = 0.05
@@ -30,14 +30,14 @@ Max_Holding_Live = 0.10
 options("getSymbols.yahoo.warning" = FALSE)
 options("getSymbols.warning4.0" = FALSE)
 
-## Pulling Economic Data If Needed
-Economic_Data_Location = str_remove(Project_Folder,"[^\\/]+$")
-Reference_Data = readRDS(file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
-if(as.numeric(difftime(Sys.Date(),max(ymd(Reference_Data$Date)),tz = "UTC",units = "days")) >= 62){
-  Reference_Data = Reference_Economic_Pull(Time_Start = "2019-01-01")
-  colnames(Reference_Data)[1] = "Date"
-  saveRDS(Reference_Data,file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
-}
+# ## Pulling Economic Data If Needed
+# Economic_Data_Location = str_remove(Project_Folder,"[^\\/]+$")
+# Reference_Data = readRDS(file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
+# if(as.numeric(difftime(Sys.Date(),max(ymd(Reference_Data$Date)),tz = "UTC",units = "days")) >= 62){
+#   Reference_Data = Reference_Economic_Pull(Time_Start = "2019-01-01")
+#   colnames(Reference_Data)[1] = "Date"
+#   saveRDS(Reference_Data,file = str_c(Economic_Data_Location,"Economic_Data.RDS"))
+# }
 
 ## Pulling Historical Data
 if(Run_Analysis){
@@ -99,12 +99,13 @@ if(Run_Analysis){
   
   MIN_ALPHA = 0
   MAX_P_VAL = 0.20
+  TIMEFRAME = 10
   
   Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
                                     Total_Alpha_Slope = Total_Alpha_Slope,
                                     Group_Columns = "Sector",
                                     Required_Packages,
-                                    width = 50)
+                                    width = TIMEFRAME)
   
   Alpha_Filter = Sector_Alpha_Slope %>%
     group_by(Sector) %>%
@@ -121,7 +122,7 @@ if(Run_Analysis){
                                       Total_Alpha_Slope = Total_Alpha_Slope,
                                       Group_Columns = "Industry",
                                       Required_Packages,
-                                      width = 50)
+                                      width = TIMEFRAME)
   
   Alpha_Filter = Industry_Alpha_Slope %>%
     group_by(Industry) %>%
@@ -138,7 +139,7 @@ if(Run_Analysis){
                                              Total_Alpha_Slope = Total_Alpha_Slope,
                                              Group_Columns = c("Sector","Industry"),
                                              Required_Packages,
-                                             width = 50)
+                                             width = TIMEFRAME)
   
   Alpha_Filter = Sector_Industry_Alpha_Slope %>%
     group_by(Sector,Industry) %>%
@@ -155,7 +156,7 @@ if(Run_Analysis){
                                    Total_Alpha_Slope = Total_Alpha_Slope,
                                    Group_Columns = "Stock",
                                    Required_Packages,
-                                   width = 50)
+                                   width = TIMEFRAME)
   
   Alpha_Filter = Stock_Alpha_Slope %>%
     group_by(Stock) %>%
@@ -253,10 +254,14 @@ if(Run_Analysis){
   rm(PR_Stage_R3)
   
   ## Building Models ##
-  Horizon_Start = 10
-  Horizon_End = 15
+  Horizon_Start = 1
+  Horizon_End = TIMEFRAME
   Market_Performance = ID_DF[ID_DF$Stock == "Total_Market",]
+  
+  
+  
   plot(Market_Performance$Close)
+  registerDoSEQ()
   Models = Modeling_Function(ID_DF = Market_Performance,
                              Timeframes = seq(Horizon_Start,Horizon_End))
   
@@ -271,21 +276,31 @@ if(Run_Analysis){
     Timeframe = i
     Volatility = TODAY$Volatility_Klass
     Projection = as.numeric(predict(Models[[i]]$Model,
-                                    s = Models[[i]]$s,
-                                    as.matrix(TODAY[,setdiff(rownames(coef(Models[[i]]$Model)),"(Intercept)")])))
+                                    TODAY))
     Risk_Adjusted_Return = exp((i/365)*log(Projection*Volatility + 1)) - 1
     Actual_Return = Risk_Adjusted_Return + (exp(log(1 + 0.02)/(1/(i/365))) - 1)
     Market_Projection[counter] = Actual_Return * Current_Price + Current_Price
     Sharpe_Projection[counter] = Projection
   }
-  Sharpe_Projection
-  Market_Projection
   Market_Projection = na.approx(Market_Projection) 
-  Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
-  plot(Market_Return)
+  plot(Market_Projection,
+       main = str_c("Current Market Price = ",scales::dollar(TODAY$Close)),
+       ylab = "Projected Market Price",
+       xlab = "Future Trading Days\n",
+       sub = str_c("Current Market Date = ",TODAY$Date))
+  abline(h = TODAY$Close,
+         col = 'red')
+  
   
   TODAY = ID_DF %>%
-    filter(Date == max(Date))
+    filter(Date == max(Date)) %>%
+    FinViz_Meta_Data()
+  
+  TODAY = TODAY %>%
+    filter(ROE > 0,
+           EPS.Q.Q > 0,
+           Sales.Q.Q > 0,
+           Short.Float < 0.05)
   
   Alpha_Columns = colnames(TODAY)[str_detect(colnames(TODAY),"^Alpha")]
   Alphas = base::apply(X = as.matrix(TODAY[,Alpha_Columns]),MARGIN = 1,FUN = sum)/length(Alpha_Columns)

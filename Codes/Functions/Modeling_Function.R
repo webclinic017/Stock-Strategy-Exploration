@@ -51,31 +51,30 @@ Modeling_Function = function(ID_DF,Timeframes,Risk_Free_Rate = 0.02){
     Y = TMP
     X = as.matrix(DF_mod)
     
-    ## Training Elastic Net ##
-    cv_output = cv.glmnet(
-      x = X,
-      y = Y,
-      nfolds = 100,
-      alpha = 1
-    )
-    best_lam = cv_output$lambda.1se
-    mod = glmnet(x = X,
-                 y = Y,
-                 alpha = 1,
-                 lambda = best_lam)
-    # print(coef(mod))
-    preds = predict(mod,
-                    s = best_lam,
-                    newx = X)
-    Preds2 = predict(mod,
-                     s = best_lam,
-                     newx = as.matrix(DF[,setdiff(rownames(coef(mod)),"(Intercept)")]))
-    all(preds == Preds2)
+    VIMP = Boruta(x = X,
+                  y = Y,
+                  maxRuns = 100,
+                  doTrace = 0)
+    print(VIMP$finalDecision[VIMP$finalDecision == "Confirmed"])
+    VIMP2 = TentativeRoughFix(VIMP)
+    
+    X = X[,getSelectedAttributes(VIMP2, withTentative = F)]
+    
+    
+    mod = train(x = X,
+                y = Y,
+                tuneLength = 4,
+                trControl = trainControl(method = "boot",
+                                         number = 100),
+                method = "ranger")
+    print(plot(mod))
+    preds = predict(mod,X)
     MAE = MLmetrics::MAE(preds,Y)
+    RMSE = MLmetrics::RMSE(preds,Y)
     
     return(list(
       Model = mod,
-      s = best_lam,
+      RMSE = RMSE,
       MAE = MAE,
       Timeframe = Timeframe
     ))
