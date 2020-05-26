@@ -290,17 +290,14 @@ if(Run_Analysis){
        sub = str_c("Current Market Date = ",TODAY$Date))
   abline(h = TODAY$Close,
          col = 'red')
-  
+  Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
   
   TODAY = ID_DF %>%
     filter(Date == max(Date)) %>%
     FinViz_Meta_Data()
   
   TODAY = TODAY %>%
-    filter(ROE > 0,
-           EPS.Q.Q > 0,
-           Sales.Q.Q > 0,
-           Short.Float < 0.05)
+    filter(Short.Float < 0.05)
   
   Alpha_Columns = colnames(TODAY)[str_detect(colnames(TODAY),"^Alpha")]
   Alphas = base::apply(X = as.matrix(TODAY[,Alpha_Columns]),MARGIN = 1,FUN = sum)/length(Alpha_Columns)
@@ -310,26 +307,16 @@ if(Run_Analysis){
   row.names(Projections) = TODAY$Stock
   
   Target_Profit = base::apply(X = Projections,MARGIN = 1,FUN = mean)
-  Exit_Price = TODAY$Close*(1+Target_Profit)
-  Stop_Loss = Target_Profit / 2
-  Entry_Price = TODAY$Close*(1-Stop_Loss)
-  
-  
-  RESULT = Prediction_Function(Models = Models,
-                               TODAY = TODAY,
-                               Max_Investment = Max_Single_Investment,
-                               FinViz = T,
-                               Debug_Save = T)
-  
-  try(write.csv(x = RESULT$LONG,
-                file = str_c(Project_Folder,"/Stock Projections/LONG_",
-                             max(TODAY$Date),".csv")))
-  # try(write.csv(x = RESULT$SHORT,
-  #               file = str_c(Project_Folder,"/Stock Projections/SHORT_",
-  #                            max(TODAY$Date),".csv")))
-  try(write.csv(x = RESULT$TOTAL,
-                file = str_c(Project_Folder,"/Stock Projections/TOTAL_",
-                             max(TODAY$Date),".csv")))
+
+  RESULT = Target_Profit %>%
+    as.data.frame() %>%
+    mutate(Stock = TODAY$Stock) %>%
+    rename("Target_Profit" = ".") %>%
+    mutate(ATR = TODAY$ATR,
+           Trailing_Stop = ATR/2,
+           Potential_Gain = ATR*2/TODAY$Close) %>%
+    filter(Target_Profit >= Potential_Gain) %>%
+    arrange(desc(Target_Profit-Potential_Gain))
   
   ## Saving Results
   save(RESULT,TODAY,Models,
