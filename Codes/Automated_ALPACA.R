@@ -210,7 +210,7 @@ if(Run_Analysis){
   
   ## Parallel Execution
   Results = foreach(i = Symbols,
-                    .errorhandling = "remove",
+                    .errorhandling = "stop",
                     .inorder = F,
                     .options.snow = opts,
                     .packages = c("tidyverse",
@@ -220,7 +220,8 @@ if(Run_Analysis){
                     .verbose = F) %dopar% {
                       
                       ## Calculating Technical Indicators
-                      Stat_Appendage_Function(DF = i$value)
+                      Stat_Appendage_Function(DF = i$value,
+                                              Timeframe = TIMEFRAME)
                     }
   
   ## Spinning Down Clusters
@@ -282,6 +283,8 @@ if(Run_Analysis){
     Market_Projection[counter] = Actual_Return * Current_Price + Current_Price
     Sharpe_Projection[counter] = Projection
   }
+  
+  ## Visualizing Market Outlook
   Market_Projection = na.approx(Market_Projection) 
   plot(Market_Projection,
        main = str_c("Current Market Price = ",scales::dollar(TODAY$Close)),
@@ -290,6 +293,8 @@ if(Run_Analysis){
        sub = str_c("Current Market Date = ",TODAY$Date))
   abline(h = TODAY$Close,
          col = 'red')
+  text(Market_Projection,as.character(round(Sharpe_Projection,1)),col = "red",pos = 2)
+  
   Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
   
   TODAY = ID_DF %>%
@@ -314,9 +319,16 @@ if(Run_Analysis){
     rename("Target_Profit" = ".") %>%
     mutate(ATR = TODAY$ATR,
            Trailing_Stop = ATR/2,
-           Potential_Gain = ATR*2/TODAY$Close) %>%
+           Potential_Gain = ATR*2/TODAY$Close,
+           B_Pcent = TODAY$B_Pct,
+           RSI = TODAY$RSI,
+           RSI_Delta = TODAY$RSI_Delta,
+           Industry = TODAY$Industry,
+           Sector = TODAY$Sector) %>%
     filter(Target_Profit >= Potential_Gain) %>%
-    arrange(desc(Target_Profit-Potential_Gain))
+    arrange(desc(Target_Profit-Potential_Gain)) %>%
+    group_by(Industry,Sector) %>%
+    filter(Target_Profit-Potential_Gain == max(Target_Profit-Potential_Gain))
   
   ## Saving Results
   save(RESULT,TODAY,Models,
