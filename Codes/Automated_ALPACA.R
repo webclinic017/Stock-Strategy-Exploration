@@ -18,7 +18,7 @@ sourceDir(paste0(Project_Folder,"/Codes/Functions"))
 ## General RMD Options
 Run_Analysis = T
 ## Modeling Information
-Max_Single_Investment = 100
+Max_Single_Investment = 1000
 Min_Single_Investment = 10
 ## Cap Preferences (one of All/Mega/Large/Mid/Small)
 Cap = c("All") 
@@ -210,7 +210,7 @@ if(Run_Analysis){
   
   ## Parallel Execution
   Results = foreach(i = Symbols,
-                    .errorhandling = "stop",
+                    .errorhandling = "remove",
                     .inorder = F,
                     .options.snow = opts,
                     .packages = c("tidyverse",
@@ -254,55 +254,90 @@ if(Run_Analysis){
     na.locf(na.rm = T)
   rm(PR_Stage_R3)
   
-  ## Building Models ##
-  Horizon_Start = 1
-  Horizon_End = TIMEFRAME
-  Market_Performance = ID_DF[ID_DF$Stock == "Total_Market",]
+  # ## Building Models ##
+  # Horizon_Start = 1
+  # Horizon_End = TIMEFRAME
+  # Market_Performance = ID_DF[ID_DF$Stock == "Total_Market",]
+  # 
+  # 
+  # 
+  # plot(Market_Performance$Close)
+  # registerDoSEQ()
+  # Models = Modeling_Function(ID_DF = Market_Performance,
+  #                            Timeframes = seq(Horizon_Start,Horizon_End))
+  # 
+  # Market_Projection = numeric()
+  # Sharpe_Projection = numeric()
+  # TODAY = Market_Performance %>%
+  #   filter(Date == max(Date))
+  # Current_Price = TODAY$Close
+  # counter = 0
+  # for(i in Horizon_Start:Horizon_End){
+  #   counter = counter + 1
+  #   Timeframe = i
+  #   Volatility = TODAY$Volatility_Klass
+  #   Projection = as.numeric(predict(Models[[i]]$Model,
+  #                                   TODAY))
+  #   Risk_Adjusted_Return = exp((i/365)*log(Projection*Volatility + 1)) - 1
+  #   Actual_Return = Risk_Adjusted_Return + (exp(log(1 + 0.02)/(1/(i/365))) - 1)
+  #   Market_Projection[counter] = Actual_Return * Current_Price + Current_Price
+  #   Sharpe_Projection[counter] = Projection
+  # }
+  # 
+  # ## Visualizing Market Outlook
+  # Market_Projection = na.approx(Market_Projection) 
+  # plot(Market_Projection,
+  #      main = str_c("Current Market Price = ",scales::dollar(TODAY$Close)),
+  #      ylab = "Projected Market Price",
+  #      xlab = "Future Trading Days\n",
+  #      sub = str_c("Current Market Date = ",TODAY$Date))
+  # abline(h = TODAY$Close,
+  #        col = 'red')
+  # text(Market_Projection,as.character(round(Sharpe_Projection,1)),col = "red",pos = 2)
+  # 
+  # Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
   
-  
-  
-  plot(Market_Performance$Close)
-  registerDoSEQ()
-  Models = Modeling_Function(ID_DF = Market_Performance,
-                             Timeframes = seq(Horizon_Start,Horizon_End))
-  
-  Market_Projection = numeric()
-  Sharpe_Projection = numeric()
-  TODAY = Market_Performance %>%
-    filter(Date == max(Date))
-  Current_Price = TODAY$Close
-  counter = 0
-  for(i in Horizon_Start:Horizon_End){
-    counter = counter + 1
-    Timeframe = i
-    Volatility = TODAY$Volatility_Klass
-    Projection = as.numeric(predict(Models[[i]]$Model,
-                                    TODAY))
-    Risk_Adjusted_Return = exp((i/365)*log(Projection*Volatility + 1)) - 1
-    Actual_Return = Risk_Adjusted_Return + (exp(log(1 + 0.02)/(1/(i/365))) - 1)
-    Market_Projection[counter] = Actual_Return * Current_Price + Current_Price
-    Sharpe_Projection[counter] = Projection
-  }
-  
-  ## Visualizing Market Outlook
-  Market_Projection = na.approx(Market_Projection) 
-  plot(Market_Projection,
-       main = str_c("Current Market Price = ",scales::dollar(TODAY$Close)),
-       ylab = "Projected Market Price",
-       xlab = "Future Trading Days\n",
-       sub = str_c("Current Market Date = ",TODAY$Date))
-  abline(h = TODAY$Close,
-         col = 'red')
-  text(Market_Projection,as.character(round(Sharpe_Projection,1)),col = "red",pos = 2)
-  
-  Market_Return = diff(c(Current_Price,Market_Projection))/Market_Projection
+  ggplot(Market_Performance,aes(x = Date,y = RSI)) +
+    geom_line() +
+    geom_hline(yintercept = median(Market_Performance$RSI),
+               linetype = 1,
+               size = 1) +
+    geom_hline(yintercept = median(Market_Performance$RSI) + 
+                 mad(Market_Performance$RSI),
+               color = "red",
+               linetype = 2,
+               size = 1) +
+    geom_hline(yintercept = median(Market_Performance$RSI) - 
+                 mad(Market_Performance$RSI),
+               color = "red",
+               linetype = 2,
+               size = 1) +
+    labs(title = "Total Market Historical RSI",
+         subtitle = str_c("Current MACD Indicator = ",
+                          round(tail(Market_Performance$MACD - 
+                                 Market_Performance$MACD_Signal,1),2)))
   
   TODAY = ID_DF %>%
     filter(Date == max(Date)) %>%
     FinViz_Meta_Data()
   
   TODAY = TODAY %>%
-    filter(Short.Float < 0.05)
+    filter(Short.Float < 0.05) %>%
+    select(Stock,Close,ATR,RSI,RSI_Delta,MACD,MACD_Signal,
+           Alpha_Stock,Beta_Stock,Industry,Sector,Short.Float)
+  
+  Watchlist = TODAY %>%
+    mutate(Momentum = MACD - MACD_Signal,
+           Strength = RSI,
+           Strength_Delta = RSI_Delta) %>%
+    select(-c(RSI,RSI_Delta,MACD,MACD_Signal)) %>%
+    filter(Momentum > 0)
+  
+  write.csv(Watchlist,file = "C://users//aayorde//desktop//watchlist.csv")
+  
+  Total_List = ID_DF %>%
+    filter(Date == max(Date)) %>%
+    select(Stock,Close,ATR,Alpha_Stock,Beta_Stock,RSI,Industry,Sector)
   
   Alpha_Columns = colnames(TODAY)[str_detect(colnames(TODAY),"^Alpha")]
   Alphas = base::apply(X = as.matrix(TODAY[,Alpha_Columns]),MARGIN = 1,FUN = sum)/length(Alpha_Columns)

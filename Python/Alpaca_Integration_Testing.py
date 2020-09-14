@@ -69,3 +69,7 @@ bar_data = pd.read_pickle(save_loc + "Historical_Data.pickle")
 ## Loading Account Information
 account = api.get_account()
 print(account)
+positions = api.list_positions()
+print(positions)
+orders = api.list_orders()
+print(orders)

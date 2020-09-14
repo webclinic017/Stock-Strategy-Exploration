@@ -21,3 +21,4 @@ Shorts.csv
 *.csv
 Automated_ALPACA.Rout
 *.pickle
+.vscode
