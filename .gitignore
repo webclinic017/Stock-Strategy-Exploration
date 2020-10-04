@@ -22,3 +22,5 @@ Shorts.csv
 Automated_ALPACA.Rout
 *.pickle
 .vscode
+*.p
+*checkpoint*

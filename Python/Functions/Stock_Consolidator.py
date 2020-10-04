@@ -14,7 +14,7 @@ def Stock_Consolidator(df):
     df = Col_Diff_Lagger(df,'close',1)
     df = Col_Diff_Lagger(df,'close',5,diff_name = "_return")
     df = Col_Diff_Lagger(df,'volume',1)
-    df['sma'] = df['close'].rolling(Total_Market_Plot_SMA).mean()
+    df['sma'] = df['close'].rolling(OLS_Window).mean()
     df['RSI'] = RSI(df['close'],14)
     df['MACD'] = MACD(df['close'])
     

@@ -4,6 +4,7 @@ def Group_Consolidator(Combined_Data,
                        min_last_ret = -0.10,
                        max_rsi = 100,
                        min_macd = -10,
+                       min_risk_ratio = 0,
                        min_stock_count = 1,
                        min_alpha = -2,
                        max_alpha_p = 1,
@@ -61,6 +62,7 @@ def Group_Consolidator(Combined_Data,
         sort_values(by = ['alpha','beta'],ascending = [0,1])
     Group_Summary = Group_Summary[Group_Summary.stock_count >= min_stock_count]
     
+    Group_Summary = Group_Summary[Group_Summary.risk_ratio > min_risk_ratio]
     Group_Summary = Group_Summary[Group_Summary.last_period_return > min_last_ret]
     Group_Summary = Group_Summary[Group_Summary.rsi < max_rsi]
     Group_Summary = Group_Summary[Group_Summary.macd > min_macd]
