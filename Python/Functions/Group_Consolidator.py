@@ -27,14 +27,20 @@ def Group_Consolidator(Combined_Data,
         alpha_pvalue = list(pd.Series(np.around(rols.pvalues[:,0],2)))
         beta_pvalue = list(pd.Series(np.around(rols.pvalues[:,1],2)))
         alpha = list(rols.params['const'])
-        rsi = RSI(alpha)
-        macd = MACD(alpha)
         beta = list(rols.params['Market_Return'])
         
         last_price = TMP['close']
         ret = TMP['close_return']
         rsi = TMP['RSI']
         macd = TMP['MACD']
+        
+        ## Calculating Support / Resistance / Loss Metrics
+        Test = TMP.tail(OLS_Window)
+        Max = np.max(Test.high)
+        Min = np.min(Test.low)
+        Entry = np.max(Test.close) - (Max-Min)*0.618
+        Exit = np.max(Test.close) + (Max-Min)*0.618
+        Loss = Entry - (Exit-Entry)/2
         
         ## Calculating Various Risk Metrics
         sd_ret = np.round(np.std(TMP['close_diff'][TMP['close_diff'] > 0].tail(14)),6)
@@ -44,6 +50,9 @@ def Group_Consolidator(Combined_Data,
 
         Group_Data[i] = pd.DataFrame(data = {'stock_count':Stock_Count,
                                              'last_period_return':ret,
+                                             'Entry':Entry,
+                                             'Exit':Exit,
+                                             'Loss':Loss,
                                              'last_price':last_price,
                                              'risk_ratio': risk_ratio,
                                              'mu_ret':mu_ret,
