@@ -8,6 +8,7 @@ def Group_Consolidator(Combined_Data,
                        min_stock_count = 1,
                        min_alpha = -2,
                        max_alpha_p = 1,
+                       max_beta_p = 1,
                        min_beta = -2,
                        max_beta = 2
                       ):
@@ -60,7 +61,8 @@ def Group_Consolidator(Combined_Data,
                                              'macd':macd,
                                              'alpha':alpha,
                                              'alpha_p':alpha_pvalue,
-                                             'beta':beta}).tail(5)
+                                             'beta':beta,
+                                             'beta_p':beta_pvalue}).tail(5)
     for s in Group_Data:
         Group_Data[s].insert(0, column, [s]*len(Group_Data[s]))
 
@@ -81,5 +83,6 @@ def Group_Consolidator(Combined_Data,
     
     Group_Summary = Group_Summary[Group_Summary.beta > min_beta]
     Group_Summary = Group_Summary[Group_Summary.beta < max_beta]
+    Group_Summary = Group_Summary[Group_Summary.beta_p < max_beta_p]
     
     return Group_Summary
