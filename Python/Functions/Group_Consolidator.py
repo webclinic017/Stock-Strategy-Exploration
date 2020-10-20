@@ -5,7 +5,6 @@ def Group_Consolidator(Combined_Data,
                        max_rsi = 100,
                        min_macd = -10,
                        min_risk_ratio = 0,
-                       min_stock_count = 1,
                        min_alpha = -2,
                        max_alpha_p = 1,
                        max_beta_p = 1,
@@ -35,26 +34,29 @@ def Group_Consolidator(Combined_Data,
         rsi = TMP['RSI']
         macd = TMP['MACD']
         
-        ## Calculating Support / Resistance / Loss Metrics
-        Test = TMP.tail(OLS_Window)
-        Max = np.max(Test.high)
-        Min = np.min(Test.low)
-        Entry = np.max(Test.close) - (Max-Min)*0.618
-        Exit = np.max(Test.close) + (Max-Min)*0.618
-        Loss = Entry - (Exit-Entry)/2
-        
         ## Calculating Various Risk Metrics
         sd_ret = np.round(np.std(TMP['close_diff'][TMP['close_diff'] > 0].tail(14)),6)
         sd_loss = np.round(np.std(TMP['close_diff'][TMP['close_diff'] <= 0].tail(14)),6)
         risk_ratio = sd_ret/sd_loss
         mu_ret = np.mean(TMP['close_diff'].tail(14))
+        
+        ## Daily Movement For Loss Orders
+        TMP['close_yesterday'] = TMP['close'].shift(1)
+        sd_day_up = np.std( \
+                           (TMP['high'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14) \
+                          )
+        mu_day_up = np.mean((TMP['high'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14))
+        sd_day_down = np.std( \
+                           (TMP['low'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14) \
+                          )
+        mu_day_down = np.mean((TMP['low'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14))
 
-        Group_Data[i] = pd.DataFrame(data = {'stock_count':Stock_Count,
-                                             'last_period_return':ret,
-                                             'Entry':Entry,
-                                             'Exit':Exit,
-                                             'Loss':Loss,
+        Group_Data[i] = pd.DataFrame(data = {'last_period_return':ret,
                                              'last_price':last_price,
+                                             'mu_day_up':mu_day_up,
+                                             'sd_day_up':sd_day_up,
+                                             'mu_day_down':mu_day_down,
+                                             'sd_day_down':sd_day_down,
                                              'risk_ratio': risk_ratio,
                                              'mu_ret':mu_ret,
                                              'rsi':rsi,
@@ -71,7 +73,6 @@ def Group_Consolidator(Combined_Data,
         groupby(column). \
         mean(). \
         sort_values(by = ['alpha','beta'],ascending = [0,1])
-    Group_Summary = Group_Summary[Group_Summary.stock_count >= min_stock_count]
     
     Group_Summary = Group_Summary[Group_Summary.risk_ratio > min_risk_ratio]
     Group_Summary = Group_Summary[Group_Summary.last_period_return > min_last_ret]

@@ -3,6 +3,7 @@ def Stock_Consolidator(df):
         close = pd.NamedAgg(column='close', aggfunc= np.mean),
         high = pd.NamedAgg(column='high', aggfunc= np.mean),
         low = pd.NamedAgg(column='low', aggfunc= np.mean),
+        open = pd.NamedAgg(column='open', aggfunc= np.mean),
         volume = pd.NamedAgg(column='volume', aggfunc= np.mean),
         count = pd.NamedAgg(column='close',aggfunc = len)
     )

@@ -1,0 +1,79 @@
+---
+title: "Total Market Analysis"
+author: "Emerson COMRES"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+    If this is the first RMD made in the project, you will need to make a setup script in the Project_Folder root directory.
+
+```{r setup, include=FALSE}
+## Loading COMRES Data Science Package
+library(EmersonDataScience)
+
+Project_Folder = rprojroot::find_rstudio_root_file()
+
+## Setting Default Chunk Options
+knitr::opts_chunk$set(echo = F,
+                      warning = F,
+                      message = F,
+                      error = F,
+                      fig.width = 8,
+                      fig.height = 4.5)
+knitr::opts_knit$set(root.dir = Project_Folder)
+
+## Required Directory Folders
+Root_Folder = "//USSTLCTPZZZFS03/RefEng/Data Science/"
+Outputs_Folder = paste0(Root_Folder,"/Outputs/")
+Inputs_Folder = paste0(Root_Folder,"/Inputs/")
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+
+## Sourcing Master Setup File
+source(paste0(Project_Folder,"/setup.r"))
+```
+
+```{r}
+Market_DF = read.csv(str_c(Project_Folder,"/Data/Historical_Data.csv"))
+
+Market_Summary = Market_DF %>%
+  mutate(Open_Ratio = (open-low)/(high-low),
+         Close_Ratio = (close-low)/(high-low))
+
+Stats = list()
+for(i in 0:4){
+  for(col in c("Open_Ratio","Close_Ratio")){
+    OR = Market_Summary[,col][Market_Summary$Market_Day == i]
+    MED = median(OR)
+    LSD = MED - 2*1.4826*mad(OR[OR<MED])
+    USD = MED + 2*1.4826*mad(OR[OR>=MED])
+    Stats[[str_c(i,"-",col)]] = data.frame(
+      Day = i,
+      Col = col,
+      Center = MED,
+      UL = USD,
+      LL = LSD
+    )
+  }
+}
+
+Stats = plyr::ldply(Stats,data.frame)
+
+## Looking at Typical Day Patterns
+ggplot(Stats,aes(x = Day,y = Center,color = Col)) +
+  geom_errorbar(aes(y = Center,ymin = LL,ymax = UL),
+                position = "dodge") +
+  geom_point() +
+  coord_flip() +
+  scale_y_continuous(limits = c(0,1),labels = percent) +
+  labs(title = "Open / Close Ratio To Average Day High",
+      subtitle = "(Two Sided 2*MAD*1.4826) : Normality Assumption ~ STDEV",
+       y = "(Value - Low)/(High - Low)",
+       color = "")
+```
+
