@@ -24,3 +24,5 @@ Automated_ALPACA.Rout
 .vscode
 *.p
 *checkpoint*
+Python/python.bat
+Python/Investment_Logs.txt

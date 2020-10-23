@@ -142,10 +142,6 @@ def Open_Position(s,q = 0.20):
     
     
     if Buy_Amount <= Buying_Power and Buy_Amount > 1 and Buy_Quantity > 0:
-        
-        # Canceling Any Open Orders
-        Cancel_Open_Orders(s)
-        
         # Determinig Limit Price
         Stock_Info = Group_Consolidator(
             Combined_Data = Combined_Data,
