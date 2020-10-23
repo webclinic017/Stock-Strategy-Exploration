@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[13]:
+# In[11]:
 
 
 ## Warning Handling
@@ -18,7 +18,7 @@ import sys
 sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[14]:
+# In[12]:
 
 
 ## API Library Setup
@@ -40,7 +40,7 @@ import alpaca_trade_api as tradeapi
 api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2')
 
 
-# In[15]:
+# In[23]:
 
 
 N_DAYS_AGO = 365
@@ -49,9 +49,11 @@ min_list_years = 5
 min_volume = 400000
 max_investment = float(rs.build_user_profile()['equity'])*0.2
 min_investment = 15
+max_investment
 
 
-# In[16]:
+# In[14]:
+
 
 ## Installing Required Packages
 import sys
@@ -92,7 +94,7 @@ def years_listed(d1):
 
 # ### Historical Data Pull
 
-# In[5]:
+# In[25]:
 
 
 ## Pulling All Available Alpaca Symbols
@@ -179,7 +181,7 @@ pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb
 
 # ### Exploring Total Market Performance
 
-# In[5]:
+# In[15]:
 
 
 ## Loading Stored Data
@@ -192,14 +194,14 @@ Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
 Total_Market.tail(10)
 
 
-# In[7]:
+# In[16]:
 
 
 ## Run to Update Total Market Data
 Total_Market.to_csv(Project_Folder + "Data//Historical_Data.csv")
 
 
-# In[6]:
+# In[17]:
 
 
 Plot_Data = Total_Market
@@ -237,7 +239,7 @@ fig.set_size_inches(16,9)
 
 # ## Digging Into A Sector Ranking
 
-# In[7]:
+# In[18]:
 
 
 Sectors = list(Combined_Data['sector'].unique())
@@ -264,7 +266,7 @@ Sector_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis =
 
 # ## Diving Further Into Individual Idustries
 
-# In[8]:
+# In[19]:
 
 
 if type(Sector_Summary) is not list:
@@ -287,7 +289,7 @@ Industry_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis
 
 # ## Diving Into The Individual Stocks
 
-# In[9]:
+# In[20]:
 
 
 if type(Industry_Summary) is not list:
@@ -309,7 +311,7 @@ else:
 Stock_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
 
 
-# In[10]:
+# In[24]:
 
 
 ## Pulling Current Stock Holdings
@@ -358,6 +360,8 @@ Optimized_Portfolio = ef.portfolio_performance(verbose=True)
 
 ## Quantile for Deciding Limit Orders
 q = 0.20
+## Quantile for Deciding Stop Loss / Take Profit Orders
+qsp = 0.90
 
 ## Pulling Relevent Account Information
 Account_Equity = float(rs.build_user_profile()['equity'])
@@ -392,7 +396,7 @@ for s in Final_Picks:
         # Make No Changes    
         else:
             print("\n",s," Within Recommended Percentage")
-            Exit_Orders(s)        
+            Exit_Orders(s,q = qsp)        
      
     ## Stocks Not Currently Held
     else:
