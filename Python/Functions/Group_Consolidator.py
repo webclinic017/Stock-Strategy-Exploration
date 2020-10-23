@@ -1,6 +1,7 @@
 def Group_Consolidator(Combined_Data,
                        groups,
                        column,
+                       q = 0.20,
                        min_last_ret = -0.10,
                        max_rsi = 100,
                        min_macd = -10,
@@ -11,6 +12,7 @@ def Group_Consolidator(Combined_Data,
                        min_beta = -2,
                        max_beta = 2
                       ):
+    
     Group_Data = defaultdict(pd.DataFrame)
     for i in groups:
         TMP = Stock_Consolidator(Combined_Data[Combined_Data[column] == i])
@@ -35,28 +37,33 @@ def Group_Consolidator(Combined_Data,
         macd = TMP['MACD']
         
         ## Calculating Various Risk Metrics
-        sd_ret = np.round(np.std(TMP['close_diff'][TMP['close_diff'] > 0].tail(14)),6)
-        sd_loss = np.round(np.std(TMP['close_diff'][TMP['close_diff'] <= 0].tail(14)),6)
+        sd_ret = np.round(np.std(TMP['close_diff'][TMP['close_diff'] > 0].tail(OLS_Window*3)),6)
+        sd_loss = np.round(np.std(TMP['close_diff'][TMP['close_diff'] <= 0].tail(OLS_Window*3)),6)
         risk_ratio = sd_ret/sd_loss
-        mu_ret = np.mean(TMP['close_diff'].tail(14))
+        mu_ret = np.mean(TMP['close_diff'].tail(OLS_Window*3))
         
         ## Daily Movement For Loss Orders
         TMP['close_yesterday'] = TMP['close'].shift(1)
-        sd_day_up = np.std( \
-                           (TMP['high'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14) \
-                          )
-        mu_day_up = np.mean((TMP['high'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14))
-        sd_day_down = np.std( \
-                           (TMP['low'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14) \
-                          )
-        mu_day_down = np.mean((TMP['low'].tail(14) - TMP['close_yesterday'].tail(14))/TMP['close_yesterday'].tail(14))
+        up_data = (TMP['high'].tail(OLS_Window*3) - TMP['close_yesterday'].tail(OLS_Window*3))/TMP['close_yesterday'].tail(OLS_Window*3)
+        down_data = (TMP['low'].tail(OLS_Window*3) - TMP['close_yesterday'].tail(OLS_Window*3))/TMP['close_yesterday'].tail(OLS_Window*3)
+        ## Various Daily Movement Statistics
+        sd_day_up = np.std(up_data)
+        mu_day_up = np.mean(up_data)
+        quant_day_up = np.quantile(up_data,q)
+        sd_day_down = np.std(down_data)
+        mu_day_down = np.mean(down_data)
+        quant_day_down = np.quantile(down_data,1-q)
 
         Group_Data[i] = pd.DataFrame(data = {'last_period_return':ret,
                                              'last_price':last_price,
+                                             'quant_day_up':quant_day_up,
                                              'mu_day_up':mu_day_up,
                                              'sd_day_up':sd_day_up,
+                                             'quant_day_down':quant_day_down,
                                              'mu_day_down':mu_day_down,
                                              'sd_day_down':sd_day_down,
+                                             'sd_ret':sd_ret,
+                                             'sd_loss':sd_loss,
                                              'risk_ratio': risk_ratio,
                                              'mu_ret':mu_ret,
                                              'rsi':rsi,

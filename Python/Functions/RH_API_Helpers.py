@@ -11,7 +11,7 @@ def Cancel_Open_Orders(s):
     if s in [item['symbol'] for item in Open_Orders]:
         Order_Ids = [item['id'] for item in Open_Orders if item['symbol'] == s]
         for ID in Order_Ids:
-            print("Canceling Existing Order:",ID)
+            print("\nCanceling Existing Order:",ID)
             rs.orders.cancel_stock_order(ID)
             sleep(5)
 
@@ -20,66 +20,120 @@ def Get_Holdings():
     Current_Holdings = pd.DataFrame({key:value for key,value in my_stocks.items()})
     return Current_Holdings
 
-def Rebalance_Lower(s):
-    print("\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
+def Rebalance_Lower(s,q = 0.20):
+    print("\n\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
 
     # Canceling Any Open Orders
     Cancel_Open_Orders(s)
+    
+    # Determinig Stop Loss / Take Profit
+    Stock_Info = Group_Consolidator(
+        Combined_Data = Combined_Data,
+        groups = [s],
+        column = 'stock',
+        q = q
+    )
 
     # Placing Sell Order
     Sell_Amount = float(Current_Holdings[s]['equity']) - Account_Equity*Rcm_Holding/100
-    print("Selling ",np.round(Sell_Amount))
-    Order_Info = rs.orders.order_sell_fractional_by_price(
-        symbol = s,
-        amountInDollars = Sell_Amount,
-        timeInForce = 'gfd',
-        extendedHours = False
-    )
-    print("Order ID:",Order_Info['id'],"placed")
+    Sell_Amount = float(np.floor(Sell_Amount/float(Stock_Info['last_price'])))
+    Limit_Price = float(Stock_Info.last_price) + float(Stock_Info.quant_day_up)*float(Stock_Info.last_price)
+    
+    if Sell_Amount < 1:
+        print("\nCan Only Rebalance In Whole Share Amounts")
+    else:
+        print("\nSelling ",np.round(Sell_Amount))
+        try:
+            Order_Info = rs.orders.order(
+                symbol = s,
+                quantity = Sell_Amount,
+                orderType = 'limit',
+                trigger = 'stop',
+                stopPrice = Limit_Price,
+                limitPrice = Limit_Price,
+                side = 'sell',
+                timeInForce = 'gfd',
+                extendedHours = False
+            )
+            sleep(5)
+            print("\nOrder ID:",Order_Info['id'],"placed")
+        except:
+            print("\nOrder Failed For",s)
+            print(Order_Info)
 
-def Rebalance_Higher(s):
+def Rebalance_Higher(s,q = 0.20):
     Buying_Power = float(rs.profiles.load_account_profile('buying_power'))
-    print("\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
+    
+    if float(Current_Holdings[s]['quantity']) == 0:
+        print("\nSkipping Rebalance of",s,"Limit Buy Order In Place")
+    else:
+        print("\n\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
 
+        # Determinig Stop Loss / Take Profit
+        Stock_Info = Group_Consolidator(
+            Combined_Data = Combined_Data,
+            groups = [s],
+            column = 'stock',
+            q = q
+        )
+
+        # Placing Buy Order
+        Buy_Amount = Account_Equity*Rcm_Holding/100 - float(Current_Holdings[s]['equity'])
+        Buy_Amount = float(np.floor(Buy_Amount/float(Stock_Info['last_price'])))
+        Purchase_Price = Buy_Amount*Stock_Info['last_price']
+        Limit_Price = float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
+        
+        if Buy_Amount < 1:
+            print("\nCan Only Rebalance In Whole Share Amounts")
+        else:
+             # Canceling Any Open Orders
+            Cancel_Open_Orders(s)  
+            print("\nBuying ",Buy_Amount)
+
+            if float(Purchase_Price) <= float(Buying_Power):
+                try:
+                    Order_Info = rs.orders.order(
+                        symbol = s,
+                        quantity = Buy_Amount,
+                        orderType = 'limit',
+                        trigger = 'stop',
+                        stopPrice = Limit_Price,
+                        limitPrice = Limit_Price,
+                        side = 'buy',
+                        timeInForce = 'gfd',
+                        extendedHours = False
+                    )
+                    sleep(5)
+                    print("\nOrder ID:",Order_Info['id'],"placed")
+                except:
+                    print("\nOrder Failed For",s)
+                    print(Order_Info)
+            else:
+                print("\nNot Enough Buying Power")
+
+def Close_Position(s):
+    print("\n\nClosing",s,"Position")
+    
     # Canceling Any Open Orders
     Cancel_Open_Orders(s)
-
-     # Placing Buy Order
-    Buy_Amount = Account_Equity*Rcm_Holding/100 - float(Current_Holdings[s]['equity'])
-    print("Buying ",np.round(Buy_Amount))
-
-    if Buy_Amount <= Buying_Power and Buy_Amount > 1:
-        Order_Info = rs.orders.order_buy_fractional_by_price(
+    
+    try:
+        # Placing Order
+        Order_Info = rs.orders.order_sell_fractional_by_quantity(
             symbol = s,
-            amountInDollars = Buy_Amount,
+            quantity = Current_Holdings[s]['quantity'],
             timeInForce = 'gfd',
             extendedHours = False
         )
-        print("Order ID:",Order_Info['id'],"placed")
-    else:
-        if Buy_Amount < 1:
-            print("Buy Amount Less Than Minimum (1$) :",np.round(Buy_Amount))
-        else:
-            print("Not Enough Buying Power")
-            
-def Close_Position(s):
-    print("\nClosing",s,"Position")
-    
-    # Canceling Any Open Orders
-    Cancel_Open_Orders(s)
-    
-    # Placing Order
-    Order_Info = rs.orders.order_sell_fractional_by_quantity(
-        symbol = s,
-        quantity = Current_Holdings[s]['quantity'],
-        timeInForce = 'gfd',
-        extendedHours = False
-    )
-    print("Order ID:",Order_Info['id'],"placed")
+        sleep(5)
+        print("\nOrder ID:",Order_Info['id'],"placed")
+    except:
+        print("\nOrder Failed For",s)
+        print(Order_Info)
 
-def Open_Position(s):
+def Open_Position(s,q = 0.20):
     Buying_Power = float(rs.profiles.load_account_profile('buying_power'))
-    print("\nOpening",s,"Position")
+    print("\n\nOpening",s,"Position")
     
     ## Checking Current Price
     Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
@@ -96,23 +150,89 @@ def Open_Position(s):
         Stock_Info = Group_Consolidator(
             Combined_Data = Combined_Data,
             groups = [s],
-            column = 'stock'
+            column = 'stock',
+            q = q
         )
-        Limit_Buy = float(Stock_Info.last_price + float(Stock_Info.mu_day_down))
+        Limit_Buy = float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
         
-        # Placing Order
-        Order_Info = rs.orders.order_buy_limit(
-            symbol = s,
-            quantity = Buy_Quantity,
-            limitPrice = Limit_Buy,
-            timeInForce = 'gtc',
-            extendedHours = True
-        )
+        try:
+            # Placing Order
+            Order_Info = rs.orders.order_buy_limit(
+                symbol = s,
+                quantity = Buy_Quantity,
+                limitPrice = Limit_Buy,
+                timeInForce = 'gfd',
+                extendedHours = True
+            )
+            sleep(5)
+            print("\nOrder ID:",Order_Info['id'],"placed")
+        except:
+            print("\nOrder Failed For",s)
+            print(Order_Info)
         
     else:
         if Buy_Amount < 1:
-            print("Buy Amount Less Than Minimum (1$) :",np.round(Buy_Amount))
+            print("\nBuy Amount Less Than Minimum (1$) :",np.round(Buy_Amount))
         elif Buy_Quantity < 1:
-            print("Unable To Limit Buy < 1 Share")
+            print("\nUnable To Limit Buy < 1 Share")
         else:
-            print("Not Enough Buying Power")
+            print("\nNot Enough Buying Power")
+            
+def Exit_Orders(s,q = 0.95):
+            # Determinig Stop Loss / Take Profit
+            Stock_Info = Group_Consolidator(
+                Combined_Data = Combined_Data,
+                groups = [s],
+                column = 'stock',
+                q = q
+            )
+
+            Pct_Return = float(Current_Holdings[s]['percent_change'])
+            Quantity_Held = np.floor(float(Current_Holdings[s]['quantity']))
+
+            if Pct_Return > 0 and Quantity_Held > 0:
+                Take_Profit = float(Stock_Info.last_price) + float(Stock_Info.quant_day_up)*float(Stock_Info.last_price)
+                print("\nSetting Take Profit For",s,"At:",np.round(Take_Profit,2))
+
+                try: 
+                    Order_Info = rs.orders.order(
+                        symbol = s,
+                        quantity = Quantity_Held,
+                        orderType = 'limit',
+                        trigger = 'stop',
+                        stopPrice = Take_Profit,
+                        limitPrice = Take_Profit,
+                        side = 'sell',
+                        timeInForce = 'gfd',
+                        extendedHours = False
+                    )
+                    sleep(5)
+                    print("\nOrder ID:",Order_Info['id'],"placed")
+
+                except:
+                    print("\nOrder Failed For",s)
+                    print(Order_Info)
+            
+            elif Pct_Return < 0 and Quantity_Held > 0:
+                Stop_Loss =  float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
+                print("\nSetting Stop Loss For",s,"At:",np.round(Stop_Loss,2))
+
+                try:
+                    Order_Info = rs.orders.order(
+                        symbol = s,
+                        quantity = Quantity_Held,
+                        orderType = 'limit',
+                        trigger = 'stop',
+                        stopPrice = Stop_Loss,
+                        limitPrice = Stop_Loss,
+                        side = 'sell',
+                        timeInForce = 'gfd',
+                        extendedHours = False
+                    )
+                    sleep(5)
+                    print("\nOrder ID:",Order_Info['id'],"placed")
+                except:
+                    print("\nOrder Failed For",s)
+                    print(Order_Info)
+            else:
+                print("\nCan Only Set Loss/Profit On Whole Quantities")
