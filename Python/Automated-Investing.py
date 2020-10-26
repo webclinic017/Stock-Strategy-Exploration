@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[11]:
+# In[26]:
 
 
 ## Warning Handling
@@ -18,7 +18,7 @@ import sys
 sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[12]:
+# In[27]:
 
 
 ## API Library Setup
@@ -40,7 +40,7 @@ import alpaca_trade_api as tradeapi
 api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2')
 
 
-# In[23]:
+# In[28]:
 
 
 N_DAYS_AGO = 365
@@ -52,7 +52,7 @@ min_investment = 15
 max_investment
 
 
-# In[14]:
+# In[29]:
 
 
 ## Installing Required Packages
@@ -181,7 +181,7 @@ pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb
 
 # ### Exploring Total Market Performance
 
-# In[15]:
+# In[30]:
 
 
 ## Loading Stored Data
@@ -201,7 +201,7 @@ Total_Market.tail(10)
 Total_Market.to_csv(Project_Folder + "Data//Historical_Data.csv")
 
 
-# In[17]:
+# In[31]:
 
 
 Plot_Data = Total_Market
@@ -239,7 +239,7 @@ fig.set_size_inches(16,9)
 
 # ## Digging Into A Sector Ranking
 
-# In[18]:
+# In[32]:
 
 
 Sectors = list(Combined_Data['sector'].unique())
@@ -266,7 +266,7 @@ Sector_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis =
 
 # ## Diving Further Into Individual Idustries
 
-# In[19]:
+# In[33]:
 
 
 if type(Sector_Summary) is not list:
@@ -289,7 +289,7 @@ Industry_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis
 
 # ## Diving Into The Individual Stocks
 
-# In[20]:
+# In[35]:
 
 
 if type(Industry_Summary) is not list:
@@ -302,7 +302,7 @@ if type(Industry_Summary) is not list:
                                        min_alpha = 0,
                                        max_alpha_p = 0.50,
                                        max_rsi = 50,
-                                       q = 0.90
+                                       q = 0.20
     )
     Stock_Summary.         sort_values(by = ['rsi'],ascending = [1])
 else:
@@ -311,7 +311,7 @@ else:
 Stock_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
 
 
-# In[24]:
+# In[38]:
 
 
 ## Pulling Current Stock Holdings
@@ -351,6 +351,7 @@ for stock in cleaned_weights.keys():
         Final_Picks.append(stock)
         
 Optimized_Portfolio = ef.portfolio_performance(verbose=True)
+Optimized_Portfolio
 
 
 # ## Robinhood Automated Investing POC

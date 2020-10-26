@@ -1,0 +1,671 @@
+---
+title: "Stock Strategy Exploration and Automation"
+author: 
+- Abram Yorde
+- Karen Richard
+- Paul Fullenkamp
+date: "October 1, 2018"
+output: 
+  html_document:
+    theme: cerulean
+    toc: false
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+devtools::install_github("Emerson-Data-Science/EmersonDataScience",  
+                         auth_token = "7c54299b0c824b305a01dc1eeb9a6de41fe12b23",  
+                         INSTALL_opts = '--no-multiarch',  
+                         dependencies = TRUE,  
+                         quiet = FALSE,  
+                         upgrade = FALSE)
+library(EmersonDataScience)
+
+##########################################################################
+Required_Packages = c('tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML','earth', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra')
+load_or_install(Required_Packages)
+
+## Checking for R updates
+updateR(fast = F,
+        browse_news = F,
+        install_R = T,
+        copy_packages = F,
+        copy_Rprofile.site = T,
+        keep_old_packages = F,
+        update_packages = F,
+        start_new_R = F,
+        quit_R = T,
+        print_R_versions = T,
+        GUI = F,
+        to_checkMD5sums = T,
+        keep_install_file = F)
+
+## Loading Required Functions
+sourceDir(paste0(getwd(),'/Codes/Functions/'))
+
+## Root Data Folder
+Root_Folder = getwd()
+
+## Disabling API Warning
+options("getSymbols.yahoo.warning" = FALSE)
+options("getSymbols.warning4.0" = FALSE)
+
+## General RMD Options
+Local_S = T
+Local_L = T
+Google_Drive_S = T
+Google_Drive_L = F
+Initial_Pull = T
+Initial_History = F
+TEST = F
+
+## Google Drive Maintinance
+if(Google_Drive_L | Google_Drive_S){
+  drive_empty_trash()
+}
+```
+
+
+
+```{r Data Update, include = F,eval = !TEST}
+# Takes About 15 Minutes
+
+if(!Initial_Pull){
+  if(Local_L){
+    Ticker_Pull_Function(Location = paste0(Root_Folder,"/Data/"),Google_Drive = F)
+  }
+  if(Google_Drive_L){
+    Ticker_Pull_Function(Google_Drive = T)
+  }
+}
+```
+
+```{r Market Designation, include = F, eval = !TEST}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+}
+
+
+## Defining Market Directions
+Market_DF = Combined_Results %>%
+  filter(Stock %in% c("^GSPC","^IXIC","^DJI")) %>%
+  group_by(Stock) %>%
+ mutate(Indicator = runMax(Adjusted,90),
+        Delta = (Adjusted -Indicator)/Indicator) %>%
+  na.omit() %>%
+  mutate(Market_Status = as.factor(case_when(
+    Delta <= -0.20 ~ "Bear",
+    Delta <= -0.10 ~ "Correction",
+    Delta < -0.05 ~ "Pullback",
+    Delta >= -0.05 ~ "Bull"
+  ))) %>%
+  ungroup()
+
+Plot_DF = Market_DF
+Plot_DF[Plot_DF$Stock == "^GSPC","Stock"] = "S&P 500"
+Plot_DF[Plot_DF$Stock == "^IXIC","Stock"] = "NASDAQ"
+Plot_DF[Plot_DF$Stock == "^DJI","Stock"] = "Dow Jones"
+Plot_DF$Market_Status = factor(Plot_DF$Market_Status, levels = c("Bull",
+                                                                 "Pullback",
+                                                                 "Correction",
+                                                                 "Bear"))
+
+
+## Final_Indicator
+Market_Ind = Market_DF %>%
+  select(Date,Stock,Market_Status) %>%
+  spread(key = Stock, value = Market_Status) %>%
+  mutate(Market_Status = case_when(
+    `^GSPC` == "Bear" | `^IXIC` == "Bear" | `^DJI` == "Bear" ~ "Bear",
+    `^GSPC` == "Correction" | `^IXIC` == "Correction" | `^DJI` == "Correction" ~ "Correction",
+    `^GSPC` == "Pullback" | `^IXIC` == "Pullback" | `^DJI` == "Pullback" ~ "Pullback",
+    TRUE ~ "Bull"
+  )) %>%
+  select(Date,Market_Status)
+glimpse(arrange(Market_Ind,desc(Date)))
+
+## Segmenting Volatility Indexs
+Plot_DF_2 = Combined_Results %>%
+  filter(Stock %in% c("^VIX","^VXN")) %>%
+  group_by(Stock) %>%
+  mutate(Close_50_SMA = rollapply(data = Close,
+                                  width = 50,
+                                  FUN = mean,
+                                  na.rm = T,
+                                  fill = NA,
+                                  align = "right"),
+         Close_Slope_Inst = (Close - lag(Close,1)),
+         Close_Slope_50 = rollapply(data = Close_Slope_Inst,
+                                    width = 50,
+                                    FUN = mean,
+                                    na.rm = T,
+                                    fill = NA,
+                                    align = "right"),
+         Close_Slope_50_Norm = Close_Slope_50/Close_50_SMA) %>%
+  ungroup() %>%
+  na.omit() %>%
+  select(-c(Close_50_SMA,Close_Slope_Inst,Close_Slope_50)) %>%
+  mutate(Market_Type = case_when(
+    Close_Slope_50_Norm >= 0 ~ "Seller's Market",
+    TRUE ~ "Buyer's Market"))
+
+Market_Type = Plot_DF_2 %>%
+  select(Date,Stock,Market_Type) %>%
+  spread(key = Stock, value = Market_Type) %>%
+  mutate(Market_Type = case_when(
+    `^VIX` == "Seller's Market" | `^VXN` == "Seller's Market" ~ "Seller's Market",
+    TRUE ~ "Buyer's Market"
+  )) %>%
+  select(Date,Market_Type)
+glimpse(arrange(Market_Type,desc(Date)))
+
+
+if(Local_S){
+save(Market_Ind,Plot_DF,Plot_DF_2,Market_Type,
+     file = paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+}
+if(Google_Drive_S){
+    save(Market_Ind,Plot_DF,Plot_DF_2,Market_Type,
+         file = paste0(tempdir(),'/',"Market_Ind.RDATA"))
+    Check = drive_find("Market_Ind.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Market_Ind.RDATA")
+    }
+    drive_upload(media =paste0(tempdir(),'/',"Market_Ind.RDATA"),
+                   path = "Market_Ind.RDATA")
+}
+```
+
+```{r Model Exploration,eval = F,include = F}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Market_Ind.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+  load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+}
+## Pulling Economic Indicators
+Economic_IND = Reference_Economic_Pull()
+NA_Func = function(x){!any(is.na(x))}
+Economic_DF = Economic_IND %>%
+  select_if(NA_Func) %>%
+  rename("Date" = date)
+
+## Creating Market Identifier Information
+Market_Type_DF = Plot_DF_2 %>%
+  group_by(Date) %>%
+  summarise(Fear_Direction = mean(Close_Slope_50_Norm,na.rm = T))
+
+Market_Ind_DF = Plot_DF %>%
+  group_by(Date) %>%
+  summarise(Market_Direction = min(Delta,na.rm = T)) %>%
+  mutate(Market_Direction_50 = rollapply(Market_Direction,
+                                         width = 50,
+                                         FUN = mean,
+                                         na.rm = T,
+                                         fill = NA,
+                                         align = "right")) %>%
+  na.omit()
+
+Market_Info = Market_Ind_DF %>%
+  left_join(Market_Type_DF,by = "Date") %>%
+  left_join(Economic_DF,by = "Date") %>%
+  na.omit()
+
+
+## Takes about 5 Minutes  
+Start = Sys.time()
+print("Initial Stat Calculation for Pool Selection")
+PR_Stage = PR_Appendage(Combined_Results,parallel = T)
+Sys.time() - Start
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Index_Alpha_Slope = PR_Stage %>%
+  filter(Stock %in% Major_Indexs) %>%
+  select(Stock,Date,Close_Slope_50_Norm) %>%
+  spread(Stock,Close_Slope_50_Norm) %>%
+  mutate(Alpha_Slope = rowMeans(cbind(`^GSPC`,`^IXIC`,`^DJI`))) %>%
+  select(Date,Alpha_Slope)
+PR_Stage_R2 = PR_Stage %>%
+  left_join(Index_Alpha_Slope,by = "Date") %>%
+  na.omit() %>%
+  mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
+  select(-Alpha_Slope)
+
+## Labeling Buy Points
+Mod_DF = PR_Stage_R2 %>%
+  group_by(Stock) %>%
+  mutate(Lead_Return = (lead(Close,90) - Close)/Close) %>%
+  group_by(Date) %>%
+  mutate(Quantile_Return = ecdf(Lead_Return)(Lead_Return),
+         Buy = case_when(
+           Quantile_Return >= 0.95 ~ 1,
+           TRUE ~ 0
+         )) %>%
+  ungroup() %>%
+  left_join(Market_Info) %>%
+  select(-c(Stock,Date)) %>%
+  na.omit() %>%
+  filter_all(all_vars(!is.infinite(.)))
+
+## Feature Selection
+TMP = Mod_DF %>%
+  select(-c(Lead_Return,Quantile_Return)) %>%
+  mutate(But = as.factor(Buy)) %>%
+  as.data.frame()
+Vars = Boruta(Buy ~ .,
+              doTrace = 1,
+              data = TMP)
+
+
+PP.Mod = recipe(Buy~.,
+                data = Mod_DF) %>%
+  step_YeoJohnson(all_predictors()) %>%
+  step_center(all_predictors()) %>%
+  step_scale(all_predictors()) %>%
+  prep(Mod_DF)
+PP.Train = bake(PP.Mod,Mod_DF)
+
+# Initializing Parallel Clusters
+c1 = makeCluster(detectCores() - 1)
+registerDoParallel(c1)
+
+# Training Control Parameters
+fitControl = trainControl(
+  method = "cv",
+  number = 5
+)
+
+# Separating Target and Predictors
+x = PP.Train %>%
+  select(-Buy)
+y = as.factor(PP.Train$Buy)
+
+
+# Training the Model
+Model = train(y = y,
+              x = x,
+              method = 'xgbLinear',
+              trControl = fitControl)
+
+```
+
+
+```{r Pool Reduction, include = F, eval = !TEST}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Market_Ind.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+  load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+}
+
+## Takes about 5 Minutes  
+Start = Sys.time()
+print("Initial Stat Calculation for Pool Selection")
+PR_Stage = PR_Appendage(Combined_Results,parallel = T)
+Sys.time() - Start
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Index_Alpha_Slope = PR_Stage %>%
+  filter(Stock %in% Major_Indexs) %>%
+  select(Stock,Date,Close_Slope_50_Norm) %>%
+  spread(Stock,Close_Slope_50_Norm) %>%
+  mutate(Alpha_Slope = rowMeans(cbind(`^GSPC`,`^IXIC`,`^DJI`))) %>%
+  select(Date,Alpha_Slope)
+PR_Stage_R2 = PR_Stage %>%
+  left_join(Index_Alpha_Slope,by = "Date") %>%
+  na.omit() %>%
+  mutate(Pseudo_Alpha_PD = (Close_Slope_50_Norm - Alpha_Slope)/Alpha_Slope) %>%
+  select(-Alpha_Slope)
+
+
+## Initial Pool Reduction
+PR_Red_1 = PR_Stage_R2 %>%
+  filter(Date == max(Date)) %>%
+  group_by(Stock) %>%
+  filter(n() == 1) %>%
+  filter(Pseudo_Alpha_PD > 0) %>%
+  ungroup() %>%
+  na.omit() %>%
+  mutate(Volume_PD_Norm_Rank = scales::rescale(Volume_PD_Norm,c(0,1)),
+         Volume_SD_Norm_Rank = scales::rescale(Volume_SD_Norm,c(0,1)),
+         Close_High_PD_Norm_Rank = scales::rescale(Close_High_PD_Norm,c(0,1)),
+         Close_PD_50_Norm_Rank = scales::rescale(Close_PD_50_Norm,c(0,1)),
+         Close_PD_200_Norm_Rank = scales::rescale(Close_PD_200_Norm,c(0,1)),
+         Close_SD_50_Norm_Rank = scales::rescale(Close_SD_50_Norm,c(0,1)),
+         Close_PD_50_200_Norm_Rank = scales::rescale(Close_PD_50_200_Norm,c(0,1)),
+         Close_Slope_50_Norm_Rank = scales::rescale(Close_Slope_50_Norm,c(0,1)),
+         Close_Slope_200_Norm_Rank = scales::rescale(Close_Slope_200_Norm,c(0,1)),
+         Close_50_Time_Norm_Rank = scales::rescale(Close_50_Time_Norm,c(0,1)),
+         Price_Range_15_SD_Norm_Rank = scales::rescale(Price_Range_15_SD_Norm,c(0,1)),
+         Pseudo_Alpha_PD_Rank = scales::rescale(Pseudo_Alpha_PD,c(0,1)))
+  
+  
+
+## Appending FinViz Stats
+## Takes About 2 Minutes
+Start = Sys.time()
+storage = list()
+print("Beginning Pool Selection FinViz Stat Pull")
+p = progress_estimated(nrow(PR_Red_1))
+for(i in 1:nrow(PR_Red_1)){
+  Ticker = PR_Red_1$Stock[i]
+  TMP = try(FinViz_Metric_Pull(Ticker),
+            silent = T)
+  storage[[i]] = TMP
+  p$pause(0.5)$tick()$print()
+}
+Metrics = plyr::ldply(storage[sapply(storage,class) %in% "data.frame"],data.frame)
+Sys.time() - Start
+
+Pool_Results = PR_Red_1 %>%
+  left_join(Metrics,by = "Stock") %>%
+  mutate(Profit.Margin = as.numeric(str_remove(Profit.Margin,"%"))/100,
+         Oper..Margin = as.numeric(str_remove(Oper..Margin,"%"))/100,
+         Change = as.numeric(str_remove(Change,"%"))/100,
+         Price = as.numeric(as.character(Price)),
+         Prev.Close = as.numeric(as.character(Prev.Close)),
+         ATR = as.numeric(as.character(ATR)),
+         Beta = as.numeric(as.character(Beta)),
+         Perf.YTD = as.numeric(str_remove(Perf.YTD,"%"))/100,
+         Perf.Year = as.numeric(str_remove(Perf.Year,"%"))/100,
+         Perf.Half.Y = as.numeric(str_remove(Perf.Half.Y,"%"))/100,
+         Perf.Quarter = as.numeric(str_remove(Perf.Quarter,"%"))/100,
+         Perf.Month = as.numeric(str_remove(Perf.Month,"%"))/100,
+         Perf.Week = as.numeric(str_remove(Perf.Week,"%"))/100,
+         RSI..14. = as.numeric(as.character(RSI..14.)),
+         EPS..ttm. = as.numeric(str_remove(EPS..ttm.,"%"))/100,
+         EPS.next.Y = as.numeric(str_remove(EPS.next.Y,"%"))/100,
+         EPS.next.Q = as.numeric(str_remove(EPS.next.Q,"%"))/100,
+         EPS.this.Y = as.numeric(str_remove(EPS.this.Y,"%"))/100,
+         EPS.next.Y.1 = as.numeric(str_remove(EPS.next.Y.1,"%"))/100,
+         EPS.next.5Y = as.numeric(str_remove(EPS.next.5Y,"%"))/100,
+         EPS.past.5Y = as.numeric(str_remove(EPS.past.5Y,"%"))/100,
+         Sales.past.5Y = as.numeric(str_remove(Sales.past.5Y,"%"))/100,
+         Sales.Q.Q = as.numeric(str_remove(Sales.Q.Q,"%"))/100,
+         EPS.Q.Q = as.numeric(str_remove(EPS.Q.Q,"%"))/100,
+         ROA = as.numeric(str_remove(ROA,"%"))/100,
+         ROE = as.numeric(str_remove(ROE,"%"))/100,
+         ROI = as.numeric(str_remove(ROI,"%"))/100,
+         X52W.High = as.numeric(str_remove(X52W.High,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         Target.Price = as.numeric(as.character(Target.Price)),
+         Short.Ratio = as.numeric(as.character(Short.Ratio)),
+         Short.Float = as.numeric(str_remove(Short.Float,"%"))/100,
+         Payout = as.numeric(str_remove(Payout,"%"))/100,
+         Gross.Margin = as.numeric(str_remove(Gross.Margin,"%"))/100,
+         Inst.Trans = as.numeric(str_remove(Inst.Trans,"%"))/100,
+         Inst.Own = as.numeric(str_remove(Inst.Own,"%"))/100,
+         Insider.Trans = as.numeric(str_remove(Insider.Trans,"%"))/100,
+         Insider.Own = as.numeric(str_remove(Insider.Own,"%"))/100,
+         X52W.Low = as.numeric(str_remove(X52W.Low,"%"))/100,
+         LT.Debt.Eq = as.numeric(as.character(LT.Debt.Eq)),
+         Debt.Eq = as.numeric(as.character(Debt.Eq)),
+         Current.Ratio = as.numeric(as.character(Current.Ratio)),
+         Quick.Ratio = as.numeric(as.character(Quick.Ratio)),
+         P.FCF = as.numeric(as.character(P.FCF)),
+         P.C = as.numeric(as.character(P.C)),
+         P.B = as.numeric(as.character(P.B)),
+         P.S = as.numeric(as.character(P.S)),
+         PEG = as.numeric(as.character(PEG)),
+         Forward.P.E = as.numeric(as.character(Forward.P.E)),
+         P.E = as.numeric(as.character(P.E)),
+         Recom = as.numeric(as.character(Recom)),
+         Employees = as.numeric(as.character(Employees)),
+         Outlook.Growth = (Target.Price - Prev.Close)/Prev.Close,
+         Volatility_Range = abs(as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,2],"%")) - 
+                                  as.numeric(str_remove(str_split_fixed(Volatility," ",2)[,1],"%")))) %>%
+  distinct() %>%
+    rename("Volume" = Volume.x) %>%
+  select(-c(SMA20,SMA50,Index,Income,Dividend..,Optionable,Shortable,
+            Earnings,SMA200,Target.Price,X52W.High,X52W.Low,X52W.Range,
+            Rel.Volume,Avg.Volume,Volume.y,ATR,Volatility,Prev.Close,
+            Price,Change,Open,High,Low,Adjusted,Volume,Date)) %>%
+  select(Stock,Close,Outlook.Growth,contains("Rank"),everything()) %>%
+  select(-contains("Perf")) %>%
+  filter(Outlook.Growth > 0)
+
+## Applying More Rigid Filters
+Pool_Results_Potential_Buys = Pool_Results %>%
+  filter(ROE > 0,
+         ROA > 0,
+         ROI > 0,
+         Insider.Own > 0,
+         Sales.Q.Q > 0,
+         Sales.past.5Y > 0,
+         EPS.this.Y >0,
+         EPS.Q.Q > 0,
+         EPS.next.Q > 0,
+         EPS.past.5Y > 0,
+         EPS.next.5Y > 0,
+         EPS.next.Y.1 > 0,
+         Profit.Margin > 0) %>%
+  filter(Close_PD_50_Norm >= 0,
+         Close_Slope_50_Norm >= 0,
+         Close_High_PD_Norm >= -0.15,
+         Close_PD_50_200_Norm >= 0,
+         Close_Slope_200_Norm >=0)
+  
+
+# Saving Pool Results and Reduced Raw Data
+if(Local_S){
+  save(Pool_Results,Pool_Results_Potential_Buys,PR_Stage_R2,
+       file = paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+}
+if(Google_Drive_S){
+    save(Pool_Results,Pool_Results_Potential_Buys,PR_Stage_R2,
+         file = paste0(tempdir(),'/',"Pool_Results.RDATA"))
+    Check = drive_find("Pool_Results.RDATA")
+    if(nrow(Check) > 0){
+      drive_rm("Pool_Results.RDATA")
+    }
+    drive_upload(media = paste0(tempdir(),'/',"Pool_Results.RDATA"),
+                   path = "Pool_Results.RDATA")
+}
+```
+
+## Daily Stock Update {.tabset .tabset-fade}
+
+```{r Final Report Data,echo = F}
+if(Google_Drive_L){
+  File = drive_download(file = "NASDAQ Historical.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Market_Ind.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "Pool_Results.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+  File = drive_download(file = "History_Results.RDATA",
+                        overwrite = T)
+  load(File$local_path)
+  rm(File)
+}
+if(Local_L){
+  load(paste0(Root_Folder,"/Data/NASDAQ Historical.RDATA"))
+  load(paste0(Root_Folder,"/Data//Market_Ind.RDATA"))
+  load(paste0(Root_Folder,"/Data//Pool_Results.RDATA"))
+  load(paste0(Root_Folder,"/Data//History_Results.RDATA"))
+}
+```
+
+### Market Status
+
+```{r Market Status,echo = F}
+## Creating Market Type Data
+Plot_Date = max(Plot_DF$Date) %m-% months(6)
+MIND_DF = Plot_DF %>%
+  group_by(Stock) %>%
+  mutate(SMA50 = rollapply(Adjusted,
+                    width = 50,
+                    FUN = mean,
+                    na.rm = T,
+                    align = "right",
+                    fill = NA)) %>%
+  filter(Date >= Plot_Date)
+
+## Determining Current Market Status and Type  
+Current_Status = Market_Ind %>%
+  arrange(Date) %>%
+  mutate(Days = sequence(rle(Market_Status)$lengths)) %>%
+  arrange(desc(Date)) %>%
+  head(1)
+Current_Type = Market_Type %>%
+  arrange(Date) %>%
+   mutate(Days = sequence(rle(Market_Type)$lengths)) %>%
+  arrange(desc(Date)) %>%
+  head(1)
+
+## Creating Fear Index Data
+VOLT_DF = Plot_DF_2 %>%
+  mutate(Stock = case_when(
+    Stock == "^VIX" ~ "S&P 500 Fear Index",
+    Stock == "^VXN" ~ "NASDAQ Fear Index"
+  )) %>%
+  group_by(Stock) %>%
+  mutate(SMA50 = rollapply(Adjusted,
+                    width = 50,
+                    FUN = mean,
+                    na.rm = T,
+                    align = "right",
+                    fill = NA)) %>% 
+  filter(Date >= Plot_Date) %>%
+  left_join(Market_Ind,by = "Date")
+
+## Plot Examining Market Direction Designation
+p1 = ggplot(MIND_DF,aes(x = Date,y = Adjusted)) +
+  geom_point(aes(color = Market_Status)) +
+  geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+  scale_x_date(breaks = scales::pretty_breaks(9)) +
+  labs(x = "Date",
+       y = "Adjusted",
+       title = "Market Status of Past 6 Months",
+       subtitle = paste0("Current status = ",Current_Status$Market_Status," :: Current Date = ",Current_Status$Date,
+                         " :: Status for Past ",Current_Status$Days," Days"),
+       color = "Market Status") +
+  facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+print(p1)
+
+## Plot Examining Fear Indexs
+VOLT_DF$Market_Status = factor(VOLT_DF$Market_Status,
+                               levels = c("Bull","Pullback","Correction","Bear"),
+                               ordered = F)
+p2 = ggplot(VOLT_DF,aes(x = Date,y = Adjusted)) +
+  geom_point(aes(color = Market_Status)) +
+  geom_line(aes(y = SMA50),size = 1.5,linetype = 2) +
+  scale_x_date(breaks = scales::pretty_breaks(9)) +
+  labs(x = "Date",
+       y = "Adjusted",
+       title = "Market Fear of Past 6 Months",
+       subtitle = paste0("Current type = ",Current_Type$Market_Type," :: Current Date = ",Current_Type$Date,
+                         " :: Type for Past ",Current_Type$Days," Days"),
+       color = "Market Status") +
+  facet_wrap(Stock~.,nrow = 3,ncol = 1,scales = "free_y")
+print(p2)
+
+```
+
+### Market Leaders
+
+### Monitoring Table (Unfiltered)
+
+```{r Table,echo = F}
+## Interactive Table of Stock Selections
+DT::datatable(data = Pool_Results,
+              filter = list(position = 'top'))
+```
+
+### Monitoring Table (Filtered to Buy Positions)
+
+```{r Table PBs,echo = F}
+## Interactive Table of Stock Selections
+DT::datatable(data = Pool_Results_Potential_Buys,
+              filter = list(position = 'top'))
+```
+
+### Monitoring Charts
+
+```{r Charts,echo = F}
+## Plotting last 6 Months of Stock Data
+Tickers = unique(Pool_Results_Potential_Buys$Stock)
+for(i in 1:length(Tickers)){
+  TMP = Combined_Results %>%
+    filter(Stock == Tickers[i]) %>%
+    mutate(Color = ifelse(Close > Open,"Gain","Loss"),
+           Date = as_date(Date)) %>%
+    melt(id.vars = c("Date","Stock","Color")) %>%
+    group_by(variable) %>%
+    mutate(SMA_50 = rollapply(value,
+                              width = 50,
+                              FUN = mean,
+                              na.rm = T,
+                              fill = NA,
+                              align = "right"),
+           SMA_200 = rollapply(value,
+                              width = 200,
+                              FUN = mean,
+                              na.rm = T,
+                              fill = NA,
+                              align = "right")) %>%
+    ungroup() %>%
+    na.omit() %>%
+    filter(Date >= Plot_Date,
+           variable %in% c("Close","Volume"))
+  Current_Price = TMP %>%
+    filter(variable == "Close",
+           Date == max(Date))
+ 
+  
+  p1 = ggplot(TMP,aes(x = Date,y = value)) +
+    geom_line() +
+    geom_line(aes(y = SMA_50),linetype = 3,size = 1) +
+    geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
+    scale_x_date(breaks = scales::pretty_breaks(9)) +
+    scale_color_manual(values = c("green","red")) +
+    labs(title = paste0(unique(TMP$Stock)," 6 Month Performance :: Current Price = ",round(Current_Price$value,2)),
+         subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
+         y = "",
+         x = "",
+         color = "") +
+    theme(legend.position = "none",
+          axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
+    facet_wrap(variable~.,nrow = 2,scales = "free_y")
+  print(p1)
+}
+```
+
+#### Historical Return `r Historical_Return`
+
+### Stock Futures (Hierarchical Forecast)
+
+
+
+
+
+
+
+

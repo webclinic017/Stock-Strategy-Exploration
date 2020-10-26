@@ -1,0 +1,479 @@
+---
+title: "Stock Automated Methodology"
+author: "Paul, Karen, Abram"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: 
+  html_document:
+    theme: cerulean
+editor_options: 
+  chunk_output_type: console
+---
+
+## General Notes / Links
+
+[Short Term Capitial Gains Rates](https://www.nerdwallet.com/blog/taxes/federal-income-tax-brackets/)
+[Long Term Capital Gains Rates](https://www.nerdwallet.com/blog/taxes/capital-gains-tax-rates/)
+
+Stocks held less than a year are subject to short term capital gains tax where longer than a year are subject to long term capitial gains. The same rates apply to capital losses within the same time frames. Maximum capital losses that can be claimed are 3,000 dollars, and only apply if the capital losses are more than the capital gains. You also will need to file an 8949 form and a schedule D form with the IRS during your tax return filing.
+
+Stocks sold and rebought within 30 days cancel out any capital losses and this is considered the wash rule
+
+
+
+```{r setup, include=FALSE}
+## Setting RMD Project Directory
+Project_Folder = rprojroot::find_rstudio_root_file()
+knitr::opts_knit$set(root.dir = Project_Folder)
+
+library(EmersonDataScience)
+
+## Loading and Installing Packages if necessacary
+Required_Packages = c("speedglm",'tidyverse','installr','psych','quantmod','lubridate','dygraphs','doParallel','XML', 'googledrive','cumstats','dummy','knitr','xts','reshape2','mboost','glmnet','broom','recipes','caret','cluster','factoextra',"HiClimR","rpart","rpart.plot","caret",'doSNOW','ranger','roll','quantmod')
+load_or_install(Required_Packages)
+
+
+## Loading Required Functions
+sourceDir(paste0(Project_Folder,"/Codes/Functions"))
+
+## Disabling API Warning
+options("getSymbols.yahoo.warning" = FALSE)
+options("getSymbols.warning4.0" = FALSE)
+
+## General RMD Options
+Initial_History = T
+TEST = F
+Back_Test = T
+Investment_Value = 1000
+
+## Perfromance Function Parameters
+Starting_Money = 350
+Max_Loss = 0.05
+Max_Holding = 0.10
+Max_Holding_Live = 0.20
+
+## Cap Preferences (one of All/Mega/Large/Mid/Small)
+Cap = "Small" 
+
+## Timeline For Profit Model (Trading Days)
+Projection = 20
+```
+
+### {.tabset}
+
+```{r Raw Data Pull, include = F,eval = !TEST}
+## Fresh Historical Data Pull
+Initial_Pull(Cap = Cap,PAPER = F)
+```
+
+#### Market Status
+
+```{r Market Direction, echo = F,message = F, warning = F,fig.align='center',fig.asp = 0.5625,fig.width = 10}
+## Loading Historical Stock Data
+load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+Combined_Results = Combined_Results %>%
+  filter(Date != Sys.Date())
+
+## Bear/Bull Calculations
+Market_Ind = Market_Direction(Combined_Results,Plot = T)
+## General Fear Calculations
+Fear_Ind = Fear_Direction(Combined_Results,Market_Ind,Plot = T)
+
+## Saving Market Indicators
+save(Market_Ind,Fear_Ind,
+     file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
+```
+  
+```{r Drawdown Calculations}
+DrawDown_Calculator = function(DF,Grouping){
+  Stats_Calculator = function(DF,Splits,i,Grouping){
+    TMP = DF
+    for(j in 1:ncol(Splits)){
+      TMP = TMP[TMP[,colnames(Splits)[j]] == Splits[i,j],]
+    }
+    TMP = TMP %>%
+      mutate(SMA5 = SMA(Adjusted,n = 5))
+  }
+  
+  Splits = DF %>%
+    select(Grouping) %>%
+    distinct()
+  p = progress_estimated(nrow(Splits))
+  for(i in 1:nrow(Splits)){
+    TMP = DF
+    for(j in 1:ncol(Splits)){
+      TMP = TMP[TMP[,colnames(Splits)[j]] == Splits[i,j],]
+    }
+    TMP = TMP %>%
+      mutate(SMA5 = SMA(Adjusted,n = 5))
+    
+    Peaks = findPeaks(TMP$SMA5)
+    Valleys = findValleys(TMP$SMA5)
+    if(length(Peaks) != length(Valleys)){
+      Lengths = c(length(Peaks),length(Valleys))
+      Reduce = which.max(Lengths)
+      if(Reduce == 1){
+        Peaks = Peaks[-1]
+      }else{
+        Valleys = Valleys[-1]
+      }
+    }
+    while(Peaks[1] > Valleys[1]){
+      Valleys = Valleys[-1]
+      Peaks = Peaks[1:(length(Peaks)-1)]
+    }
+    Stats_DF = data.frame(
+      DD_Time = Valleys - Peaks,
+      DD_Amount = (TMP$SMA5[Valleys] - TMP$SMA5[Peaks])/TMP$SMA5[Peaks],
+      RC_Time = lead(Peaks,1) - Valleys,
+      RC_Amount = (lead(TMP$SMA5[Peaks],1) - TMP$SMA5[Valleys])/TMP$SMA5[Valleys]
+    ) %>%
+      summarise_all(c("median","mean","mad","sd"),na.rm = T)
+    colnames(Stats_DF) = str_c(colnames(Stats_DF),"_",str_c(Grouping,collapse = "_"))
+  }
+  
+  
+}
+
+Stocks = unique(Combined_Results$Stock)
+for(i in 1:length(Stocks)){
+  TMP = Combined_Results %>%
+    filter(Stock == Stocks[i]) %>%
+    mutate(SMA5 = SMA(Adjusted))
+  Peaks = findPean = ks(TMP$SMA5)
+  Valleys = findValleys(TMP$SMA5)
+  if(length(Peaks) != length(Valleys)){
+    Lengths = c(length(Peaks),length(Valleys))
+    Reduce = which.max(Lengths)
+    if(Reduce == 1){
+      Peaks = Peaks[-1]
+    }else{
+      Valleys = Valleys[-1]
+    }
+  }
+  if(Peaks[1] > Valleys[1]){
+    Valleys = Valleys[-1]
+    Peaks = Peaks[1:(length(Peaks)-1)]
+  }
+  Stats_DF = data.frame(
+    DD_Time = Valleys - Peaks,
+    DD_Amount = (TMP$SMA5[Valleys] - TMP$SMA5[Peaks])/TMP$SMA5[Peaks],
+    RC_Time = lead(Peaks,1) - Valleys,
+    RC_Amount = (lead(TMP$SMA5[Peaks],1) - TMP$SMA5[Valleys])/TMP$SMA5[Valleys]
+  ) %>%
+    summarise_all(c("median","mean","mad","sd"),na.rm = T)
+}
+
+```
+  
+  
+```{r Appending Stats and Indicators,include = F,eval = !TEST}
+load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
+
+## Normalizing OHLCV Values  
+Start = Sys.time()
+print("Initial Stat Calculation for Pool Selection")
+PR_Stage = PR_Appendage(Combined_Results,
+                        parallel = T,
+                        NCores = 8)
+Sys.time() - Start
+
+## Compairing Performance to Major Indexs
+Major_Indexs = c("^GSPC","^IXIC","^DJI")
+Total_Alpha_Slope = PR_Stage %>%
+  filter(!Stock %in% Major_Indexs) %>%
+  select(Date,Close_Slope_50_Norm) %>%
+  group_by(Date) %>%
+  summarise(Total_Alpha = mean(Close_Slope_50_Norm,trim = 0.05)) %>%
+  ungroup() %>%
+  na.omit()
+Sector_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                  Total_Alpha_Slope = Total_Alpha_Slope,
+                                  Group_Columns = "Sector",
+                                  width = 50)
+Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                    Total_Alpha_Slope = Total_Alpha_Slope,
+                                    Group_Columns = "Industry",
+                                    width = 50)
+Sector_Industry_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                                           Total_Alpha_Slope = Total_Alpha_Slope,
+                                           Group_Columns = c("Sector","Industry"),
+                                           width = 50)
+Cap_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                               Total_Alpha_Slope = Total_Alpha_Slope,
+                               Group_Columns = "Cap_Type",
+                               width = 50)
+Stock_Alpha_Slope = BAC_Function(PR_Stage = PR_Stage,
+                               Total_Alpha_Slope = Total_Alpha_Slope,
+                               Group_Columns = "Stock",
+                               width = 50)
+## Appending Results
+PR_Stage_R2 = PR_Stage %>%
+  left_join(Auto_Stocks,by = c("Stock" = "Symbol")) %>%
+  left_join(Total_Alpha_Slope) %>%
+  left_join(Sector_Alpha_Slope) %>%
+  left_join(Industry_Alpha_Slope) %>%  
+  left_join(Sector_Industry_Alpha_Slope) %>%
+  left_join(Cap_Alpha_Slope) %>%
+  left_join(Stock_Alpha_Slope) %>%
+  na.omit() %>%
+  filter_all(all_vars(!is.infinite(.))) %>%
+  filter(Open > 0,
+         Open < 5000,
+         High > 0,
+         High < 5000,
+         Low > 0,
+         Low < 5000,
+         Close > 0,
+         Close < 5000,
+         Adjusted > 0,
+         Adjusted < 5000,
+         Volume > 0) %>%
+  select(-c(Name,LastSale,MarketCap,Sector,Industry,New_Cap,Cap_Type)) %>%
+  na.omit()
+
+
+## Removing Dead Stocks Or Baby Stocks
+Time_Stop = max(PR_Stage_R2$Date)
+Time_Start = Time_Stop - 365*5
+Last_Time = PR_Stage_R2 %>% 
+  group_by(Stock) %>%
+  summarise(Max_Time = max(Date),
+            Min_Time = min(Date),
+            Count = n()) %>%
+  filter(Max_Time == Time_Stop,
+         Min_Time <= Time_Start,
+         Count > 1000)
+
+## Calculating Technical Indicators
+Stocks = unique(Last_Time$Stock)
+
+## Spinning Up Clusters
+pb <- progress_estimated(length(Stocks))
+progress <- function(n) pb$pause(0.1)$tick()$print()
+opts <- list(progress = progress)
+library(doSNOW)
+c1 = makeCluster(8,outfile = "")
+registerDoSNOW(c1)
+
+## Parallel Execution
+Results = foreach(i = 1:length(Stocks),
+                  .errorhandling = "remove",
+                  .inorder = F,
+                  .packages = c("tidyverse",
+                                "quantmod",
+                                "lubridate",
+                                "TTR"),
+                  .verbose = F,
+                  .options.snow = opts) %dopar% {
+                    ## Subsetting Data
+                    TMP = PR_Stage_R2 %>%
+                      filter(Stock == Stocks[i])
+                    
+                    ## Calculating Technical Indicators
+                    Stat_Appendage_Function(DF = TMP)
+                  }
+
+## Spinning Down Clusters
+stopCluster(c1)
+registerDoSEQ()
+
+## Consolidating Results
+PR_Stage_R3 = plyr::ldply(Results,data.frame)
+
+## Saving Results
+save(PR_Stage_R3,
+     file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+```
+
+```{r Variable Importance Reduction, include = F,eval = !TEST}
+## Loading Indicator Data
+load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
+
+## Initial Data
+ID_DF = PR_Stage_R3 %>%
+  left_join(Market_Ind) %>%
+  left_join(Fear_Ind) %>%
+  left_join(select(Auto_Stocks,Symbol,Sector,Industry,Cap_Type),
+            by = c("Stock" = "Symbol")) %>%
+  mutate(WAD_Delta = WAD - lag(WAD,1),
+         Close_PD = (Close - lag(Close,1))/lag(Close,1),
+         SMI_Delta = (SMI - lag(SMI,1)),
+         SMI_Sig_Delta = (SMI_Signal - lag(SMI_Signal,1)),
+         CCI_Delta = (CCI - lag(CCI,1)),
+         VHF_Delta = (VHF - lag(VHF,1)),
+         RSI_Delta = (RSI - lag(RSI,1))) %>%
+  na.omit()
+
+Models = Modeling_Function(ID_DF = ID_DF,
+                           Max_Date = max(ID_DF$Date))
+
+TODAY = ID_DF %>%
+  filter(Date == max(Date))
+
+RESULT = Prediction_Function(Models = Models,
+                            TODAY = TODAY,
+                            FinViz = F,
+                            DCF = F) %>%
+  BUY_POS_FILTER()
+
+
+save(RESULT,TODAY,ID_DF,Models,
+     file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+```
+
+
+```{r Report Data, include = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Normalized Historical and Technical Indicators.RDATA"))
+load(paste0(Project_Folder,"/Data/NASDAQ Historical.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Market Direction.RDATA"))
+load(file = paste0(Project_Folder,"/Data/Stock_META.RDATA"))
+```
+
+
+#### Potential Buy Position
+
+```{r,echo = F}
+DT::datatable(mutate_if(RESULT,is.numeric,round,3),
+              rownames = F,
+              options = list(autoWidth = T))
+```
+
+#### Monitoring Charts
+
+```{r Charts,echo = F,fig.align='center',fig.asp = 0.5625,fig.width = 10}
+## Plotting last 6 Months of Stock Data
+Tickers = unique(RESULT$Stock)
+Plot_Date = max(Combined_Results$Date) - 30*3
+if(nrow(RESULT) > 0){
+  for(i in 1:length(Tickers)){
+    TMP = Combined_Results %>%
+      filter(Stock == Tickers[i]) %>%
+      mutate(Color = ifelse(Close > Open,"Gain","Loss"),
+             Date = as_date(Date)) %>%
+      melt(id.vars = c("Date","Stock","Color")) %>%
+      group_by(variable) %>%
+      mutate(SMA_50 = rollapply(value,
+                                width = 50,
+                                FUN = mean,
+                                na.rm = T,
+                                fill = NA,
+                                align = "right"),
+             SMA_200 = rollapply(value,
+                                 width = 200,
+                                 FUN = mean,
+                                 na.rm = T,
+                                 fill = NA,
+                                 align = "right")) %>%
+      ungroup() %>%
+      na.omit() %>%
+      filter(Date >= Plot_Date,
+             variable %in% c("Close","Volume"))
+    Current_Price = TMP %>%
+      filter(variable == "Close",
+             Date == max(Date))
+    
+    
+    p1 = ggplot(TMP,aes(x = Date,y = value)) +
+      geom_line() +
+      geom_line(aes(y = SMA_50),linetype = 3,size = 1) +
+      geom_line(aes(y = SMA_200), linetype = 2,size = 1)+
+      scale_x_date(breaks = scales::pretty_breaks(9)) +
+      scale_color_manual(values = c("green","red")) +
+      labs(title = paste0(unique(TMP$Stock)," 3 Month Performance :: Current Price = ",round(Current_Price$value,2)),
+           subtitle = "Dotted Line = 50 Day SMA :: Dashed Line = 200 Day SMA :: Solid Line = Actual",
+           y = "",
+           x = "",
+           color = "") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(),axis.ticks.y = element_blank()) +
+      facet_wrap(variable~.,nrow = 2,scales = "free_y")
+    print(p1)
+  }
+}
+```
+
+#### Stock's With Positive Futures
+
+```{r,echo = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+DT::datatable(mutate_if(FUTURES,is.numeric,round,3),
+              options = list(autoWidth = T),
+              rownames = F)
+```
+
+#### Stock's With Negative Futures
+
+```{r,echo = F}
+load(file = paste0(Project_Folder,"/data/Report Outputs.RDATA"))
+DT::datatable(mutate_if(SHORTS,is.numeric,round,3),
+              options = list(autoWidth = T),
+              rownames = F)
+```
+
+#### Historical Back Test
+
+* Tuning Procedure
+    + Run at a random point in time for historical data
+    + Trained on previous years data
+    + Post run correlation checked against Pcent_Adj, Good, & Positive
+        - Only Correlations > |0.30| Explored (Low Correlation)
+        - One Rule Created Per Run
+        - Highest Correlation Prioritized
+        - Either Upper or Lower Limit Specified Based on Correlation Direction
+    + If none are identified update exisiting 
+        - Only if result is additional profit
+
+```{r Historical Back Test, echo = F, message=F,warning=F}
+Runs = 10
+p = progress_estimated(Runs)
+Results = list()
+for(i in 1:Runs){
+  Results[[i]] = try(BACKTEST_Rule_Generator(Max_Holding = Max_Holding,
+                                             Max_Loss = Max_Loss,
+                                             ID_DF = ID_DF,
+                                             Auto_Stocks = Auto_Stocks,
+                                             Progress = F))
+  p$pause(0.1)$tick()$print()
+}
+save(Results,
+     file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+load(file = paste0(Project_Folder,"/Data/BT_Runs.RDATA"))
+keep = sapply(Results,class) == "list"
+Results = Results[keep]
+RUNS = plyr::ldply(lapply(Results,'[[',1),data.frame)
+RULES =  plyr::ldply(lapply(Results,'[[',2),data.frame)
+TRADES =  plyr::ldply(lapply(Results,'[[',3),data.frame)
+
+## Summarizing Run Results
+psych::describe(RUNS[,3:ncol(RUNS)])
+
+## Reducing Rule Set
+RULES_Summary = RULES %>%
+  mutate(Delta = abs(PL-PH),
+         PDM = (MAX - MP)/abs(MP),
+         PD = Delta/MAX,
+         Side = case_when(
+           PH > PL ~ "High",
+           T ~ "Low"
+         ),
+         Value = case_when(
+           Side == "High" ~ VH,
+           T ~ VL)) %>%
+  filter(MAX > MP,
+         PDM > 0.05) %>%
+  group_by(Var,Side) %>%
+  summarise_all(mean) %>%
+  rowwise() %>%
+  mutate(Percent_Kept = case_when(
+    Side == "High" ~  sum(ID_DF[[Var]] > Value,na.rm = T)/nrow(ID_DF),
+    T ~ sum(ID_DF[[Var]] < Value,na.rm = T)/nrow(ID_DF))) %>%
+  arrange(desc(PDM)) %>%
+  filter(Percent_Kept > 0.95) %>%
+  ungroup()
+```
+
+
+
