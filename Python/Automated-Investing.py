@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[26]:
+# In[42]:
 
 
 ## Warning Handling
@@ -15,10 +15,10 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in log")
 
 ## Logging Setup
 import sys
-sys.stdout = open("Investment_Logs.txt", "w")
+# sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[27]:
+# In[43]:
 
 
 ## API Library Setup
@@ -38,21 +38,27 @@ rs.login(
 import alpaca_trade_api as tradeapi
 # Connecting to Alpaca
 api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2')
+apip = tradeapi.REST(os.getenv("APP_KEY"),os.getenv("APP_SECRET"), api_version='v2',base_url='https://paper-api.alpaca.markets')
 
 
-# In[28]:
+# In[62]:
 
 
 N_DAYS_AGO = 365
 OLS_Window = 5
 min_list_years = 5
 min_volume = 400000
-max_investment = float(rs.build_user_profile()['equity'])*0.2
 min_investment = 15
+
+
+## Account ## (rh = Robin hood, ap = Alpaca Live, app = Alpaca Paper)
+Account = "rh"
+
+max_investment = Get_Equity(Account)*0.2
 max_investment
 
 
-# In[29]:
+# In[86]:
 
 
 ## Installing Required Packages
@@ -94,7 +100,7 @@ def years_listed(d1):
 
 # ### Historical Data Pull
 
-# In[25]:
+# In[64]:
 
 
 ## Pulling All Available Alpaca Symbols
@@ -181,7 +187,7 @@ pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb
 
 # ### Exploring Total Market Performance
 
-# In[30]:
+# In[65]:
 
 
 ## Loading Stored Data
@@ -194,14 +200,14 @@ Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
 Total_Market.tail(10)
 
 
-# In[16]:
+# In[54]:
 
 
 ## Run to Update Total Market Data
 Total_Market.to_csv(Project_Folder + "Data//Historical_Data.csv")
 
 
-# In[31]:
+# In[66]:
 
 
 Plot_Data = Total_Market
@@ -239,7 +245,7 @@ fig.set_size_inches(16,9)
 
 # ## Digging Into A Sector Ranking
 
-# In[32]:
+# In[67]:
 
 
 Sectors = list(Combined_Data['sector'].unique())
@@ -266,7 +272,7 @@ Sector_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis =
 
 # ## Diving Further Into Individual Idustries
 
-# In[33]:
+# In[68]:
 
 
 if type(Sector_Summary) is not list:
@@ -289,7 +295,7 @@ Industry_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis
 
 # ## Diving Into The Individual Stocks
 
-# In[35]:
+# In[69]:
 
 
 if type(Industry_Summary) is not list:
@@ -311,15 +317,17 @@ else:
 Stock_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
 
 
-# In[38]:
+# In[78]:
 
 
 ## Pulling Current Stock Holdings
-my_stocks = rs.build_holdings()
-Current_Holdings = pd.DataFrame({key:value for key,value in my_stocks.items()})
+Current_Holdings = Get_Holdings(Account)
 
 ## Combining Lists
-Stocks = list(Current_Holdings.keys())
+if not Current_Holdings:
+    Stocks = []
+else:
+    Stocks = list(Current_Holdings.keys())
 if len(Stock_Summary) != 0:
     Stocks.extend(list(Stock_Summary.index))
 Stocks = list(set(Stocks))
@@ -351,12 +359,11 @@ for stock in cleaned_weights.keys():
         Final_Picks.append(stock)
         
 Optimized_Portfolio = ef.portfolio_performance(verbose=True)
-Optimized_Portfolio
 
 
 # ## Robinhood Automated Investing POC
 
-# In[11]:
+# In[102]:
 
 
 ## Quantile for Deciding Limit Orders
@@ -365,13 +372,13 @@ q = 0.20
 qsp = 0.90
 
 ## Pulling Relevent Account Information
-Account_Equity = float(rs.build_user_profile()['equity'])
+Account_Equity = Get_Equity(Account)
 
 ## Pulling Open Orders
-Open_Orders = Get_Open_Orders()
+Open_Orders = Get_Open_Orders(Account)
 
 ## Pulling Current Stock Holdings
-Current_Holdings = Get_Holdings()
+Current_Holdings = Get_Holdings(Account)
 
 ## Checking Portfolio Balancing And Placing New Orders
 for s in Final_Picks:
@@ -380,7 +387,9 @@ for s in Final_Picks:
     Rcm_Holding = cleaned_weights[s]*100
     
     # Portfolio Restructuring
-    if s in list(Current_Holdings.keys()):
+    if not Current_Holdings:
+        Open_Position(s,q,Account)
+    elif s in list(Current_Holdings.keys()):
         
         # Current Portfolio Percentage
         Pct_Holding = np.round(float(Current_Holdings[s].equity)*100/Account_Equity,2)
@@ -388,22 +397,25 @@ for s in Final_Picks:
 
         # Rebalancing If Beyond Recommended Holding
         if Pct_Holding > Rcm_Holding*1.05 and Pct_Return > 0:
-            Rebalance_Lower(s,q)
+            Rebalance_Lower(s,q,Account)
             
         # Checking If More Needs Purchased
         elif Pct_Holding < Rcm_Holding*0.95 and Pct_Return > 0:
-            Rebalance_Higher(s,q)
+            Rebalance_Higher(s,q,Account)
             
         # Make No Changes    
         else:
             print("\n",s," Within Recommended Percentage")
-            Exit_Orders(s,q = qsp)        
+            Exit_Orders(s,q = qsp,Account = Account)        
      
     ## Stocks Not Currently Held
     else:
-        Open_Position(s,q)
+        Open_Position(s,q,Account)
         
 ## Closing Required Positions
-for s in [s for s in list(Current_Holdings.keys()) if s not in Final_Picks]:
-    Close_Position(s)
+if not Current_Holdings:
+     print("No positions to close, none are held")
+else:
+    for s in [s for s in list(Current_Holdings.keys()) if s not in Final_Picks]:
+        Close_Position(s,Account)
 

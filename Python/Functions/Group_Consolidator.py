@@ -7,10 +7,7 @@ def Group_Consolidator(Combined_Data,
                        min_macd = -10,
                        min_risk_ratio = 0,
                        min_alpha = -2,
-                       max_alpha_p = 1,
-                       max_beta_p = 1,
-                       min_beta = -2,
-                       max_beta = 2
+                       max_alpha_p = 1
                       ):
     
     Group_Data = defaultdict(pd.DataFrame)
@@ -71,11 +68,12 @@ def Group_Consolidator(Combined_Data,
                                              'alpha':alpha,
                                              'alpha_p':alpha_pvalue,
                                              'beta':beta,
-                                             'beta_p':beta_pvalue}).tail(5)
+                                             'beta_p':beta_pvalue}).tail(1)
     for s in Group_Data:
         Group_Data[s].insert(0, column, [s]*len(Group_Data[s]))
 
     Combined_Group = pd.concat(Group_Data.values())  
+    
     Group_Summary = Combined_Group. \
         groupby(column). \
         mean(). \
@@ -88,9 +86,5 @@ def Group_Consolidator(Combined_Data,
     
     Group_Summary = Group_Summary[Group_Summary.alpha > min_alpha]
     Group_Summary = Group_Summary[Group_Summary.alpha_p < max_alpha_p]
-    
-    Group_Summary = Group_Summary[Group_Summary.beta > min_beta]
-    Group_Summary = Group_Summary[Group_Summary.beta < max_beta]
-    Group_Summary = Group_Summary[Group_Summary.beta_p < max_beta_p]
     
     return Group_Summary

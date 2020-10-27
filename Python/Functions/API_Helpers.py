@@ -13,11 +13,42 @@ def Get_Equity(Account = 'rh'):
 def Get_Holdings(Account = 'rh'):
     if Account == 'rh':
         my_stocks = rs.build_holdings()
+        equity = float(rs.build_user_profile()['equity'])
         holdings = pd.DataFrame({key:value for key,value in my_stocks.items()})
+        for col in holdings.columns:
+            holdings.loc['percentage',col] = (float(holdings.loc['equity',col])/float(equity))*100
     elif Account == 'ap':
+        account = api.get_account()
+        equity = float(account.equity)
         holdings = api.list_positions()
+        DF = pd.DataFrame()
+        for H in holdings:
+            DF.loc['price',H.symbol] = float(H.current_price)
+            DF.loc['quantity',H.symbol] = float(H.qty)
+            DF.loc['average_buy_price',H.symbol] = float(H.avg_entry_price)
+            DF.loc['equity',H.symbol] = float(H.market_value)
+            DF.loc['percent_change',H.symbol] = float(H.unrealized_plpc)*100
+            DF.loc['euqity_change',H.symbol] = float(H.unrealized_pl)
+            DF.loc['type',H.symbol] = 'stock'
+            DF.loc['id',H.symbol] = H.asset_id
+            DF.loc['percentage',H.symbol] = (float(H.market_value)/equity)*100
+        holdings = DF
     elif Account == 'app':
+        account = apip.get_account()
+        equity = float(account.equity)
         holdings = apip.list_positions()
+        DF = pd.DataFrame()
+        for H in holdings:
+            DF.loc['price',H.symbol] = float(H.current_price)
+            DF.loc['quantity',H.symbol] = float(H.qty)
+            DF.loc['average_buy_price',H.symbol] = float(H.avg_entry_price)
+            DF.loc['equity',H.symbol] = float(H.market_value)
+            DF.loc['percent_change',H.symbol] = float(H.unrealized_plpc)*100
+            DF.loc['euqity_change',H.symbol] = float(H.unrealized_pl)
+            DF.loc['type',H.symbol] = 'stock'
+            DF.loc['id',H.symbol] = H.asset_id
+            DF.loc['percentage',H.symbol] = (float(H.market_value)/equity)*100
+        holdings = DF
     return holdings
 
 def Get_Open_Orders(Account = 'rh'):
@@ -72,11 +103,12 @@ def Rebalance_Lower(s,q = 0.20,Account = 'rh'):
         column = 'stock',
         q = q
     )
-
+    Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
+    
     # Placing Sell Order
     Sell_Amount = float(Current_Holdings[s]['equity']) - Account_Equity*Rcm_Holding/100
-    Sell_Amount = float(np.floor(Sell_Amount/float(Stock_Info['last_price'])))
-    Limit_Price = float(Stock_Info.last_price) + float(Stock_Info.quant_day_up)*float(Stock_Info.last_price)
+    Sell_Amount = float(np.floor(Sell_Amount/Current_Price))
+    Limit_Price = float(Current_Price + float(Stock_Info.quant_day_up)*Current_Price)
     
     if Sell_Amount < 1:
         print("\nCan Only Rebalance In Whole Share Amounts")
@@ -149,12 +181,13 @@ def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
             column = 'stock',
             q = q
         )
+        Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
 
         # Placing Buy Order
         Buy_Amount = Account_Equity*Rcm_Holding/100 - float(Current_Holdings[s]['equity'])
-        Buy_Amount = float(np.floor(Buy_Amount/float(Stock_Info['last_price'])))
-        Purchase_Price = Buy_Amount*Stock_Info['last_price']
-        Limit_Price = float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
+        Buy_Amount = float(np.floor(Buy_Amount/Current_Price))
+        Purchase_Price = Buy_Amount*Current_Price
+        Limit_Price = float(Current_Price + float(Stock_Info.quant_day_down)*Current_Price)
         
         if Buy_Amount < 1:
             print("\nCan Only Rebalance In Whole Share Amounts")
@@ -229,6 +262,7 @@ def Close_Position(s,Account = 'rh'):
                 time_in_force= 'day',
                 order_class = 'simple'
             )
+            Order_Info = Order_Info[0]
         elif Account == 'app':
             Order_Info = apip.submit_order(
                 symbol = s,
@@ -238,8 +272,9 @@ def Close_Position(s,Account = 'rh'):
                 time_in_force= 'day',
                 order_class = 'simple'
             )
+            Order_Info = Order_Info[0]
         sleep(5)
-        print("\nOrder ID:",Order_Info['id'],"placed")
+        print("\nOrder ID:",Order_Info.id,"placed")
     except:
         print("\nOrder Failed For",s)
         print(Order_Info)
@@ -272,7 +307,7 @@ def Open_Position(s,q = 0.20,Account = 'rh'):
             column = 'stock',
             q = q
         )
-        Limit_Buy = float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
+        Limit_Buy = float(Current_Price) + float(Stock_Info.quant_day_down)*float(Current_Price)
         
         try:
             if Account == 'rh':
@@ -326,12 +361,13 @@ def Exit_Orders(s,q = 0.95,Account = 'rh'):
                 column = 'stock',
                 q = q
             )
+            Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
 
             Pct_Return = float(Current_Holdings[s]['percent_change'])
             Quantity_Held = np.floor(float(Current_Holdings[s]['quantity']))
 
             if Pct_Return > 0 and Quantity_Held > 0:
-                Take_Profit = float(Stock_Info.last_price) + float(Stock_Info.quant_day_up)*float(Stock_Info.last_price)
+                Take_Profit = float(Current_Price) + float(Stock_Info.quant_day_up)*float(Current_Price)
                 print("\nSetting Take Profit For",s,"At:",np.round(Take_Profit,2))
 
                 try: 
@@ -353,7 +389,7 @@ def Exit_Orders(s,q = 0.95,Account = 'rh'):
                     print(Order_Info)
             
             elif Pct_Return < 0 and Quantity_Held > 0:
-                Stop_Loss =  float(Stock_Info.last_price) + float(Stock_Info.quant_day_down)*float(Stock_Info.last_price)
+                Stop_Loss =  float(Current_Price) + float(Stock_Info.quant_day_down)*float(Current_Price)
                 print("\nSetting Stop Loss For",s,"At:",np.round(Stop_Loss,2))
 
                 try:
