@@ -94,70 +94,75 @@ def Cancel_Open_Orders(s,Account = 'rh'):
                 sleep(5)
 
 def Rebalance_Lower(s,q = 0.20,Account = 'rh'):
-    print("\n\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
-    
-    # Determinig Stop Loss / Take Profit
-    Stock_Info = Group_Consolidator(
-        Combined_Data = Combined_Data,
-        groups = [s],
-        column = 'stock',
-        q = q
-    )
-    Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
-    
-    # Placing Sell Order
-    Sell_Amount = float(Current_Holdings[s]['equity']) - Account_Equity*Rcm_Holding/100
-    Sell_Amount = float(np.floor(Sell_Amount/Current_Price))
-    Limit_Price = float(Current_Price + float(Stock_Info.quant_day_up)*Current_Price)
-    
-    if Sell_Amount < 1:
-        print("\nCan Only Rebalance In Whole Share Amounts")
+    if float(Current_Holdings[s]['quantity']) == 0:
+        print("\nSkipping Rebalance of",s,"Limit Sell Order In Place")
     else:
-        print("\nSelling ",np.round(Sell_Amount))
-        
-        # Canceling Any Open Orders
-        Cancel_Open_Orders(s,Account)
-        
-        try:
-            if Account == 'rh':
-                Order_Info = rs.orders.order(
-                    symbol = s,
-                    quantity = Sell_Amount,
-                    orderType = 'limit',
-                    trigger = 'stop',
-                    stopPrice = Limit_Price,
-                    limitPrice = Limit_Price,
-                    side = 'sell',
-                    timeInForce = 'gfd',
-                    extendedHours = False
-                )
-            elif Account == 'ap':
-                Order_Info = api.submit_order(
-                    symbol = s,
-                    side = 'sell',
-                    type = 'stop_limit',
-                    qty = str(Sell_Amount),
-                    time_in_force= 'day',
-                    order_class = 'simple',
-                    limit_price = str(Limit_Price),
-                    stop_price = str(Limit_Price)
-                )
-            elif Account == 'app':
-                Order_Info = apip.submit_order(
-                    symbol = s,
-                    side = 'sell',
-                    type = 'stop_limit',
-                    qty = str(Sell_Amount),
-                    time_in_force= 'day',
-                    order_class = 'simple',
-                    limit_price = str(Limit_Price),
-                    stop_price = str(Limit_Price)
-                )
-            sleep(5)
-            print("\nOrder ID:",Order_Info['id'],"placed")
-        except:
-            print("\nOrder Failed For",s)
-            print(Order_Info)
+        print("\n\nRebalancing",s,": Currently =",Pct_Holding,", Target =",Rcm_Holding)
+
+        # Determinig Stop Loss / Take Profit
+        Stock_Info = Group_Consolidator(
+            Combined_Data = Combined_Data,
+            groups = [s],
+            column = 'stock',
+            q = q
+        )
+        Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
+
+        # Placing Sell Order
+        Sell_Amount = float(Current_Holdings[s]['equity']) - Account_Equity*Rcm_Holding/100
+        Sell_Amount = float(np.floor(Sell_Amount/Current_Price))
+        if Sell_Amount > Current_Holdings[s]['quantity']:
+            Sell_Amount = Current_Holdings[s]['quantity']
+
+        Limit_Price = float(Current_Price + float(Stock_Info.quant_day_up)*Current_Price)
+
+        if Sell_Amount < 1:
+            print("\nCan Only Rebalance In Whole Share Amounts")
+        else:
+            print("\nSelling ",np.round(Sell_Amount))
+
+            # Canceling Any Open Orders
+            Cancel_Open_Orders(s,Account)
+
+            try:
+                if Account == 'rh':
+                    Order_Info = rs.orders.order(
+                        symbol = s,
+                        quantity = Sell_Amount,
+                        orderType = 'limit',
+                        trigger = 'immediate',
+                        limitPrice = Limit_Price,
+                        side = 'sell',
+                        timeInForce = 'gfd',
+                        extendedHours = False
+                    )
+                elif Account == 'ap':
+                    Order_Info = api.submit_order(
+                        symbol = s,
+                        side = 'sell',
+                        type = 'limit',
+                        qty = str(Sell_Amount),
+                        time_in_force= 'day',
+                        order_class = 'simple',
+                        limit_price = str(Limit_Price)
+                    )
+
+                elif Account == 'app':
+                    Order_Info = apip.submit_order(
+                        symbol = s,
+                        side = 'sell',
+                        type = 'limit',
+                        qty = str(Sell_Amount),
+                        time_in_force= 'day',
+                        order_class = 'simple',
+                        limit_price = str(Limit_Price)
+                    )
+
+                sleep(5)
+                print("\nOrder ID:",Order_Info.id,"placed")
+            except:
+                print("\nOrder Failed For",s)
+                print(Order_Info)
 
 def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
     if Account == 'rh':
@@ -168,6 +173,7 @@ def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
     elif Account == 'app':
         account = apip.get_account()
         Buying_Power = float(account.buying_power) 
+        
     
     if float(Current_Holdings[s]['quantity']) == 0:
         print("\nSkipping Rebalance of",s,"Limit Buy Order In Place")
@@ -186,6 +192,7 @@ def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
         # Placing Buy Order
         Buy_Amount = Account_Equity*Rcm_Holding/100 - float(Current_Holdings[s]['equity'])
         Buy_Amount = float(np.floor(Buy_Amount/Current_Price))
+        
         Purchase_Price = Buy_Amount*Current_Price
         Limit_Price = float(Current_Price + float(Stock_Info.quant_day_down)*Current_Price)
         
@@ -220,6 +227,7 @@ def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
                             order_class = 'simple',
                             limit_price = str(Limit_Price)
                         )
+                        
                     elif Account == 'app':
                         Order_Info = apip.submit_order(
                             symbol = s,
@@ -230,8 +238,9 @@ def Rebalance_Higher(s,q = 0.20,Account = 'rh'):
                             order_class = 'simple',
                             limit_price = str(Limit_Price)
                         )
+                        
                     sleep(5)
-                    print("\nOrder ID:",Order_Info['id'],"placed")
+                    print("\nOrder ID:",Order_Info.id,"placed")
                 except:
                     print("\nOrder Failed For",s)
                     print(Order_Info)
@@ -262,7 +271,7 @@ def Close_Position(s,Account = 'rh'):
                 time_in_force= 'day',
                 order_class = 'simple'
             )
-            Order_Info = Order_Info[0]
+            
         elif Account == 'app':
             Order_Info = apip.submit_order(
                 symbol = s,
@@ -272,14 +281,14 @@ def Close_Position(s,Account = 'rh'):
                 time_in_force= 'day',
                 order_class = 'simple'
             )
-            Order_Info = Order_Info[0]
+            
         sleep(5)
         print("\nOrder ID:",Order_Info.id,"placed")
     except:
         print("\nOrder Failed For",s)
         print(Order_Info)
 
-def Open_Position(s,q = 0.20,Account = 'rh'):
+def Open_Position(s,Rcm_Holding,q = 0.20,Account = 'rh'):
     if Account == 'rh':
         Buying_Power = float(rs.profiles.load_account_profile('buying_power'))
     elif Account == 'ap':
@@ -288,6 +297,13 @@ def Open_Position(s,q = 0.20,Account = 'rh'):
     elif Account == 'app':
         account = apip.get_account()
         Buying_Power = float(account.buying_power) 
+    
+    ## Checking Suggested Position
+    if Rcm_Holding > 0:
+        side = "buy"
+    else:
+        side = "sell"
+        Rcm_Holding = abs(Rcm_Holding)
     
     ## Checking Current Price
     Current_Price = api.get_barset(s,timeframe = 'day',limit=1).df[s]['close']
@@ -319,28 +335,30 @@ def Open_Position(s,q = 0.20,Account = 'rh'):
                     timeInForce = 'gfd',
                     extendedHours = True
                 )
-                sleep(5)
-                print("\nOrder ID:",Order_Info['id'],"placed")
             elif Account == 'ap':
                 Order_Info = api.submit_order(
                     symbol = s,
-                    side = 'buy',
+                    side = side,
                     type = 'limit',
                     qty = str(Buy_Quantity),
                     time_in_force= 'day',
                     order_class = 'simple',
                     limit_price = str(Limit_Buy)
                 )
+                
             elif Account == 'app':
                 Order_Info = apip.submit_order(
                     symbol = s,
-                    side = 'buy',
+                    side = side,
                     type = 'limit',
                     qty = str(Buy_Quantity),
                     time_in_force= 'day',
                     order_class = 'simple',
                     limit_price = str(Limit_Buy)
                 )
+                
+            sleep(5)
+            print("\nOrder ID:",Order_Info.id,"placed")
         except:
             print("\nOrder Failed For",s)
             print(Order_Info)
@@ -354,6 +372,8 @@ def Open_Position(s,q = 0.20,Account = 'rh'):
             print("\nNot Enough Buying Power")
             
 def Exit_Orders(s,q = 0.95,Account = 'rh'):
+            
+    
             # Determinig Stop Loss / Take Profit
             Stock_Info = Group_Consolidator(
                 Combined_Data = Combined_Data,
@@ -367,23 +387,47 @@ def Exit_Orders(s,q = 0.95,Account = 'rh'):
             Quantity_Held = np.floor(float(Current_Holdings[s]['quantity']))
 
             if Pct_Return > 0 and Quantity_Held > 0:
+                Cancel_Open_Orders(s,Account)
+                
                 Take_Profit = float(Current_Price) + float(Stock_Info.quant_day_up)*float(Current_Price)
                 print("\nSetting Take Profit For",s,"At:",np.round(Take_Profit,2))
 
                 try: 
-                    Order_Info = rs.orders.order(
-                        symbol = s,
-                        quantity = Quantity_Held,
-                        orderType = 'limit',
-                        trigger = 'immediate',
-                        limitPrice = Take_Profit,
-                        side = 'sell',
-                        timeInForce = 'gfd',
-                        extendedHours = False
-                    )
+                    if Account == 'rh':
+                        Order_Info = rs.orders.order(
+                            symbol = s,
+                            quantity = Quantity_Held,
+                            orderType = 'limit',
+                            trigger = 'immediate',
+                            limitPrice = Take_Profit,
+                            side = 'sell',
+                            timeInForce = 'gfd',
+                            extendedHours = False
+                        )
+                    elif Account == 'ap':
+                        Order_Info = api.submit_order(
+                            symbol = s,
+                            side = 'sell',
+                            type = 'limit',
+                            qty = str(Quantity_Held),
+                            time_in_force= 'day',
+                            order_class = 'simple',
+                            limit_price = str(Take_Profit)
+                        )
+                        
+                    elif Account == 'app':
+                        Order_Info = apip.submit_order(
+                            symbol = s,
+                            side = 'sell',
+                            type = 'limit',
+                            qty = str(Quantity_Held),
+                            time_in_force= 'day',
+                            order_class = 'simple',
+                            limit_price = str(Take_Profit)
+                        )
+                        
                     sleep(5)
-                    print("\nOrder ID:",Order_Info['id'],"placed")
-
+                    print("\nOrder ID:",Order_Info.id,"placed")
                 except:
                     print("\nOrder Failed For",s)
                     print(Order_Info)
@@ -393,19 +437,45 @@ def Exit_Orders(s,q = 0.95,Account = 'rh'):
                 print("\nSetting Stop Loss For",s,"At:",np.round(Stop_Loss,2))
 
                 try:
-                    Order_Info = rs.orders.order(
-                        symbol = s,
-                        quantity = Quantity_Held,
-                        orderType = 'limit',
-                        trigger = 'stop',
-                        stopPrice = Stop_Loss,
-                        limitPrice = Stop_Loss,
-                        side = 'sell',
-                        timeInForce = 'gfd',
-                        extendedHours = False
-                    )
+                    Cancel_Open_Orders(s,Account)
+                    if Account == 'rh':
+                        Order_Info = rs.orders.order(
+                            symbol = s,
+                            quantity = Quantity_Held,
+                            orderType = 'limit',
+                            trigger = 'stop',
+                            stopPrice = Stop_Loss,
+                            limitPrice = Stop_Loss,
+                            side = 'sell',
+                            timeInForce = 'gfd',
+                            extendedHours = False
+                        )
+                    elif Account == 'ap':
+                        Order_Info = api.submit_order(
+                            symbol = s,
+                            side = 'sell',
+                            type = 'stop_limit',
+                            qty = str(Quantity_Held),
+                            time_in_force= 'day',
+                            order_class = 'simple',
+                            limit_price = str(Stop_Loss),
+                            stop_price = str(Stop_Loss)
+                        )
+                        
+                    elif Account == 'app':
+                        Order_Info = apip.submit_order(
+                            symbol = s,
+                            side = 'sell',
+                            type = 'stop_limit',
+                            qty = str(Quantity_Held),
+                            time_in_force= 'day',
+                            order_class = 'simple',
+                            limit_price = str(Stop_Loss),
+                            stop_price = str(Stop_Loss)
+                        )
+                        
                     sleep(5)
-                    print("\nOrder ID:",Order_Info['id'],"placed")
+                    print("\nOrder ID:",Order_Info.id,"placed")
                 except:
                     print("\nOrder Failed For",s)
                     print(Order_Info)

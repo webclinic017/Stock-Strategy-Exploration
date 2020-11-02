@@ -17,29 +17,52 @@ library(EmersonDataScience)
 
 Project_Folder = rprojroot::find_rstudio_root_file()
 
-## Setting Default Chunk Options
-knitr::opts_chunk$set(echo = F,
-                      warning = F,
-                      message = F,
-                      error = F,
-                      fig.width = 8,
-                      fig.height = 4.5)
-knitr::opts_knit$set(root.dir = Project_Folder)
+load_or_install(c("tidyverse","lubridate","TTR","rpart","rpart.plot"))
 
-## Required Directory Folders
-Root_Folder = "//USSTLCTPZZZFS03/RefEng/Data Science/"
-Outputs_Folder = paste0(Root_Folder,"/Outputs/")
-Inputs_Folder = paste0(Root_Folder,"/Inputs/")
-
-## Loading Required Functions
-sourceDir(paste0(Project_Folder,"/Codes/Functions"))
-
-## Sourcing Master Setup File
-source(paste0(Project_Folder,"/setup.r"))
 ```
 
 ```{r}
-Market_DF = read.csv(str_c(Project_Folder,"/Data/Historical_Data.csv"))
+Stocks_DF = read.csv(str_c(Project_Folder,"/Data/Historical_Data_Stocks.csv"))
+
+Stock_Summary = Stocks_DF %>%
+  rename("DateTime" = X) %>%
+  mutate(DateTime = ymd_hms(DateTime))
+
+Stock_TI = Stock_Summary %>%
+  group_by(stock) %>%
+  mutate(RSI = TTR::RSI(close),
+         MACD = MACD(close)[,1] - MACD(close)[,2],
+         Week_Return = (close - lag(close,5))/lag(close,5)) %>%
+  na.omit()
+
+Market_TI = Stock_Summary %>%
+  group_by(DateTime) %>%
+  select_if(is.numeric) %>%
+  summarise_all(mean) %>%
+  mutate(RSI = TTR::RSI(close),
+         MACD = MACD(close)[,1] - MACD(close)[,2]) %>%
+  na.omit() %>%
+  select(DateTime,
+         "M_RSI" = RSI,
+         "M_MACD" = MACD) 
+
+Total_TI = Stock_TI %>%
+  left_join(Market_TI)
+
+fit = rpart(Week_Return ~ RSI,
+            data = Total_TI,
+            method = "anova",model = F,x = F, y = F,
+            control = rpart.control(
+              max_depth = 5,
+              minsplit = round(nrow(Total_TI)*0.05)))
+
+rpart.plot(fit)
+```
+
+
+
+```{r}
+Stocks_DF = read.csv(str_c(Project_Folder,"/Data/Historical_Data_Stocks.csv"))
 
 Market_Summary = Market_DF %>%
   mutate(Open_Ratio = (open-low)/(high-low),

@@ -34,4 +34,11 @@ def sharpe(returns, rf, days=252):
     sharpe_ratio = (returns.mean() - rf) / volatility
     return sharpe_ratio
                     
-    
+def AD_Ind(close,low,high,volume):
+    AD_Value = [1]
+    Normalizer = np.mean(volume)
+    for i in range(1,len(close)):
+        CMFV = ((close[i] - low[i]) - (high[i] - close[i]))/(high[i]-low[i]) * volume[i]
+        AD = CMFV/Normalizer
+        AD_Value.append(AD)
+    return AD_Value

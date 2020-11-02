@@ -20,6 +20,20 @@ def Stock_Consolidator(df):
     df['sma'] = df['close'].rolling(OLS_Window).mean()
     df['RSI'] = RSI(df['close'],14)
     df['MACD'] = MACD(df['close'])
+    df['AD'] = AD_Ind(df['close'],df['low'],df['high'],df['volume'])
+    
+    Running_Up = [0]
+    Running_Down = [0]
+    for i in range(1,len(df.close)):
+        if df.close[i] - df.close[i-1] > 0:
+            Running_Up.append(Running_Up[i-1] + 1)
+            Running_Down.append(0)
+        else:
+            Running_Down.append(Running_Down[i-1] + 1)
+            Running_Up.append(0)
+    df = df. \
+        assign(Running_Up = Running_Up,
+               Running_Down = Running_Down)
     
     
     return df
