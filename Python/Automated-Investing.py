@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[42]:
+# In[465]:
 
 
 ## Warning Handling
@@ -15,10 +15,10 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in log")
 
 ## Logging Setup
 import sys
-# sys.stdout = open("Investment_Logs.txt", "w")
+sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[43]:
+# In[466]:
 
 
 ## API Library Setup
@@ -41,10 +41,10 @@ api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2'
 apip = tradeapi.REST(os.getenv("APP_KEY"),os.getenv("APP_SECRET"), api_version='v2',base_url='https://paper-api.alpaca.markets')
 
 
-# In[62]:
+# In[581]:
 
 
-N_DAYS_AGO = 365
+N_DAYS_AGO = 52*5
 OLS_Window = 5
 min_list_years = 5
 min_volume = 400000
@@ -52,13 +52,10 @@ min_investment = 15
 
 
 ## Account ## (rh = Robin hood, ap = Alpaca Live, app = Alpaca Paper)
-Account = "rh"
-
-max_investment = Get_Equity(Account)*0.2
-max_investment
+Account = "app"
 
 
-# In[86]:
+# In[582]:
 
 
 ## Installing Required Packages
@@ -80,6 +77,10 @@ from pypfopt import risk_models
 from pypfopt import expected_returns
 from pypfopt import plotting
 from scipy import stats
+from sklearn import tree 
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.naive_bayes import GaussianNB
+from sklearn.model_selection import train_test_split
 
 ## Setting Project Folder
 Project_Folder = "C://Users//" + os.getlogin() + "//documents//github//Stock-Strategy-Exploration//"
@@ -97,15 +98,19 @@ def years_listed(d1):
     d2 = datetime.today()
     return abs((d2 - d1).days/365)
 
+max_investment = Get_Equity(Account)*0.2
+max_investment
+
 
 # ### Historical Data Pull
 
-# In[64]:
+# In[469]:
 
 
 ## Pulling All Available Alpaca Symbols
 assets = api.list_assets("active")
 Final_Assets = [i._raw['symbol'] for i in assets                 if i._raw['tradable']                     & i._raw['shortable']                     & i._raw['easy_to_borrow']]
+Final_Assets.extend(['TQQQ','SQQQ'])
 
 ## Pulling All Bar Data
 s_inc = 100
@@ -155,6 +160,7 @@ for i in Updated_Stocks:
         continue
     if years_listed(Company_Data[i].listdate) > min_list_years:
         Final_Stocks.append(i)
+Final_Stocks.extend(['TQQQ','SQQQ'])
         
 ## Amount of Historical Data to Pull
 start_date = datetime.now() - timedelta(days=N_DAYS_AGO)
@@ -166,8 +172,12 @@ counter = 0
 for i in tqdm(Final_Stocks):
     TMP = Initial_Bars[i].df
     TMP['date'] = TMP.index
-    TMP['sector'] = Company_Data[i].sector
-    TMP['industry'] = Company_Data[i].industry
+    if i in ['TQQQ','SQQQ']:
+        TMP['sector'] = 'Leveraged Market'
+        TMP['industry'] = 'Leveraged Market'
+    else:
+        TMP['sector'] = Company_Data[i].sector
+        TMP['industry'] = Company_Data[i].industry
     Historical_Data[i] = TMP 
 
 ## Adding Ticker Column
@@ -180,34 +190,34 @@ Combined_Data = Combined_Data[Combined_Data['sector'] != '']
 Combined_Data = Combined_Data[pd.notnull(Combined_Data['sector'])]
 Combined_Data = Combined_Data[Combined_Data['industry'] != '']
 Combined_Data = Combined_Data[pd.notnull(Combined_Data['industry'])]
-
 ## Saving Data
 pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb" ) )
 
 
-# ### Exploring Total Market Performance
-
-# In[65]:
+# In[470]:
 
 
 ## Loading Stored Data
 Combined_Data = pickle.load(open(Project_Folder + "Data//Historical_Data.p" , "rb" ))
+# Combined_Data.to_csv(Project_Folder + "Data//Historical_Data_Stocks.csv")
+
+### Exploring Total Market Performance
 Combined_Data = Combined_Data.drop_duplicates()
-Combined_Data = Combined_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):datetime.now().strftime("%Y-%m-%d")]
+if datetime.now().hour < 16:
+    Combined_Data = Combined_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):(datetime.now()- timedelta(days = 1)).strftime("%Y-%m-%d")]
+else:
+    Combined_Data = Combined_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):datetime.now().strftime("%Y-%m-%d")]
 
 Total_Market = Stock_Consolidator(Combined_Data)
 Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
+
+## Run to Update Total Market Data
+# Total_Market.to_csv(Project_Folder + "Data//Historical_Data_Total.csv")
+
 Total_Market.tail(10)
 
 
-# In[54]:
-
-
-## Run to Update Total Market Data
-Total_Market.to_csv(Project_Folder + "Data//Historical_Data.csv")
-
-
-# In[66]:
+# In[471]:
 
 
 Plot_Data = Total_Market
@@ -243,133 +253,53 @@ axs[2].set(
 fig.set_size_inches(16,9)
 
 
-# ## Digging Into A Sector Ranking
-
-# In[67]:
+# In[589]:
 
 
-Sectors = list(Combined_Data['sector'].unique())
-Total_Sector_Summary = Group_Consolidator(
-    Combined_Data = Combined_Data,
-    groups = Sectors,
-    column = 'sector'
+## Running Brute Force Search
+Return = []; DD = []; nt = []; p = []; vp = [];
+pcts = np.arange(0.50,0.95,0.05)
+vol_pcts = np.arange(0.50,0.95,0.05)
+for pct in tqdm(pcts):
+    for v_pct in vol_pcts:
+        Results = Bayesian_Leveraged(
+            Combined_Data,
+            Minimum_Move = 0.01,
+            test_window = 90,
+            vol_pct = v_pct,
+            pct = pct,
+            print_results = False
+        )
+        Return.append(Results['ret'])
+        DD.append(Results['dd'])
+        nt.append(Results['nt'])
+        p.append(pct)
+        vp.append(v_pct)
+Bayes_Results = pd.DataFrame({'+- TQQQ %':p,'> 1% Movement':vp,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt}).     sort_values('Cumulative Return',ascending=False)
+pct,vpct = Bayes_Results['+- TQQQ %'][0],Bayes_Results['> 1% Movement'][0]
+Bayes_Results.head(10)    
+
+
+# In[600]:
+
+
+Volatility_Prob = float(Bayes_Results['> 1% Movement'].head(1))
+Positive_Prob = float(Bayes_Results['+- TQQQ %'].head(1))
+Optimized_Results = Bayesian_Leveraged(
+    Combined_Data,
+    Minimum_Move = 0.01,
+    test_window = 90,
+    vol_pct = Volatility_Prob,
+    pct = Positive_Prob,
+    print_results = True
 )
-Sector_Summary = Group_Consolidator(Combined_Data = Combined_Data,
-                                    groups = Sectors,
-                                    column = 'sector',
-                                    min_macd = 0,
-                                    min_alpha = 0,
-                                    max_alpha_p = 0.75,
-                                    max_rsi = 70,
-                                    q = 0.20
-)
-if len(Sector_Summary) == 0:
-    Sector_Summary = list()
-    print("No Viable Sectors Currently")
-
-Sector_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
 
 
-# ## Diving Further Into Individual Idustries
-
-# In[68]:
+# In[633]:
 
 
-if type(Sector_Summary) is not list:
-    Top_Sector = Combined_Data[Combined_Data['sector'].isin(Sector_Summary.index.values)]
-    Industries = list(Top_Sector['industry'].unique())
-    Industry_Summary = Group_Consolidator(Combined_Data = Top_Sector,
-                                          groups = Industries,
-                                          column = 'industry',
-                                          min_macd = 0,
-                                          min_alpha = 0,
-                                          max_alpha_p = 0.50,
-                                          max_rsi = 70,
-                                          q = 0.20
-                                         )
-else:
-    print("No sectors to loop through")
-    Industry_Summary = list()
-Industry_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
-
-
-# ## Diving Into The Individual Stocks
-
-# In[69]:
-
-
-if type(Industry_Summary) is not list:
-    Top_Industry = Top_Sector[Top_Sector['industry'].isin(Industry_Summary.index.values)]
-    Stocks = list(Top_Industry['stock'].unique())
-    Stock_Summary = Group_Consolidator(Combined_Data = Top_Industry,
-                                       groups = Stocks,
-                                       column = 'stock',
-                                       min_macd = 0,
-                                       min_alpha = 0,
-                                       max_alpha_p = 0.50,
-                                       max_rsi = 50,
-                                       q = 0.20
-    )
-    Stock_Summary.         sort_values(by = ['rsi'],ascending = [1])
-else:
-    print("No industries to loop through")
-    Stock_Summary = list()
-Stock_Summary.drop(['mu_day_up','sd_day_up','mu_day_down','sd_day_down'],axis = 1)
-
-
-# In[78]:
-
-
-## Pulling Current Stock Holdings
-Current_Holdings = Get_Holdings(Account)
-
-## Combining Lists
-if not Current_Holdings:
-    Stocks = []
-else:
-    Stocks = list(Current_Holdings.keys())
-if len(Stock_Summary) != 0:
-    Stocks.extend(list(Stock_Summary.index))
-Stocks = list(set(Stocks))
-
-## Pulling Historical Data
-Stock_Data = pd.DataFrame()
-for Stock in Stocks:
-    Stock_Data[Stock] = Combined_Data['close'][Combined_Data.stock == Stock].tail(OLS_Window*3)
-    
-## Creating expected mean and variance matricies
-mu = expected_returns.mean_historical_return(Stock_Data)#returns.mean() * 252
-S = risk_models.sample_cov(Stock_Data) #Get the sample covariance matrix
-
-## Optimizing Sharpe Ratio
-ef = EfficientFrontier(
-    expected_returns = mu,
-    cov_matrix = S, 
-    weight_bounds = (0,0.2),
-    verbose = False
-)
-weights = ef.max_sharpe()
-cleaned_weights = ef.clean_weights() 
-
-## Subsetting Stock Picks
-Final_Picks = []
-for stock in cleaned_weights.keys():
-    if cleaned_weights[stock] > 0:
-        print(stock," : ",cleaned_weights[stock])
-        Final_Picks.append(stock)
-        
-Optimized_Portfolio = ef.portfolio_performance(verbose=True)
-
-
-# ## Robinhood Automated Investing POC
-
-# In[102]:
-
-
-## Quantile for Deciding Limit Orders
-q = 0.20
-## Quantile for Deciding Stop Loss / Take Profit Orders
-qsp = 0.90
+vol_prob = Optimized_Results['p_vol']/100
+pos_prob = Optimized_Results['pp']/100
 
 ## Pulling Relevent Account Information
 Account_Equity = Get_Equity(Account)
@@ -380,42 +310,75 @@ Open_Orders = Get_Open_Orders(Account)
 ## Pulling Current Stock Holdings
 Current_Holdings = Get_Holdings(Account)
 
-## Checking Portfolio Balancing And Placing New Orders
-for s in Final_Picks:
+## Pulling Current Buying Power
+Buying_Power = Get_Buying_Power(Account)
 
-    # Optimal Portfolio Percentage
-    Rcm_Holding = cleaned_weights[s]*100
-    
-    # Portfolio Restructuring
-    if not Current_Holdings:
-        Open_Position(s,q,Account)
-    elif s in list(Current_Holdings.keys()):
-        
-        # Current Portfolio Percentage
-        Pct_Holding = np.round(float(Current_Holdings[s].equity)*100/Account_Equity,2)
-        Pct_Return = float(Current_Holdings[s]['percent_change'])
+## Pulling Current Prices
+TQQQ_Current_Price = api.get_last_trade('TQQQ').price;
+T_Buy_Quantity = np.floor(Buying_Power/TQQQ_Current_Price);
+SQQQ_Current_Price = api.get_last_trade('SQQQ').price; 
+S_Buy_Quantity = np.floor(Buying_Power/SQQQ_Current_Price);
 
-        # Rebalancing If Beyond Recommended Holding
-        if Pct_Holding > Rcm_Holding*1.05 and Pct_Return > 0:
-            Rebalance_Lower(s,q,Account)
-            
-        # Checking If More Needs Purchased
-        elif Pct_Holding < Rcm_Holding*0.95 and Pct_Return > 0:
-            Rebalance_Higher(s,q,Account)
-            
-        # Make No Changes    
+if datetime.now().hour >= 16:
+    ## Checking Probability Conditions
+    if vol_prob > Volatility_Prob:
+        print("Volatility Probability Met Checking Movement Probability")
+        if pos_prob > Positive_Prob:
+            if 'SQQQ' in list(Current_Holdings.columns):
+                print("Closing SQQQ Position Moving to Short")
+                Limit_Order(
+                    s = 'SQQQ',
+                    Quantity = Current_Holdings.loc['quantity','SQQQ'],
+                    Limit = SQQQ_Current_Price,
+                    side = 'sell',
+                    Account = Account
+                )
+            print("Opening TQQQ Position For The Next Trading Day") 
+            Limit_Order(
+                s = 'TQQQ',
+                Quantity = T_Buy_Quantity,
+                Limit = TQQQ_Current_Price,
+                side = 'buy',
+                Account = Account
+            )
+        elif 1 - pos_prob > Positive_Prob:
+            if 'TQQQ' in list(Current_Holdings.columns):
+                print("Closing TQQQ Position Moving to Short")
+                Limit_Order(
+                    s = 'TQQQ',
+                    Quantity = Current_Holdings.loc['quantity','TQQQ'],
+                    Limit = TQQQ_Current_Price,
+                    side = 'sell',
+                    Account = Account
+                )
+            print("Opening SQQQ Position For The Next Trading Day")    
+            Limit_Order(
+                s = 'SQQQ',
+                Quantity = S_Buy_Quantity,
+                Limit = SQQQ_Current_Price,
+                side = 'buy',
+                Account = Account
+            )
         else:
-            print("\n",s," Within Recommended Percentage")
-            Exit_Orders(s,q = qsp,Account = Account)        
-     
-    ## Stocks Not Currently Held
+            print("+- Probability Not Met, No Investments Today")     
     else:
-        Open_Position(s,q,Account)
-        
-## Closing Required Positions
-if not Current_Holdings:
-     print("No positions to close, none are held")
-else:
-    for s in [s for s in list(Current_Holdings.keys()) if s not in Final_Picks]:
-        Close_Position(s,Account)
+        if 'TQQQ' in list(Current_Holdings.columns):
+                print("Closing TQQQ Position")
+                Limit_Order(
+                    s = 'TQQQ',
+                    Quantity = Current_Holdings.loc['quantity','TQQQ'],
+                    Limit = TQQQ_Current_Price,
+                    side = 'sell',
+                    Account = Account
+                )
+        if 'SQQQ' in list(Current_Holdings.columns):
+                print("Closing SQQQ Position Moving to Short")
+                Limit_Order(
+                    s = 'SQQQ',
+                    Quantity = Current_Holdings.loc['quantity','SQQQ'],
+                    Limit = SQQQ_Current_Price,
+                    side = 'sell',
+                    Account = Account
+                )
+        print("Volatility Probability Not Met, No Investments Today")
 

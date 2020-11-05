@@ -1,4 +1,58 @@
 ## Automated Helper Functions
+def Limit_Order(s,Quantity,Limit,side,Account = 'rh'):
+    try:
+        if Account == 'rh':
+            # Placing Order
+            Order_Info = rs.orders.order(
+                symbol = s,
+                quantity = Quantity,
+                orderType = 'limit',
+                trigger = 'immediate',
+                limitPrice = Limit,
+                side = side,
+                timeInForce = 'gfd',
+                extendedHours = True
+            )
+        elif Account == 'ap':
+            Order_Info = api.submit_order(
+                symbol = s,
+                side = side,
+                type = 'limit',
+                qty = str(Quantity),
+                time_in_force= 'day',
+                extended_hours = True,
+                order_class = 'simple',
+                limit_price = str(Limit)
+            )
+        elif Account == 'app':
+            Order_Info = apip.submit_order(
+                symbol = s,
+                side = side,
+                type = 'limit',
+                qty = str(Quantity),
+                time_in_force= 'day',
+                extended_hours = True,
+                order_class = 'simple',
+                limit_price = str(Limit)
+            )
+        sleep(5)
+        print("\nOrder ID:",Order_Info.id,"placed")
+    except:
+        print("\nOrder Failed For",s)
+        print(Order_Info)
+
+
+def Get_Buying_Power(Account = 'rh'):
+    if Account == 'rh':
+        Buying_Power = float(rs.profiles.load_account_profile('buying_power'))
+    elif Account == 'ap':
+        account = api.get_account()
+        Buying_Power = float(account.buying_power)
+    elif Account == 'app':
+        account = apip.get_account()
+        Buying_Power = float(account.buying_power)
+    return Buying_Power
+
 def Get_Equity(Account = 'rh'):
     if Account == 'rh':
         equity = float(rs.build_user_profile()['equity'])
