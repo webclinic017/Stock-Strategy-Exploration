@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[465]:
+# In[42]:
 
 
 ## Warning Handling
@@ -15,24 +15,24 @@ warnings.filterwarnings("ignore", message="divide by zero encountered in log")
 
 ## Logging Setup
 import sys
-sys.stdout = open("Investment_Logs.txt", "w")
+# sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[466]:
+# In[43]:
 
 
 ## API Library Setup
 import os
 
-## Robinhood API Setup
-import robin_stocks as rs
-# Connecting to RobinHood
-rs.login(
-    username = os.getenv("RH_LOGIN"),
-    password = os.getenv("RH_PASS"),
-    expiresIn = 3600*24*7,
-    by_sms = True
-)
+# ## Robinhood API Setup
+# import robin_stocks as rs
+# # Connecting to RobinHood
+# rs.login(
+#     username = os.getenv("RH_LOGIN"),
+#     password = os.getenv("RH_PASS"),
+#     expiresIn = 3600*24*7,
+#     by_sms = True
+# )
 
 ## Alpaca API Setup
 import alpaca_trade_api as tradeapi
@@ -41,7 +41,7 @@ api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2'
 apip = tradeapi.REST(os.getenv("APP_KEY"),os.getenv("APP_SECRET"), api_version='v2',base_url='https://paper-api.alpaca.markets')
 
 
-# In[581]:
+# In[67]:
 
 
 N_DAYS_AGO = 52*5
@@ -49,13 +49,13 @@ OLS_Window = 5
 min_list_years = 5
 min_volume = 400000
 min_investment = 15
-
+leveraged_etfs = ['TQQQ','SQQQ','SPXU','UPRO','UDOW','SDOW']
 
 ## Account ## (rh = Robin hood, ap = Alpaca Live, app = Alpaca Paper)
 Account = "app"
 
 
-# In[582]:
+# In[110]:
 
 
 ## Installing Required Packages
@@ -81,16 +81,17 @@ from sklearn import tree
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.naive_bayes import GaussianNB
 from sklearn.model_selection import train_test_split
+import yfinance as yf
 
 ## Setting Project Folder
 Project_Folder = "C://Users//" + os.getlogin() + "//documents//github//Stock-Strategy-Exploration//"
 
 ## Reading In Functions
-Function_Files = os.listdir('Functions')
+Function_Files = os.listdir(Project_Folder + '//python//' + 'Functions')
 for File in Function_Files:
     if '.py' in File:
         print(File)
-        Full_File = 'Functions/'+File
+        Full_File =Project_Folder + '//python//' +  'Functions/' + File
         exec(open(Full_File).read())
         
 def years_listed(d1):
@@ -104,13 +105,13 @@ max_investment
 
 # ### Historical Data Pull
 
-# In[469]:
+# In[70]:
 
 
 ## Pulling All Available Alpaca Symbols
 assets = api.list_assets("active")
 Final_Assets = [i._raw['symbol'] for i in assets                 if i._raw['tradable']                     & i._raw['shortable']                     & i._raw['easy_to_borrow']]
-Final_Assets.extend(['TQQQ','SQQQ'])
+Final_Assets.extend(leveraged_etfs)
 
 ## Pulling All Bar Data
 s_inc = 100
@@ -160,7 +161,7 @@ for i in Updated_Stocks:
         continue
     if years_listed(Company_Data[i].listdate) > min_list_years:
         Final_Stocks.append(i)
-Final_Stocks.extend(['TQQQ','SQQQ'])
+Final_Stocks.extend(leveraged_etfs)
         
 ## Amount of Historical Data to Pull
 start_date = datetime.now() - timedelta(days=N_DAYS_AGO)
@@ -172,7 +173,7 @@ counter = 0
 for i in tqdm(Final_Stocks):
     TMP = Initial_Bars[i].df
     TMP['date'] = TMP.index
-    if i in ['TQQQ','SQQQ']:
+    if i in leveraged_etfs:
         TMP['sector'] = 'Leveraged Market'
         TMP['industry'] = 'Leveraged Market'
     else:
@@ -194,7 +195,35 @@ Combined_Data = Combined_Data[pd.notnull(Combined_Data['industry'])]
 pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb" ) )
 
 
-# In[470]:
+# In[72]:
+
+
+Indexes = ["^VIX","^GSPC","^NDX","^DJI"]
+Index_Data = defaultdict(pd.DataFrame)
+
+for ind in Indexes:
+    ticker = yf.Ticker(ind)
+    data = ticker.history(period = str(N_DAYS_AGO) + "d")
+    data = data.loc[:,["Open","High","Low","Close","Volume"]]
+    data.columns = ['open','high','low','close','volume']
+    data.index = data.index.rename('date')
+    Index_Data[ind] = Stock_Consolidator(data)
+    
+## Adding Ticker Column
+for s in Index_Data:
+    Index_Data[s].insert(0, 'stock', [s]*len(Index_Data[s]))
+
+## Combining Data To Single Data Frame
+Combined_Index_Data = pd.concat(Index_Data.values()) 
+
+
+# In[73]:
+
+
+Combined_Index_Data
+
+
+# In[74]:
 
 
 ## Loading Stored Data
@@ -217,7 +246,7 @@ Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
 Total_Market.tail(10)
 
 
-# In[471]:
+# In[75]:
 
 
 Plot_Data = Total_Market
@@ -253,52 +282,60 @@ axs[2].set(
 fig.set_size_inches(16,9)
 
 
-# In[589]:
+# In[131]:
 
+
+print("Running Bayesian Parameter Optimization")
+
+## Inititalizing Storage Lists
+Return = []; DD = []; nt = []; p = []; oc = [];
+
+## Defining Search Area
+pcts = np.arange(0.50,0.95,0.05)
+sell = ['open','close']
 
 ## Running Brute Force Search
-Return = []; DD = []; nt = []; p = []; vp = [];
-pcts = np.arange(0.50,0.95,0.05)
-vol_pcts = np.arange(0.50,0.95,0.05)
 for pct in tqdm(pcts):
-    for v_pct in vol_pcts:
-        Results = Bayesian_Leveraged(
-            Combined_Data,
-            Minimum_Move = 0.01,
-            test_window = 90,
-            vol_pct = v_pct,
-            pct = pct,
-            print_results = False
-        )
-        Return.append(Results['ret'])
-        DD.append(Results['dd'])
-        nt.append(Results['nt'])
-        p.append(pct)
-        vp.append(v_pct)
-Bayes_Results = pd.DataFrame({'+- TQQQ %':p,'> 1% Movement':vp,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt}).     sort_values('Cumulative Return',ascending=False)
-pct,vpct = Bayes_Results['+- TQQQ %'][0],Bayes_Results['> 1% Movement'][0]
+    for time in sell:
+            Results = Bayesian_Leveraged(
+                Combined_Data,
+                Combined_Index_Data,
+                Index = "^NDX",
+                test_window = 90,
+                open_close=time,
+                pct = pct,
+                print_results = False
+            )
+            Return.append(Results['ret'])
+            DD.append(Results['dd'])
+            nt.append(Results['nt'])
+            p.append(pct)
+            oc.append(time)
+
+## Combining Results
+Bayes_Results = pd.DataFrame({'+- Bull %':p,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt,'Sell Time':oc}).     query('`Cumulative Return` > 1').     assign(Decider = lambda x: x['Cumulative Return'] - x['Max Drawdown']).     sort_values('Decider',ascending=False)
 Bayes_Results.head(10)    
 
 
-# In[600]:
+# In[134]:
 
 
-Volatility_Prob = float(Bayes_Results['> 1% Movement'].head(1))
-Positive_Prob = float(Bayes_Results['+- TQQQ %'].head(1))
+Positive_Prob = np.round(float(Bayes_Results['+- Bull %'].head(1)),2)
+Sell_Time = list(Bayes_Results['Sell Time'].head(1))[0]
 Optimized_Results = Bayesian_Leveraged(
     Combined_Data,
-    Minimum_Move = 0.01,
+    Combined_Index_Data,
+    Index = "^NDX",
     test_window = 90,
-    vol_pct = Volatility_Prob,
+    open_close=Sell_Time,
     pct = Positive_Prob,
     print_results = True
 )
 
 
-# In[633]:
+# In[128]:
 
 
-vol_prob = Optimized_Results['p_vol']/100
 pos_prob = Optimized_Results['pp']/100
 
 ## Pulling Relevent Account Information
@@ -319,21 +356,23 @@ T_Buy_Quantity = np.floor(Buying_Power/TQQQ_Current_Price);
 SQQQ_Current_Price = api.get_last_trade('SQQQ').price; 
 S_Buy_Quantity = np.floor(Buying_Power/SQQQ_Current_Price);
 
-if datetime.now().hour >= 16:
-    ## Checking Probability Conditions
-    if vol_prob > Volatility_Prob:
-        print("Volatility Probability Met Checking Movement Probability")
-        if pos_prob > Positive_Prob:
-            if 'SQQQ' in list(Current_Holdings.columns):
-                print("Closing SQQQ Position Moving to Short")
-                Limit_Order(
-                    s = 'SQQQ',
-                    Quantity = Current_Holdings.loc['quantity','SQQQ'],
-                    Limit = SQQQ_Current_Price,
-                    side = 'sell',
-                    Account = Account
-                )
-            print("Opening TQQQ Position For The Next Trading Day") 
+if datetime.now().hour >= 16 & datetime.now().hour < 18:
+## Checking Probability Conditions
+    if pos_prob > Positive_Prob:
+        if 'SQQQ' in list(Current_Holdings.columns):
+            print("Closing SQQQ Position")
+            Limit_Order(
+                s = 'SQQQ',
+                Quantity = Current_Holdings.loc['quantity','SQQQ'],
+                Limit = SQQQ_Current_Price,
+                side = 'sell',
+                Account = Account
+            )
+            sleep(15)
+        if 'TQQQ' in list(Current_Holdings.columns):
+            print("Maintaining Position in TQQQ")
+        else:
+            print("Opening TQQQ Position") 
             Limit_Order(
                 s = 'TQQQ',
                 Quantity = T_Buy_Quantity,
@@ -341,17 +380,21 @@ if datetime.now().hour >= 16:
                 side = 'buy',
                 Account = Account
             )
-        elif 1 - pos_prob > Positive_Prob:
-            if 'TQQQ' in list(Current_Holdings.columns):
-                print("Closing TQQQ Position Moving to Short")
-                Limit_Order(
-                    s = 'TQQQ',
-                    Quantity = Current_Holdings.loc['quantity','TQQQ'],
-                    Limit = TQQQ_Current_Price,
-                    side = 'sell',
-                    Account = Account
-                )
-            print("Opening SQQQ Position For The Next Trading Day")    
+    elif 1 - pos_prob > Positive_Prob:
+        if 'TQQQ' in list(Current_Holdings.columns):
+            print("Closing TQQQ Position Moving to Short")
+            Limit_Order(
+                s = 'TQQQ',
+                Quantity = Current_Holdings.loc['quantity','TQQQ'],
+                Limit = TQQQ_Current_Price,
+                side = 'sell',
+                Account = Account
+            )
+            sleep(15)
+        if 'SQQQ' in list(Current_Holdings.columns):
+            print("Maintaining Position in SQQQ")
+        else:
+            print("Opening SQQQ Position")    
             Limit_Order(
                 s = 'SQQQ',
                 Quantity = S_Buy_Quantity,
@@ -359,20 +402,20 @@ if datetime.now().hour >= 16:
                 side = 'buy',
                 Account = Account
             )
-        else:
-            print("+- Probability Not Met, No Investments Today")     
     else:
+        print("+- Probability Not Met, No Investments Today") 
+        ## Closing Any Open Investments
         if 'TQQQ' in list(Current_Holdings.columns):
-                print("Closing TQQQ Position")
-                Limit_Order(
-                    s = 'TQQQ',
-                    Quantity = Current_Holdings.loc['quantity','TQQQ'],
-                    Limit = TQQQ_Current_Price,
-                    side = 'sell',
-                    Account = Account
-                )
+            print("Closing TQQQ Position")
+            Limit_Order(
+                s = 'TQQQ',
+                Quantity = Current_Holdings.loc['quantity','TQQQ'],
+                Limit = TQQQ_Current_Price,
+                side = 'sell',
+                Account = Account
+            )
         if 'SQQQ' in list(Current_Holdings.columns):
-                print("Closing SQQQ Position Moving to Short")
+                print("Closing SQQQ Position")
                 Limit_Order(
                     s = 'SQQQ',
                     Quantity = Current_Holdings.loc['quantity','SQQQ'],
@@ -380,5 +423,27 @@ if datetime.now().hour >= 16:
                     side = 'sell',
                     Account = Account
                 )
-        print("Volatility Probability Not Met, No Investments Today")
+elif datetime.now().hour >= 9 & datetime.now().hour < 16:
+    print("Closing Any Current Holdings") 
+    ## Closing Any Open Investments
+    if 'TQQQ' in list(Current_Holdings.columns):
+        print("Closing TQQQ Position")
+        Limit_Order(
+            s = 'TQQQ',
+            Quantity = Current_Holdings.loc['quantity','TQQQ'],
+            Limit = TQQQ_Current_Price,
+            side = 'sell',
+            Account = Account
+        )
+    if 'SQQQ' in list(Current_Holdings.columns):
+            print("Closing SQQQ Position")
+            Limit_Order(
+                s = 'SQQQ',
+                Quantity = Current_Holdings.loc['quantity','SQQQ'],
+                Limit = SQQQ_Current_Price,
+                side = 'sell',
+                Account = Account
+            )
+else:
+    print("Outside of Tradable Market Hours")
 
