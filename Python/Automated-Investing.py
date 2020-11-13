@@ -3,7 +3,7 @@
 
 # ## Automated Stock Trading
 
-# In[42]:
+# In[1]:
 
 
 ## Warning Handling
@@ -18,7 +18,7 @@ import sys
 # sys.stdout = open("Investment_Logs.txt", "w")
 
 
-# In[43]:
+# In[2]:
 
 
 ## API Library Setup
@@ -41,7 +41,7 @@ api = tradeapi.REST(os.getenv("AP_KEY"),os.getenv("AP_SECRET"), api_version='v2'
 apip = tradeapi.REST(os.getenv("APP_KEY"),os.getenv("APP_SECRET"), api_version='v2',base_url='https://paper-api.alpaca.markets')
 
 
-# In[67]:
+# In[3]:
 
 
 N_DAYS_AGO = 52*5
@@ -49,13 +49,14 @@ OLS_Window = 5
 min_list_years = 5
 min_volume = 400000
 min_investment = 15
+test_window = 30
 leveraged_etfs = ['TQQQ','SQQQ','SPXU','UPRO','UDOW','SDOW']
 
 ## Account ## (rh = Robin hood, ap = Alpaca Live, app = Alpaca Paper)
 Account = "app"
 
 
-# In[110]:
+# In[4]:
 
 
 ## Installing Required Packages
@@ -105,7 +106,7 @@ max_investment
 
 # ### Historical Data Pull
 
-# In[70]:
+# In[5]:
 
 
 ## Pulling All Available Alpaca Symbols
@@ -195,7 +196,7 @@ Combined_Data = Combined_Data[pd.notnull(Combined_Data['industry'])]
 pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb" ) )
 
 
-# In[72]:
+# In[6]:
 
 
 Indexes = ["^VIX","^GSPC","^NDX","^DJI"]
@@ -216,14 +217,19 @@ for s in Index_Data:
 ## Combining Data To Single Data Frame
 Combined_Index_Data = pd.concat(Index_Data.values()) 
 
+if datetime.now().hour < 16:
+    Combined_Index_Data = Combined_Index_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):(datetime.now()- timedelta(days = 1)).strftime("%Y-%m-%d")]
+else:
+    Combined_Index_Data = Combined_Index_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):datetime.now().strftime("%Y-%m-%d")]
 
-# In[73]:
+
+# In[7]:
 
 
 Combined_Index_Data
 
 
-# In[74]:
+# In[8]:
 
 
 ## Loading Stored Data
@@ -246,7 +252,7 @@ Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
 Total_Market.tail(10)
 
 
-# In[75]:
+# In[9]:
 
 
 Plot_Data = Total_Market
@@ -282,7 +288,7 @@ axs[2].set(
 fig.set_size_inches(16,9)
 
 
-# In[131]:
+# In[10]:
 
 
 print("Running Bayesian Parameter Optimization")
@@ -301,7 +307,7 @@ for pct in tqdm(pcts):
                 Combined_Data,
                 Combined_Index_Data,
                 Index = "^NDX",
-                test_window = 90,
+                test_window = test_window,
                 open_close=time,
                 pct = pct,
                 print_results = False
@@ -313,11 +319,11 @@ for pct in tqdm(pcts):
             oc.append(time)
 
 ## Combining Results
-Bayes_Results = pd.DataFrame({'+- Bull %':p,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt,'Sell Time':oc}).     query('`Cumulative Return` > 1').     assign(Decider = lambda x: x['Cumulative Return'] - x['Max Drawdown']).     sort_values('Decider',ascending=False)
+Bayes_Results = pd.DataFrame({'+- Bull %':p,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt,'Sell Time':oc}).     query('`Cumulative Return` > 1').     assign(Decider = lambda x: (x['Cumulative Return'] + x['Max Drawdown'])).     sort_values('Decider',ascending=False)
 Bayes_Results.head(10)    
 
 
-# In[134]:
+# In[11]:
 
 
 Positive_Prob = np.round(float(Bayes_Results['+- Bull %'].head(1)),2)
@@ -326,14 +332,20 @@ Optimized_Results = Bayesian_Leveraged(
     Combined_Data,
     Combined_Index_Data,
     Index = "^NDX",
-    test_window = 90,
+    test_window = test_window,
     open_close=Sell_Time,
     pct = Positive_Prob,
     print_results = True
 )
 
 
-# In[128]:
+# In[12]:
+
+
+Optimized_Results['running_ret']
+
+
+# In[13]:
 
 
 pos_prob = Optimized_Results['pp']/100
@@ -357,7 +369,7 @@ SQQQ_Current_Price = api.get_last_trade('SQQQ').price;
 S_Buy_Quantity = np.floor(Buying_Power/SQQQ_Current_Price);
 
 if datetime.now().hour >= 16 & datetime.now().hour < 18:
-## Checking Probability Conditions
+    ## Checking Probability Conditions
     if pos_prob > Positive_Prob:
         if 'SQQQ' in list(Current_Holdings.columns):
             print("Closing SQQQ Position")
@@ -423,7 +435,7 @@ if datetime.now().hour >= 16 & datetime.now().hour < 18:
                     side = 'sell',
                     Account = Account
                 )
-elif datetime.now().hour >= 9 & datetime.now().hour < 16:
+elif datetime.now().hour < 16 & Sell_Time == 'open':
     print("Closing Any Current Holdings") 
     ## Closing Any Open Investments
     if 'TQQQ' in list(Current_Holdings.columns):

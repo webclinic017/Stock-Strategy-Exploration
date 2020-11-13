@@ -25,34 +25,35 @@ def Bayesian_Leveraged(
     Bear_Data = Stock_Consolidator(Combined_Data.query('stock == @bear'))
 
     ## Creating Model Dataframes
-    X = Combined_Index_Data.loc[Combined_Index_Data.stock == Index,['RSI','MACD','AD','Running_Up','Running_Down','close_diff']]
+    X = Combined_Index_Data.loc[Combined_Index_Data.stock == Index,['RSI','MACD','AD','Running_Up','Running_Down','close_diff','open_pclose_diff']]
     X = X. \
         assign(MACD_Delta = X.MACD - X.MACD.shift(1)). \
         assign(RSI_Delta = X.RSI - X.RSI.shift(1)). \
         query('RSI > 0 & RSI_Delta == RSI_Delta')
+    
     ## Adding in VIX Index Changes
     X.index = X.index.date
-    VIX_Add = Combined_Index_Data.loc[Combined_Index_Data.stock == "^VIX",['close','close_diff']]
-    VIX_Add.columns = ['VIX_Close','VIX_Diff']
-    X.join(VIX_Add)
-
+    VIX_Add = Combined_Index_Data.loc[Combined_Index_Data.stock == "^VIX",['close','close_diff','open_pclose_diff']]
+    VIX_Add.columns = ['VIX_Close','VIX_Diff','VIX_ODiff']
+    X = X.join(VIX_Add)
     
-    Bull_Data = Bull_Data.tail(len(X.index))
-    Bear_Data = Bear_Data.tail(len(X.index))
+    ## Making Sure Stock Dates Are Correctly Aligned
+    Bull_Data.index = Bull_Data.index.date
+    Bull_Data = Bull_Data.loc[X.index]
+    Bear_Data.index = Bear_Data.index.date
+    Bear_Data = Bear_Data.loc[X.index]
+    
+    ## Defining Target 
     if open_close == "close":
         y1 = list(Bull_Data.close_diff.shift(-1) > 0)
         ## Creating Returns Vectors
         Bull_Change = (Bull_Data.close.shift(-1) - Bull_Data.close)/Bull_Data.close
-        Bull_Change = Bull_Change.tail(len(y1))
         Bear_Change = (Bear_Data.close.shift(-1) - Bear_Data.close)/Bear_Data.close
-        Bear_Change = Bear_Change.tail(len(y1))
     elif open_close == "open":
         y1 = list(Bull_Data.open_pclose_diff.shift(-1) > 0)
         ## Creating Returns Vectors
         Bull_Change = (Bull_Data.open.shift(-1) - Bull_Data.close)/Bull_Data.close
-        Bull_Change = Bull_Change.tail(len(y1))
         Bear_Change = (Bear_Data.open.shift(-1) - Bear_Data.close)/Bear_Data.close
-        Bear_Change = Bear_Change.tail(len(y1))
     
     ## Defining Initial Learning Interval
     learning = len(y1) - test_window
@@ -69,6 +70,8 @@ def Bayesian_Leveraged(
     num_trades = 0
     max_drawdown = 0
     ret = 1 
+    Running_Return = []; Running_Date = []; Running_Prob = []; Running_Mult = [];
+    
     
     ## Looping Through Test Window (-2)
     for i in range(learning+2,len(y1)):
@@ -96,22 +99,28 @@ def Bayesian_Leveraged(
         # Updatng Return
         if not math.isnan(mult):
             ret = ret * mult
+            Running_Return.append(ret)
+            Running_Date.append(X.index[i])
+            Running_Prob.append(np.round(prob1,2))
+            Running_Mult.append(mult - 1)
             
         # Updating max drawdown
-        if 1 - ret > max_drawdown:
-            max_drawdown = 1 - ret
+        if mult - 1 < max_drawdown:
+            max_drawdown = mult - 1
 
     if print_results:
-        print("\nCumulative Return @ Learning Period of",learning,":",np.round(ret,2))
-        print("Min Index +- Prob:",pct*100)
-        print("Period Evaluated:",test_window-2)
+        print("\nCumulative Retur:",np.round(ret - 1,2))
         print("Max Drawdown:",np.round(max_drawdown,2))
+        print("Period Evaluated:",test_window-2)
         print("Number of Trades:",num_trades)
+        print("Min Index +- Prob:",pct*100)
         print("Prob of +ve Index Movement:",np.round(prob1[0][1]*100))
-        print("Selling @ Market",open_close)
+        print("Selling @ Market:",open_close)
+        print("Decision Date:",X.index[i])
     return {
         'ret':np.round(ret,3),
         'dd':np.round(max_drawdown,3),
         'nt':num_trades,
-        'pp':np.round(prob1[0][1]*100)
+        'pp':np.round(prob1[0][1]*100),
+        'running_ret':pd.DataFrame({'Date':Running_Date,'Return':Running_Return,'Prob':Running_Prob,'change':Running_Mult})
     }

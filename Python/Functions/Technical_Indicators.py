@@ -29,7 +29,8 @@ def RSI(x,Period = 14):
         rsi_value[i+1] = 100 - (100/(1 + (pos/neg)))
     return list(rsi_value)
 
-def sharpe(returns, rf, days=252):
+def sharpe(returns, rf = 0.02, days=252):
+    rf =  ((1+rf/100)**(1/days)-1)
     volatility = returns.std() * np.sqrt(days)
     sharpe_ratio = (returns.mean() - rf) / volatility
     return sharpe_ratio
