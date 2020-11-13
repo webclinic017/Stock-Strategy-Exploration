@@ -35,7 +35,8 @@ def Bayesian_Leveraged(
     X.index = X.index.date
     VIX_Add = Combined_Index_Data.loc[Combined_Index_Data.stock == "^VIX",['close','close_diff','open_pclose_diff']]
     VIX_Add.columns = ['VIX_Close','VIX_Diff','VIX_ODiff']
-    X = X.join(VIX_Add)
+    X = X.join(VIX_Add). \
+        sort_index()
     
     ## Making Sure Stock Dates Are Correctly Aligned
     Bull_Data.index = Bull_Data.index.date
@@ -85,11 +86,15 @@ def Bayesian_Leveraged(
         # Prob of +ve TQQQ Movement
         if prob1[0][1] > pct:
             mult = 1 + Bull_Change[i]
+            if mult > 1.5 or mult < 0.5:
+                mult = 1
             num_trades += 1
 
         # Prob of -ve TQQQ Movement
         elif prob1[0][0] > pct:
             mult = 1 + Bear_Change[i]
+            if mult > 1.5 or mult < 0.5:
+                mult = 1
             num_trades += 1
 
         # Skip Investing For Today
@@ -109,7 +114,7 @@ def Bayesian_Leveraged(
             max_drawdown = mult - 1
 
     if print_results:
-        print("\nCumulative Retur:",np.round(ret - 1,2))
+        print("\nCumulative Return:",np.round(ret - 1,2))
         print("Max Drawdown:",np.round(max_drawdown,2))
         print("Period Evaluated:",test_window-2)
         print("Number of Trades:",num_trades)

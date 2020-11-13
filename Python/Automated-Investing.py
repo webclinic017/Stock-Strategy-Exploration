@@ -56,7 +56,7 @@ leveraged_etfs = ['TQQQ','SQQQ','SPXU','UPRO','UDOW','SDOW']
 Account = "app"
 
 
-# In[4]:
+# In[12]:
 
 
 ## Installing Required Packages
@@ -101,7 +101,8 @@ def years_listed(d1):
     return abs((d2 - d1).days/365)
 
 max_investment = Get_Equity(Account)*0.2
-max_investment
+print("Current Hour:",datetime.now().hour)
+print("Max_Investment:",max_investment)
 
 
 # ### Historical Data Pull
@@ -196,10 +197,11 @@ Combined_Data = Combined_Data[pd.notnull(Combined_Data['industry'])]
 pickle.dump(Combined_Data, open(Project_Folder + "Data//Historical_Data.p" , "wb" ) )
 
 
-# In[6]:
+# In[8]:
 
 
-Indexes = ["^VIX","^GSPC","^NDX","^DJI"]
+Indexes = ["^GSPC","^NDX","^DJI","^W5000",   # Major Indicies
+           "^VXN","^VIX"]                    # Volatility Indicies
 Index_Data = defaultdict(pd.DataFrame)
 
 for ind in Indexes:
@@ -223,13 +225,7 @@ else:
     Combined_Index_Data = Combined_Index_Data[(datetime.now() - timedelta(days = N_DAYS_AGO)).strftime("%Y-%m-%d"):datetime.now().strftime("%Y-%m-%d")]
 
 
-# In[7]:
-
-
-Combined_Index_Data
-
-
-# In[8]:
+# In[9]:
 
 
 ## Loading Stored Data
@@ -252,7 +248,7 @@ Total_Market = Total_Market.loc[Total_Market.RSI > 0,:]
 Total_Market.tail(10)
 
 
-# In[9]:
+# In[10]:
 
 
 Plot_Data = Total_Market
@@ -288,16 +284,16 @@ axs[2].set(
 fig.set_size_inches(16,9)
 
 
-# In[10]:
+# In[13]:
 
 
 print("Running Bayesian Parameter Optimization")
 
 ## Inititalizing Storage Lists
-Return = []; DD = []; nt = []; p = []; oc = [];
+Return = []; DD = []; nt = []; p = []; oc = []; sr = [];
 
 ## Defining Search Area
-pcts = np.arange(0.50,0.95,0.05)
+pcts = np.arange(0.50,0.95,0.01)
 sell = ['open','close']
 
 ## Running Brute Force Search
@@ -317,13 +313,18 @@ for pct in tqdm(pcts):
             nt.append(Results['nt'])
             p.append(pct)
             oc.append(time)
+            sr.append(sharpe(Results['running_ret'].change))
+
+
+# In[15]:
+
 
 ## Combining Results
-Bayes_Results = pd.DataFrame({'+- Bull %':p,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt,'Sell Time':oc}).     query('`Cumulative Return` > 1').     assign(Decider = lambda x: (x['Cumulative Return'] + x['Max Drawdown'])).     sort_values('Decider',ascending=False)
+Bayes_Results = pd.DataFrame({'+- Bull %':p,'Cumulative Return':Return,'Max Drawdown':DD,'# Trades':nt,'Sell Time':oc,'Sharpe Ratio':sr}).     query('`Cumulative Return` > 1').     sort_values(['Sharpe Ratio','+- Bull %'],ascending=False)
 Bayes_Results.head(10)    
 
 
-# In[11]:
+# In[16]:
 
 
 Positive_Prob = np.round(float(Bayes_Results['+- Bull %'].head(1)),2)
@@ -339,7 +340,7 @@ Optimized_Results = Bayesian_Leveraged(
 )
 
 
-# In[12]:
+# In[17]:
 
 
 Optimized_Results['running_ret']
@@ -368,7 +369,7 @@ T_Buy_Quantity = np.floor(Buying_Power/TQQQ_Current_Price);
 SQQQ_Current_Price = api.get_last_trade('SQQQ').price; 
 S_Buy_Quantity = np.floor(Buying_Power/SQQQ_Current_Price);
 
-if datetime.now().hour >= 16 & datetime.now().hour < 18:
+if datetime.now().hour >= 16 and datetime.now().hour < 18:
     ## Checking Probability Conditions
     if pos_prob > Positive_Prob:
         if 'SQQQ' in list(Current_Holdings.columns):
@@ -435,7 +436,7 @@ if datetime.now().hour >= 16 & datetime.now().hour < 18:
                     side = 'sell',
                     Account = Account
                 )
-elif datetime.now().hour < 16 & Sell_Time == 'open':
+elif datetime.now().hour < 16 and Sell_Time == 'open':
     print("Closing Any Current Holdings") 
     ## Closing Any Open Investments
     if 'TQQQ' in list(Current_Holdings.columns):
